@@ -283,59 +283,6 @@ public class ReplicationFactorTests
     }
 
     @Test
-    public void testKryoSerializationRoundTripWithTransientReplicas() throws Exception
-    {
-        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "3/1",
-        "datacenter2", "3"));
-
-        Kryo kryo = new Kryo();
-        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
-
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (Output out = new Output(bytes))
-        {
-            kryo.writeObject(out, original);
-        }
-        ReplicationFactor deserialized;
-        try (Input in = new Input(new ByteArrayInputStream(bytes.toByteArray())))
-        {
-            deserialized = kryo.readObject(in, ReplicationFactor.class);
-        }
-
-        assertThat(deserialized).isEqualTo(original);
-        assertThat(deserialized.getTotalReplicationFactor()).isEqualTo(6);
-        assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
-        assertThat(deserialized.getTransientReplicas("datacenter1")).isEqualTo(1);
-        assertThat(deserialized.getTransientReplicas("datacenter2")).isEqualTo(0);
-    }
-
-    @Test
-    public void testJdkSerializationRoundTripWithTransientReplicas() throws Exception
-    {
-        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "3/1",
-        "datacenter2", "3"));
-
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
-        {
-            out.writeObject(original);
-        }
-        ReplicationFactor deserialized;
-        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
-        {
-            deserialized = (ReplicationFactor) in.readObject();
-        }
-
-        assertThat(deserialized).isEqualTo(original);
-        assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
-        assertThat(deserialized.getTransientReplicas("datacenter1")).isEqualTo(1);
-    }
-
-    @Test
     public void testUnparseableValueIsRejected()
     {
         assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
@@ -439,10 +386,40 @@ public class ReplicationFactorTests
         assertThat(deserialized.getTotalReplicationFactor()).isEqualTo(6);
         assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
         assertThat(deserialized.getTransientReplicationFactor()).isEqualTo(1);
+        assertThat(deserialized.getTransientReplicas("datacenter1")).isEqualTo(1);
         assertThat(deserialized.hasTransientReplicas()).isTrue();
         assertThat(deserialized.getOptions()).containsOnlyKeys("datacenter1", "datacenter2");
         assertThat(deserialized.getTransientOptions()).containsOnlyKeys("datacenter1");
         assertThat(deserialized).isEqualTo(original);
+    }
+
+    @Test
+    public void testKryoRejectsUnknownSerializationFormatVersion()
+    {
+        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1"));
+
+        Kryo kryo = new Kryo();
+        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (Output out = new Output(bytes))
+        {
+            kryo.writeObject(out, original);
+        }
+
+        // Corrupt the leading format-version byte. Without the version marker an older stream would not fail
+        // here at all - the reader would consume the next datacenter's string-length byte as a transient count
+        // and silently return wrong replication factors.
+        byte[] raw = bytes.toByteArray();
+        raw[0] = (byte) (raw[0] + 1);
+
+        try (Input in = new Input(new ByteArrayInputStream(raw)))
+        {
+            assertThatThrownBy(() -> kryo.readObject(in, ReplicationFactor.class))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Unsupported ReplicationFactor Kryo serialization format version");
+        }
     }
 
     @Test
@@ -466,8 +443,11 @@ public class ReplicationFactorTests
             deserialized = kryo.readObject(in, ReplicationFactor.class);
         }
 
+        assertThat(deserialized).isEqualTo(original);
         assertThat(deserialized.getTotalReplicationFactor()).isEqualTo(6);
         assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(deserialized.getTransientReplicas("datacenter1")).isEqualTo(1);
+        assertThat(deserialized.getTransientReplicas("datacenter2")).isEqualTo(0);
         assertThat(deserialized.getOptions()).containsOnlyKeys("datacenter1", "datacenter2");
         assertThat(deserialized.getTransientOptions()).containsOnlyKeys("datacenter1");
     }

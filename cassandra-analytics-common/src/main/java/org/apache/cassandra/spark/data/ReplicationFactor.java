@@ -216,6 +216,31 @@ public class ReplicationFactor implements Serializable
     }
 
     /**
+     * Builds counts for one datacenter, adding the datacenter name to any validation failure.
+     * <p>
+     * {@link ReplicaCounts} is a plain value type and deliberately knows nothing about datacenters, so naming the
+     * datacenter is the caller's job - see the discussion on CASSANALYTICS-194.
+     *
+     * @param datacenter        datacenter the counts belong to, used only to describe a failure
+     * @param allReplicas       total replicas
+     * @param transientReplicas transient (witness) replicas
+     * @return validated counts
+     * @throws IllegalArgumentException when the counts are inconsistent, naming the datacenter
+     */
+    private static ReplicaCounts countsFor(String datacenter, int allReplicas, int transientReplicas)
+    {
+        try
+        {
+            return ReplicaCounts.of(allReplicas, transientReplicas);
+        }
+        catch (IllegalArgumentException exception)
+        {
+            throw new IllegalArgumentException(
+            String.format("%s for datacenter %s", exception.getMessage(), datacenter), exception);
+        }
+    }
+
+    /**
      * Resolves separate total and transient maps to per-datacenter counts, rejecting a transient entry for a
      * datacenter that has no replication factor.
      */
@@ -226,8 +251,8 @@ public class ReplicationFactor implements Serializable
         options.forEach((datacenter, allReplicas) -> {
             if (!"class".equals(datacenter))
             {
-                merged.put(datacenter,
-                           ReplicaCounts.of(datacenter, allReplicas, transientOptions.getOrDefault(datacenter, 0)));
+                merged.put(datacenter, countsFor(datacenter, allReplicas,
+                                                transientOptions.getOrDefault(datacenter, 0)));
             }
         });
         transientOptions.forEach((datacenter, transientReplicas) -> {
@@ -408,15 +433,16 @@ public class ReplicationFactor implements Serializable
         }
 
         /**
-         * @param datacenter        datacenter name, used only in error messages, may be {@code null}
          * @param allReplicas       total replicas
          * @param transientReplicas transient (witness) replicas
          * @return validated counts
-         * @throws IllegalArgumentException when the counts are inconsistent
+         * @throws IllegalArgumentException when the counts are inconsistent. The message describes the counts
+         *                                 only; callers that know which datacenter the counts came from are
+         *                                 responsible for adding that context.
          */
-        public static ReplicaCounts of(String datacenter, int allReplicas, int transientReplicas)
+        public static ReplicaCounts of(int allReplicas, int transientReplicas)
         {
-            validate(datacenter, allReplicas, transientReplicas);
+            validate(allReplicas, transientReplicas);
             return new ReplicaCounts(allReplicas, transientReplicas);
         }
 
@@ -478,24 +504,23 @@ public class ReplicationFactor implements Serializable
          * @param allReplicas       total replicas
          * @param transientReplicas transient (witness) replicas
          */
-        static void validate(String datacenter, int allReplicas, int transientReplicas)
+        static void validate(int allReplicas, int transientReplicas)
         {
-            String where = datacenter == null ? "" : String.format(" for datacenter %s", datacenter);
             if (allReplicas < 0)
             {
                 throw new IllegalArgumentException(String.format(
-                "Replication factor must be non-negative, found %d%s", allReplicas, where));
+                "Replication factor must be non-negative, found %d", allReplicas));
             }
             if (transientReplicas < 0)
             {
                 throw new IllegalArgumentException(String.format(
-                "Transient replicas must be non-negative, found %d%s", transientReplicas, where));
+                "Transient replicas must be non-negative, found %d", transientReplicas));
             }
             if (transientReplicas > 0 && transientReplicas >= allReplicas)
             {
                 throw new IllegalArgumentException(String.format(
-                "Transient replicas must be zero, or less than the total replication factor. For %d/%d%s",
-                allReplicas, transientReplicas, where));
+                "Transient replicas must be zero, or less than the total replication factor. For %d/%d",
+                allReplicas, transientReplicas));
             }
         }
 
@@ -530,9 +555,22 @@ public class ReplicationFactor implements Serializable
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<ReplicationFactor>
     {
+        /**
+         * Incremented whenever the Kryo format below changes. Version 1 added the per-datacenter transient
+         * (witness) replica count, taking each datacenter from one byte to two.
+         * <p>
+         * Without the marker an older stream is not merely rejected but silently misread: the reader would take
+         * the next datacenter's string-length byte as a transient count and desync for the rest of the stream,
+         * yielding wrong replication factors rather than an error. Kryo is the path Spark uses to ship this to
+         * executors, so it gets the same protection as the hand-rolled JDK format in
+         * {@link org.apache.cassandra.spark.data.partitioner.CassandraRing}.
+         */
+        private static final byte SERIALIZATION_FORMAT_VERSION = 1;
+
         @Override
         public void write(Kryo kryo, Output out, ReplicationFactor replicationFactor)
         {
+            out.writeByte(SERIALIZATION_FORMAT_VERSION);
             out.writeByte(replicationFactor.replicationStrategy.value);
             out.writeByte(replicationFactor.replication.size());
             for (Map.Entry<String, ReplicaCounts> entry : replicationFactor.replication.entrySet())
@@ -546,6 +584,13 @@ public class ReplicationFactor implements Serializable
         @Override
         public ReplicationFactor read(Kryo kryo, Input in, Class<ReplicationFactor> type)
         {
+            byte formatVersion = in.readByte();
+            if (formatVersion != SERIALIZATION_FORMAT_VERSION)
+            {
+                throw new IllegalStateException(String.format(
+                "Unsupported ReplicationFactor Kryo serialization format version %d, expected %d",
+                formatVersion, SERIALIZATION_FORMAT_VERSION));
+            }
             ReplicationStrategy strategy = ReplicationStrategy.valueOf(in.readByte());
             int numDatacenters = in.readByte();
             Map<String, ReplicaCounts> replication = new LinkedHashMap<>(numDatacenters);
@@ -554,7 +599,7 @@ public class ReplicationFactor implements Serializable
                 String name = in.readString();
                 int allReplicas = in.readByte();
                 int transientReplicas = in.readByte();
-                replication.put(name, ReplicaCounts.of(name, allReplicas, transientReplicas));
+                replication.put(name, countsFor(name, allReplicas, transientReplicas));
             }
             return new ReplicationFactor(strategy, replication, replication);
         }
