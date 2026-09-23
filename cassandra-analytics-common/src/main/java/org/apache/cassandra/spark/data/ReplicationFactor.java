@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.data;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 

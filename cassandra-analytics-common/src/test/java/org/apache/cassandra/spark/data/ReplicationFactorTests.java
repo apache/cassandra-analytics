@@ -23,7 +23,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -313,7 +312,8 @@ public class ReplicationFactorTests
     }
 
     @Test
-    public void testJdkSerializationRoundTripWithTransientReplicas() throws Exception    {
+    public void testJdkSerializationRoundTripWithTransientReplicas() throws Exception
+    {
         ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
         "class", "NetworkTopologyStrategy",
         "datacenter1", "3/1",

@@ -518,7 +518,7 @@ public class CassandraRingTests
         // Locate the format-version byte deterministically: the format is
         // [version][partitioner] then writeUTF(keyspace), so it sits two bytes before the "test" UTF header
         byte[] raw = bytes.toByteArray();
-        byte[] keyspaceUtf = new byte[]{ 0, 4, 't', 'e', 's', 't' };
+        byte[] keyspaceUtf = new byte[]{0, 4, 't', 'e', 's', 't'};
         int keyspaceIndex = indexOf(raw, keyspaceUtf);
         assertThat(keyspaceIndex).as("keyspace UTF header should be locatable").isGreaterThan(1);
         int versionIndex = keyspaceIndex - 2;
