@@ -54,6 +54,7 @@ dependencies {
     // cassandra60Version points to a commit from cep-45 branch rather than a Maven Central release, because the
     // SSTables this bridge writes have to be readable by the cluster under test. When that version cannot be resolved,
     // run scripts/build-dependencies.sh (or scripts/install-cassandra-all-local.sh) to build and install it - see gradle.properties.
+    // JIRA https://issues.apache.org/jira/browse/CASSANDRA-21722
     implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: "$cassandra60Version") {
         // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
         // and trying to load two different versions causes issues with the native libraries
