@@ -60,7 +60,7 @@ import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrat
  * <p>
  * Token ranges are either supplied by Cassandra, or calculated locally. The local calculation assumes Cassandra racks
  * are not being used, but controlled by assigning tokens properly. Callers that cannot rely on that assumption, such
- * as the bulk reader for a mutation tracked keyspace, supply the ranges instead - see
+ * as the bulk reader for a keyspace with witness replicas, supply the ranges instead - see
  * {@link #CassandraRing(Partitioner, String, ReplicationFactor, Collection, Map)}.
  * <p>
  * {@link #equals(Object)} and {@link #hashCode()} don't take {@link #replicas} and {@link #tokenRangeMap}

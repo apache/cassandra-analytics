@@ -81,7 +81,7 @@ class CassandraDataLayerTests
         assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedClearSnapshotStrategy.ttl());
     }
 
-    // Sourcing token ranges from Cassandra, used for mutation tracked keyspaces where the locally derived
+    // Sourcing token ranges from Cassandra, used for keyspaces with witness replicas where the locally derived
     // ranges cannot identify which instance replicates which range
 
     private static final String KS = "big-data";

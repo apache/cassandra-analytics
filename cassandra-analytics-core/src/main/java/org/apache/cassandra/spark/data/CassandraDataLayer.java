@@ -331,16 +331,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
-        // Mutation tracked keyspaces may replicate a range to a witness that holds no data, so the range to replica
-        // mapping must come from Cassandra rather than being derived locally. See
-        // createCassandraRingFromTokenRangeReplicas.
-        String replicationType = CqlUtils.extractReplicationType(fullSchema, keyspace);
-        boolean tracked = bridge().isTracked(replicationType);
+        // A keyspace with transient replicas may replicate a range to a witness that holds no data, so the range to
+        // replica mapping must come from Cassandra rather than being derived locally. Gated on transient replicas
+        // rather than replication_type = 'tracked': Cassandra requires mutation tracking for transient replicas, so
+        // this covers every witness keyspace, while a tracked keyspace without witnesses may run on vnodes, which
+        // this path cannot represent. See createCassandraRingFromTokenRangeReplicas.
+        boolean hasWitnesses = replicationFactor.hasTransientReplicas();
         CassandraRing ring;
-        if (tracked || options.forceCassandraTokenRanges())
+        if (hasWitnesses || options.forceCassandraTokenRanges())
         {
-            LOGGER.info("Sourcing token ranges from Cassandra keyspace={} replicationType={} forced={}",
-                        keyspace, replicationType, options.forceCassandraTokenRanges());
+            LOGGER.info("Sourcing token ranges from Cassandra keyspace={} transientReplicas={} forced={}",
+                        keyspace, hasWitnesses, options.forceCassandraTokenRanges());
             TokenRangeReplicasResponse topology = sidecar.tokenRangeReplicas(new ArrayList<>(clusterConfig),
                                                                             maybeQuotedKeyspace).get();
             ring = createCassandraRingFromTokenRangeReplicas(partitioner, replicationFactor, ringFuture.get(), topology);
@@ -806,8 +807,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     /**
      * Builds the ring using the token ranges Cassandra reports, rather than deriving them from tokens and the
      * replication factor. The local derivation assumes racks are not in use, whereas Cassandra's replica assignment
-     * is rack aware, so for mutation tracked keyspaces - where a replica may be a witness holding no data - the
-     * derived ranges cannot be relied on to identify which instance replicates which range.
+     * is rack aware, so for keyspaces with transient replicas - where a replica may be a witness holding no data -
+     * the derived ranges cannot be relied on to identify which instance replicates which range.
      * <p>
      * Node discovery still comes from the ring response, so snapshot creation, sizing and the Sidecar client pool
      * are unaffected. Only the range to replica mapping is taken from Cassandra.
@@ -837,8 +838,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             CassandraInstance previous = instanceByNodeName.put(instance.nodeName(), instance);
             if (previous != null && !previous.equals(instance))
             {
-                // A node owning several tokens cannot be represented as a single CassandraInstance. Mutation
-                // tracking requires num_tokens=1, so this should not happen on a tracked keyspace's cluster
+                // A node owning several tokens cannot be represented as a single CassandraInstance. Cassandra
+                // rejects transient replicas when num_tokens > 1, so this is only reachable when the path is forced
                 throw new IllegalStateException(String.format(
                 "Node %s owns multiple tokens (%s and %s). Sourcing token ranges from Cassandra requires "
                 + "single-token nodes.", instance.nodeName(), previous.token(), instance.token()));

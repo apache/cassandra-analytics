@@ -57,9 +57,9 @@ public class ClientConfig
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
     /**
      * Forces token ranges to be sourced from Cassandra via the token-range-replicas endpoint even for keyspaces
-     * that are not mutation tracked. Normally this happens only for tracked keyspaces. Exists so the code path can
-     * be exercised against ordinary clusters, which is the only coverage available until Cassandra 6.0 bridge
-     * modules land and tracked keyspaces can be created in integration tests.
+     * without witness replicas. Normally this happens only for keyspaces with transient replicas. Exists so the code
+     * path can be exercised against ordinary clusters, which is the only coverage available until witness keyspaces
+     * can be created in integration tests.
      * <p>
      * Set as {@code forcecassandratokenranges}; Spark lowercases option keys.
      */
@@ -216,7 +216,7 @@ public class ClientConfig
     }
 
     /**
-     * @return {@code true} to source token ranges from Cassandra regardless of whether the keyspace is tracked
+     * @return {@code true} to source token ranges from Cassandra regardless of whether the keyspace has witnesses
      */
     public boolean forceCassandraTokenRanges()
     {

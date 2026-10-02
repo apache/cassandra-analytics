@@ -42,9 +42,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests bulk reads that source token ranges from Cassandra via the token-range-replicas endpoint, rather than
  * deriving them locally from tokens and the replication factor.
  * <p>
- * Mutation tracked keyspaces take that path automatically, because a range may be replicated to a witness holding
- * no data and the local derivation cannot say which instance replicates which range. Tracked keyspaces cannot be
- * created until Cassandra 6.0 bridge modules land (CASSANALYTICS-192), so these tests use the
+ * Keyspaces with transient replicas take that path automatically, because a range may be replicated to a witness
+ * holding no data and the local derivation cannot say which instance replicates which range. Witness keyspaces
+ * cannot yet be created in these tests, so they use the
  * {@code forcecassandratokenranges} option to exercise the same path against an ordinary keyspace.
  * <p>
  * Reads must return exactly the same data either way, so each test asserts the full dataset rather than only a row
