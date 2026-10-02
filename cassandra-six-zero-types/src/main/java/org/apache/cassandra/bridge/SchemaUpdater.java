@@ -60,16 +60,19 @@ public class SchemaUpdater
     }
 
     /**
-     * Creates a keyspace instance for every keyspace of the current cluster metadata. Use this only when a
-     * keyspace has metadata but no instance, which happens when code outside this class commits it; Cassandra
-     * 6.0's {@code Keyspace.openWithoutSSTables} only reads the instance and no longer creates it.
+     * Creates the instance for a single keyspace, leaving every other keyspace's instance untouched. Needed when a
+     * keyspace has metadata but no instance. Cassandra 6.0's {@code Keyspace.openWithoutSSTables} only reads the
+     * instance rather than creating it.
      *
-     * <p>Passing an empty previous schema replaces every existing instance, dropping the column family stores
-     * it held, so prefer {@link #submit}, which keeps the instances of each commit.
+     * <p>Targeting one keyspace avoids rebuilding all of them, which re-registers metrics and can throw
+     * stack-trace-filling exceptions. A bulk job builds schema once per keyspace, so this only shows up in tests that
+     * open many distinct keyspaces in one JVM.
      */
-    public static void openKeyspaceInstances()
+    public static void openKeyspaceInstance(String keyspaceName)
     {
-        ClusterMetadata.current().schema.initializeKeyspaceInstances(DistributedSchema.empty(), false);
+        DistributedSchema current = ClusterMetadata.current().schema;
+        DistributedSchema before = new DistributedSchema(current.getKeyspaces().without(keyspaceName));
+        current.initializeKeyspaceInstances(before, false);
     }
 
     public static void load(SchemaProvider schema, KeyspaceMetadata keyspaceMetadata)
@@ -90,18 +93,16 @@ public class SchemaUpdater
     /**
      * Replaces the metadata of an existing keyspace with metadata that holds fewer tables.
      *
-     * <p>Cassandra 4.0's {@code Schema.load} added or reloaded, whereas {@link SchemaTransformations#addKeyspace}
-     * only adds and otherwise throws {@code AlreadyExistsException}, so a caller that means to replace needs a
-     * transformation of its own. {@link #submit} is also the wrong follow-up here: it reports the table in
-     * {@code Keyspaces.diff().altered}, which makes {@code DistributedSchema.initializeKeyspaceInstances} call
-     * {@code Keyspace.dropCf} and so initialize {@code CompactionManager}, which throws in client mode where
-     * concurrent_compactors is zero. Rebuild the instances from the committed metadata instead, which leaves the
-     * removed table without a column family store and touches no compaction machinery.
+     * <p>{@link SchemaTransformations#addKeyspace} only adds, throwing {@code AlreadyExistsException} otherwise, so
+     * replacing needs its own transformation. {@link #submit} is also wrong here: it reports the table as altered,
+     * which calls {@code Keyspace.dropCf} and initializes {@code CompactionManager}, throwing in client mode where
+     * concurrent_compactors is zero. {@link #openKeyspaceInstance} reports the keyspace as created instead, leaving
+     * the removed table without a column family store and touching no compaction machinery.
      */
     public static void removeTables(SchemaProvider schema, KeyspaceMetadata keyspaceMetadata)
     {
         schema.submit(replace(keyspaceMetadata));
-        openKeyspaceInstances();
+        openKeyspaceInstance(keyspaceMetadata.name);
     }
 
     public static void updateTable(SchemaProvider schema, KeyspaceMetadata keyspaceMetadata, TableMetadata tableMetadata)

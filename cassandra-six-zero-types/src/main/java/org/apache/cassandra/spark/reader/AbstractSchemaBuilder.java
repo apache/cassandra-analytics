@@ -365,7 +365,7 @@ public abstract class AbstractSchemaBuilder
                         keyspaceName, replicationFactor.getReplicationStrategy().name(), partitioner);
             // Create keyspace instance and also initCf (cfs) for the table. Cassandra 6.0 holds the keyspace
             // instances in the cluster metadata, which Keyspace.openWithoutSSTables only reads.
-            SchemaUpdater.openKeyspaceInstances();
+            SchemaUpdater.openKeyspaceInstance(keyspaceName);
         }
     }
 
@@ -417,8 +417,8 @@ public abstract class AbstractSchemaBuilder
             else
             {
                 // The keyspace has not yet opened, create/open keyspace instance and also initCf (cfs) for the
-                // table. See SchemaUpdater.openKeyspaceInstances.
-                SchemaUpdater.openKeyspaceInstances();
+                // table. See SchemaUpdater.openKeyspaceInstance.
+                SchemaUpdater.openKeyspaceInstance(keyspaceName);
             }
         }
 
