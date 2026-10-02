@@ -22,14 +22,12 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,7 +59,6 @@ public abstract class StreamSession<T extends TransportContext>
     protected final SortedSSTableWriter sstableWriter;
     protected final ExecutorService executorService;
 
-    private final Set<Path> streamedFiles = ConcurrentHashMap.newKeySet();
     private final AtomicReference<Exception> lastStreamFailure = new AtomicReference<>();
     private volatile boolean isStreamFinalized = false;
 
@@ -162,16 +159,6 @@ public abstract class StreamSession<T extends TransportContext>
     protected boolean setLastStreamFailure(Exception streamFailure)
     {
         return lastStreamFailure.compareAndSet(null, streamFailure);
-    }
-
-    protected void recordStreamedFile(Path file)
-    {
-        streamedFiles.add(file);
-    }
-
-    protected boolean isFileStreamed(Path file)
-    {
-        return streamedFiles.contains(file);
     }
 
     @VisibleForTesting

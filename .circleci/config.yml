@@ -173,6 +173,9 @@ jobs:
             JDK_VERSION: "11"
             SPARK_VERSION: "3"
             SCALA_VERSION: "2.12"
+            # No downstream job of this one tests Cassandra 6.0, so skip its dtest jar build
+            # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
+            BRANCHES: "cassandra-4.0 cassandra-4.1 cassandra-5.0"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
@@ -201,7 +204,8 @@ jobs:
             SCALA_VERSION: "2.13"
             # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
             # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
-            BRANCHES: "cassandra-5.0"
+            # Only the Spark 4 matrix tests Cassandra 6.0, so its dtest jar is built here and nowhere else.
+            BRANCHES: "cassandra-5.0 cassandra-6.0"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
@@ -351,6 +355,20 @@ workflows:
               sstable_format: ["bti"]
               cassandra: ["5.0"]
 
+      # Cassandra 6.0 on Spark 4 / Scala 2.13 / JDK 17 + BTI sstable format.
+      # Cassandra 6.0 needs JDK17 or later, so it has no JDK11 job.
+      - unit:
+          requires:
+            - build-deps-jdk17
+          matrix:
+            alias: unit-c6-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
+              sstable_format: ["bti"]
+              cassandra: ["6.0"]
+
       # ---- Integration tests ----
       # Cassandra 4.x: Scala 2.12, full patch versions for dtest jar lookup
       - int-test:
@@ -387,3 +405,16 @@ workflows:
               scala: ["2.13"]
               jdk: ["17"]
               cassandra: ["5.0.7"]
+
+      # Cassandra 6.0 on Spark 4 / Scala 2.13 / JDK 17.
+      # The value is the dtest jar version, which is the Cassandra base.version at the pinned tag.
+      - int-test:
+          requires:
+            - build-deps-jdk17
+          matrix:
+            alias: int-c6-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
+              cassandra: ["6.0-alpha2"]

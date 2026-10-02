@@ -70,6 +70,27 @@ SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew clean assemble -PartifactType=commo
 SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew assemble -PartifactType=spark
 ```
 
+## Publishing snapshots
+
+On every trunk commit that passes CI, GitHub Actions (`.github/workflows/publish-snapshot.yaml`)
+publishes a `SNAPSHOT` build to the ASF Nexus snapshot repository, so downstream projects (e.g.
+`cassandra-sidecar`) can build against analytics trunk without waiting on a formal release vote.
+
+To publish manually, e.g. for testing, run `scripts/publish-snapshot.sh` with:
+
+```shell
+ARTIFACT_TYPE=common SCALA_VERSION=2.13 SPARK_VERSION=3 JDK_VERSION=11 \
+MAVEN_USERNAME=<asf-username> MAVEN_PASSWORD=<asf-password> \
+./scripts/publish-snapshot.sh
+
+ARTIFACT_TYPE=spark SCALA_VERSION=2.13 SPARK_VERSION=3 JDK_VERSION=11 \
+MAVEN_USERNAME=<asf-username> MAVEN_PASSWORD=<asf-password> \
+./scripts/publish-snapshot.sh
+```
+
+The script refuses to run unless `gradle.properties`' `version` ends in `-SNAPSHOT`, and never
+signs artifacts, matching the SNAPSHOT-only signing behavior already built into `build.gradle`.
+
 ### Git hooks (optional)
 
 To enable git hooks, run the following command at project root. 
@@ -90,6 +111,36 @@ create a temporary alias for every node except the first:
  for i in {2..20}; do sudo ifconfig lo0 alias "127.0.0.${i}"; done
 ```
 
+### Host names
+
+A multi-node test passes `localhost2` through `localhost20` to the bulk reader as sidecar contact points, so each
+name must resolve.  `LocalhostResolver` maps the name inside Sidecar only; the Spark side uses the system resolver.
+Add an entry for every node except the first:
+
+```shell
+sudo bash -c 'for i in {2..20}; do echo "127.0.0.${i}  localhost${i}"; done >> /etc/hosts'
+```
+
+Without these entries an upstream DNS server can answer `localhost2` with a public address.  The bulk reader then
+connects to that address and the test fails with `java.net.ConnectException: Operation timed out` in
+`CassandraDataLayer.initialize`.
+
+### Topology-change tests skip on Cassandra 6.0
+
+Twenty-eight test classes under `expansion`, `shrink`, `replacement` and `movement` pause a topology change with a
+ByteBuddy hook, then run the bulk writer while the node is in the transitional state.  The hooks target
+`StorageService.bootstrap(Collection, long)`, `StorageService.unbootstrap()` and `RangeRelocator.stream()`.
+
+CEP-21 Transactional Cluster Metadata removed all three in Cassandra 6.0.  The work now belongs to
+`org.apache.cassandra.tcm.sequences`: `BootstrapAndJoin.bootstrap(...)` for a join, `BootstrapAndReplace` for a
+replacement, `UnbootstrapAndLeave.executeNext()` with `LeaveStreams` for a decommission, and `Move` for a token move.
+A hook that fails to install is silent, so each class waited two minutes for a latch that never counted down.
+
+`ResiliencyTestBase.assumeTopologyChangeHooksSupported()` now skips these classes on 6.0 and later.  The four base
+classes call it from `beforeClusterProvisioning()`.  Bulk write during a topology change is therefore untested on
+6.0.  To close the gap, retarget each hook at the sequence types named above, and keep the 4.0 and 5.0 targets for
+the older runs.
+
 ## IntelliJ
 
 The project is well-supported in IntelliJ.
@@ -107,3 +158,18 @@ Cassandra as a library, and correctly read sstable files. Significant part of co
 version. To minimise code duplication, Gradle build copies all source files from previous dependent module.
 If implementation of given component has to be updated, copy the file with the same name to a target module and
 modify its body.
+
+Each major version owns five modules.  The table shows the current set:
+
+| Cassandra | Shaded library      | Bridge                     | Types                     | Avro converter                      | Spark SQL converter                          |
+|-----------|---------------------|----------------------------|---------------------------|-------------------------------------|----------------------------------------------|
+| 4.0, 4.1  | `cassandra-four-zero` | `cassandra-four-zero-bridge` | `cassandra-four-zero-types` | `cassandra-four-zero-avro-converter` | `cassandra-analytics-spark-four-zero-converter` |
+| 5.0       | `cassandra-five-zero` | `cassandra-five-zero-bridge` | `cassandra-five-zero-types` | `cassandra-five-zero-avro-converter` | `cassandra-analytics-spark-five-zero-converter` |
+| 6.0       | `cassandra-six-zero`  | `cassandra-six-zero-bridge`  | `cassandra-six-zero-types`  | `cassandra-six-zero-avro-converter`  | `cassandra-analytics-spark-six-zero-converter`  |
+
+The copy-forward chain runs four-zero, then five-zero, then six-zero.  A six-zero module therefore inherits the
+compiled classes of both earlier majors, and Gradle never recompiles an inherited class.  A Cassandra API that
+changed between two majors is silent at build time and fails at runtime with `NoSuchMethodError`.  After you add a
+new major version, compile the union of the inherited sources against the new shaded jar and confirm that the
+resulting error set matches the error set that the previous major produces.  Every error the new version adds names
+a file you must copy forward and override.

@@ -1,0 +1,53 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id('java-library')
+}
+
+configurations {
+    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+    all*.exclude(group: 'log4j', module: 'log4j')
+    implCassV5
+}
+
+dependencies {
+    // base this module on the Cassandra 5.x types, whose jar already carries the 4.x classes forward
+    implCassV5 project(':cassandra-five-zero-types')
+    compileOnly project(':cassandra-five-zero-types')
+    compileOnly project(':cassandra-four-zero-types')
+    compileOnly "org.slf4j:slf4j-api:${slf4jApiVersion}"
+    compileOnly project(":cassandra-analytics-common")
+    compileOnly(project(path: ':cassandra-six-zero', configuration: 'shadow'))
+    compileOnly "com.esotericsoftware:kryo-shaded:${kryoVersion}"
+}
+
+jar {
+    archiveFileName = "six-zero-types.jar"
+    dependsOn ':cassandra-five-zero-types:build'
+    // copy classes from the V5 implementation and exclude duplicates that we override
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.implCassV5.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+test {
+    useJUnitPlatform()
+}

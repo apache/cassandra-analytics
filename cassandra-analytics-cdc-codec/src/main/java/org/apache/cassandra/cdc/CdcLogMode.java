@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.cdc;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -155,10 +156,17 @@ public enum CdcLogMode implements CdcLogger
 
     private static String columnToString(Value fieldValue)
     {
+        ByteBuffer value = fieldValue.getValue();
+        if (value == null)
+        {
+            // null value means the column is deleted; not a deserialization failure
+            return String.format("[%s : null]", fieldValue.columnName);
+        }
+
         try
         {
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(fieldValue.keyspace, fieldValue.columnType));
-            Object javaValue = type.deserializeToJavaType(fieldValue.getValue());
+            Object javaValue = type.deserializeToJavaType(value);
             return String.format("[%s : %s]", fieldValue.columnName, javaValue);
         }
         catch (Throwable t)
