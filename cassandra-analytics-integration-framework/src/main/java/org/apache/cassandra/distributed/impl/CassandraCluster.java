@@ -137,19 +137,18 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         clusterBuilder.withTokenSupplier(tokenSupplier)
                       .withConfig(instanceConfigUpdater);
 
-        if (dcCount > 1)
+        // An explicit supplier is always honoured, including for a single datacenter, so that a test can place
+        // nodes of one datacenter in different racks. The built-in default only makes sense for multiple datacenters.
+        if (configuration.dcAndRackSupplier != null)
         {
-            if (configuration.dcAndRackSupplier != null)
-            {
-                clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount, configuration.dcAndRackSupplier));
-            }
-            else
-            {
-                clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,
-                                                                  (nodeId) -> nodeId % 2 != 0 ?
-                                                                              dcAndRack("datacenter1", "rack1") :
-                                                                              dcAndRack("datacenter2", "rack2")));
-            }
+            clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount, configuration.dcAndRackSupplier));
+        }
+        else if (dcCount > 1)
+        {
+            clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,
+                                                              (nodeId) -> nodeId % 2 != 0 ?
+                                                                          dcAndRack("datacenter1", "rack1") :
+                                                                          dcAndRack("datacenter2", "rack2")));
         }
 
         if (configuration.instanceInitializer != null)
