@@ -17,9 +17,7 @@
  */
 
 
-if ("${project.rootProject.ext.sparkLabel}" == '3') {
-    archivesBaseName = "${archivesBaseName}_spark3"
-}
+archivesBaseName = "${archivesBaseName}_spark${project.rootProject.ext.sparkLabel}"
 archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
 
 apply from: "$rootDir/gradle/common/publishing-non-spark.gradle"

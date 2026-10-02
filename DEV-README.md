@@ -70,6 +70,27 @@ SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew clean assemble -PartifactType=commo
 SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew assemble -PartifactType=spark
 ```
 
+## Publishing snapshots
+
+On every trunk commit that passes CI, GitHub Actions (`.github/workflows/publish-snapshot.yaml`)
+publishes a `SNAPSHOT` build to the ASF Nexus snapshot repository, so downstream projects (e.g.
+`cassandra-sidecar`) can build against analytics trunk without waiting on a formal release vote.
+
+To publish manually, e.g. for testing, run `scripts/publish-snapshot.sh` with:
+
+```shell
+ARTIFACT_TYPE=common SCALA_VERSION=2.13 SPARK_VERSION=3 JDK_VERSION=11 \
+MAVEN_USERNAME=<asf-username> MAVEN_PASSWORD=<asf-password> \
+./scripts/publish-snapshot.sh
+
+ARTIFACT_TYPE=spark SCALA_VERSION=2.13 SPARK_VERSION=3 JDK_VERSION=11 \
+MAVEN_USERNAME=<asf-username> MAVEN_PASSWORD=<asf-password> \
+./scripts/publish-snapshot.sh
+```
+
+The script refuses to run unless `gradle.properties`' `version` ends in `-SNAPSHOT`, and never
+signs artifacts, matching the SNAPSHOT-only signing behavior already built into `build.gradle`.
+
 ### Git hooks (optional)
 
 To enable git hooks, run the following command at project root. 
