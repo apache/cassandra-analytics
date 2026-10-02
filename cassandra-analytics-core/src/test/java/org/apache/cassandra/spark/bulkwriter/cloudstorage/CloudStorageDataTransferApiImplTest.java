@@ -24,11 +24,15 @@ import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
+import o.a.c.sidecar.client.shaded.client.RequestContext;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 
@@ -36,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -104,6 +109,27 @@ class CloudStorageDataTransferApiImplTest
         api.abortRestoreJob();
 
         verify(sidecarClient).abortRestoreJob(eq(QUOTED_KEYSPACE), eq(QUOTED_TABLE), eq(JOB_ID));
+    }
+
+    @Test
+    void testRestoreSliceUsesQuotedIdentifiers() throws Exception
+    {
+        when(sidecarClient.requestBuilder()).thenReturn(new RequestContext.Builder());
+        when(sidecarClient.executeRequestAsync(any(RequestContext.class)))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        SidecarInstance instance = mock(SidecarInstance.class);
+        CreateSliceRequestPayload payload = mock(CreateSliceRequestPayload.class);
+
+        api.createRestoreSliceFromExecutor(instance, payload);
+        api.createRestoreSliceFromDriver(instance, payload).get();
+
+        ArgumentCaptor<RequestContext> requests = ArgumentCaptor.forClass(RequestContext.class);
+        verify(sidecarClient, times(2)).executeRequestAsync(requests.capture());
+        for (RequestContext request : requests.getAllValues())
+        {
+            assertThat(request.request().requestURI()).contains(QUOTED_KEYSPACE, QUOTED_TABLE, JOB_ID.toString());
+            assertThat(request.request().requestBody()).isSameAs(payload);
+        }
     }
 
     @Test
