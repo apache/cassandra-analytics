@@ -173,9 +173,10 @@ jobs:
             JDK_VERSION: "11"
             SPARK_VERSION: "3"
             SCALA_VERSION: "2.12"
-            # No downstream job of this one tests Cassandra 6.0, so skip its dtest jar build
+            # Even though no downstream job of this one tests Cassandra 6.0, we need to build the jar as six-zero
+            # module is also compiled
             # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
-            BRANCHES: "cassandra-4.0 cassandra-4.1 cassandra-5.0"
+            BRANCHES: "cassandra-4.0 cassandra-4.1 cassandra-5.0 cassandra-6.0"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
@@ -204,7 +205,6 @@ jobs:
             SCALA_VERSION: "2.13"
             # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
             # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
-            # Only the Spark 4 matrix tests Cassandra 6.0, so its dtest jar is built here and nowhere else.
             BRANCHES: "cassandra-5.0 cassandra-6.0"
           command: |
             ./scripts/build-dependencies.sh
