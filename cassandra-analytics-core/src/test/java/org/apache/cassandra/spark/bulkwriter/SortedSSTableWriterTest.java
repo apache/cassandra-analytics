@@ -146,7 +146,7 @@ public class SortedSSTableWriterTest
                 }
                 else
                 {
-                    assertThat(baseFileName).matches("ea-\\d+-bti");
+                    assertThat(baseFileName).matches("eb-\\d+-bti");
                 }
                 break;
             default:
