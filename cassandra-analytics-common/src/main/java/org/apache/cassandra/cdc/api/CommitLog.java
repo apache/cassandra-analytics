@@ -71,6 +71,10 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
                     case 9:
                         messagingVersion = 14;
                         break;
+                    case 10:
+                        // introduced with MT branch
+                        messagingVersion = 15;
+                        break;
                     default:
                         throw new IllegalStateException("Unknown commitlog version " + version);
                 }
