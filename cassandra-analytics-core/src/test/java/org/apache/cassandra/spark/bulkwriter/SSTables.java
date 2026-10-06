@@ -59,7 +59,9 @@ public final class SSTables
             .put("da", new CassandraVersionFeatures(50,  0, null))
             .put("oa", new CassandraVersionFeatures(50,  0, null))
             .put("ea", new CassandraVersionFeatures(60,  0, null))
+            .put("eb", new CassandraVersionFeatures(60,  0, null))
             .put("pa", new CassandraVersionFeatures(60,  0, null))
+            .put("pb", new CassandraVersionFeatures(60,  0, null))
             .build();
 
     private SSTables()
