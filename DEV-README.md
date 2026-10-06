@@ -50,6 +50,22 @@ SKIP_DTEST_JAR_BUILD=true SKIP_SIDECAR_BUILD=true ./scripts/build-dependencies.s
 Note that `build-dependencies.sh` attempts to pull the latest from branches specified in the `BRANCHES` environment
 variable for Cassandra dtest jars, and trunk for the sidecar.
 
+### Locally built `cassandra-all`
+
+For integration testing from a commit in Cassandra, a dtest jar built from the commit only replaces Cassandra on server 
+side, the tests run against; the read/write bridges are compiled against the `cassandra-all` artifacts named by 
+`cassandra40Version`/`cassandra50Version`/`cassandra60Version` in `gradle.properties`. When dtest jar is pinned to a commit 
+that changes for e.g. the SSTable format, the SSTables the bulk writer produces can no longer be imported into cluster under test. 
+
+`build-dtest-jars.sh` therefore also builds and installs `cassandra-all` for the branches listed in
+`CASSANDRA_ALL_BRANCHES` (`cassandra-6.0`), into the `dependencies` directory, using the version string
+from `gradle.properties`. Nothing is installed while that version matches the branch's own `base.version`, because the
+release on Maven Central is then the right artifact. To skip the extra build:
+
+```shell
+SKIP_CASSANDRA_ALL_BUILD=true ./scripts/build-dependencies.sh
+```
+
 ## Building
 
 Once you've built the dependencies, you're ready to build the analytics project.
