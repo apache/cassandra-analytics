@@ -139,14 +139,14 @@ public class SortedSSTableWriterTest
                 }
                 break;
             case 60:
-                // Format is "pa-<generation>-big" or "ea-<generation>-bti"
+                // Format is "pb-<generation>-big" or "eb-<generation>-bti" from MT branch
                 if ("big".equals(CassandraVersion.configuredSSTableFormat()))
                 {
-                    assertThat(baseFileName).matches("pa-\\d+-big");
+                    assertThat(baseFileName).matches("pb-\\d+-big");
                 }
                 else
                 {
-                    assertThat(baseFileName).matches("ea-\\d+-bti");
+                    assertThat(baseFileName).matches("eb-\\d+-bti");
                 }
                 break;
             default:

@@ -40,13 +40,14 @@ public class DbUtils
     }
 
     /**
-     * Cassandra 6.0 drops the {@code nowInSeconds} argument of {@code LivenessInfo.create}, which 5.0
-     * discarded. The parameter stays here so that callers are the same across bridge versions.
+     * Cassandra 6.0 drops the {@code nowInSeconds} argument of {@code LivenessInfo.create}, but the
+     * cep-45-mutation-tracking branch is yet to be updated with this change, so the two-argument form is still the only
+     * one on the classpath. Switch to {@code create(timestamp)} once the pin moves past that change.
      */
     @VisibleForTesting
     public static LivenessInfo livenessInfo(long timestamp, long nowInSeconds)
     {
-        return LivenessInfo.create(timestamp);
+        return LivenessInfo.create(timestamp, nowInSeconds);
     }
 
     @VisibleForTesting

@@ -105,7 +105,7 @@ class SSTableWriterImplementationTest
         String sstableFormat = format.name();
         assertThat(sstableFormat).containsAnyOf("big", "bti");
         String sstableVersion = format.getLatestVersion().version;
-        assertThat(sstableVersion).isEqualTo("bti".equals(sstableFormat) ? "ea" : "pa");
+        assertThat(sstableVersion).isEqualTo("bti".equals(sstableFormat) ? "eb" : "pb");
         int firstGeneration = lowestGeneration(produced);
         assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder(
             toSStableFileName(sstableFormat, sstableVersion, firstGeneration),
