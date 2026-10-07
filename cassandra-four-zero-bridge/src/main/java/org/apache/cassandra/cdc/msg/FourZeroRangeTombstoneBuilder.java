@@ -63,7 +63,18 @@ public class FourZeroRangeTombstoneBuilder extends AbstractRangeTombstoneBuilder
             List<Value> start = buildClusteringKey(open);
             ClusteringBound<?> close = marker.closeBound(false);
             List<Value> end = buildClusteringKey(close);
-            rangeTombstone = buildTombstone(start, open.isInclusive(), end, close.isInclusive());
+            // `open`/`close` are in physical (storage/iteration) order, which only matches logical
+            // value order when the deepest clustering column present is ASC. For a DESC (reversed)
+            // column, iteration visits larger values first, so open/close must be swapped to recover
+            // the logical [lower, upper) value range that downstream range-predicate encoding assumes.
+            if (isDeepestColumnReversed(open, close))
+            {
+                rangeTombstone = buildTombstone(end, close.isInclusive(), start, open.isInclusive());
+            }
+            else
+            {
+                rangeTombstone = buildTombstone(start, open.isInclusive(), end, close.isInclusive());
+            }
             // When marker is a boundary, it opens a new range immediately
             // We expect close for the next, i.e. expectOpen == false, and carry the boundary forward
             // Otherwise, we expect open for the next.
@@ -78,6 +89,16 @@ public class FourZeroRangeTombstoneBuilder extends AbstractRangeTombstoneBuilder
                 rangeTombstoneMarker = null;
             }
         }
+    }
+
+    private boolean isDeepestColumnReversed(ClusteringPrefix<?> open, ClusteringPrefix<?> close)
+    {
+        int deepestIndex = Math.max(open.size(), close.size()) - 1;
+        if (deepestIndex < 0)
+        {
+            return false;
+        }
+        return tableMetadata.clusteringColumns().get(deepestIndex).type.isReversed();
     }
 
     private List<Value> buildClusteringKey(ClusteringPrefix<?> clustering)
