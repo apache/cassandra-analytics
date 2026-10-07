@@ -68,6 +68,14 @@ with an optional port number (e.g. `localhost1,localhost2`, `127.0.0.1,127.0.0.2
 |Specific role that Sidecar shall use to authorize the request. For further details consult Sidecar documentation
 for `cassandra-auth-role` HTTP header
 
+|_sidecar_identity_provider_class_
+|no
+|
+|The fully qualified class name that implements `org.apache.cassandra.sidecar.client.SidecarIdentityProvider`. A custom
+identity provider can modify HTTP requests sent to Cassandra Sidecar to inject authentication details. All configuration
+properties prefixed with `sidecar_identity_provider_parameter.` are automatically passed to the provider's
+initialization method.
+
 |===
 
 == Bulk Reader

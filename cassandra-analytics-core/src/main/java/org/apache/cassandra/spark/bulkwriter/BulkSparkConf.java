@@ -49,6 +49,7 @@ import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
+import org.apache.cassandra.spark.utils.Properties;
 import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -174,6 +175,8 @@ public class BulkSparkConf implements Serializable
     // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
     private final String sidecarContactPointsValue; // It takes comma separated values
     private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
+    private String sidecarIdentityProviderClass;
+    private Map<String, String> sidecarIdentityProviderParameters;
     protected final String coordinatedWriteConfJson;
     private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
 
@@ -247,6 +250,7 @@ public class BulkSparkConf implements Serializable
                                                            storageClientEndpointOverride,
                                                            nioHttpClientConnectionAcquisitionTimeoutSeconds,
                                                            nioHttpClientMaxConcurrency);
+        parseSidecarIdentityProvider(options);
         DataTransport dataTransport = MapUtils.getEnumOption(options, WriterOptions.DATA_TRANSPORT.name(), DataTransport.DIRECT, "Data Transport");
         long maxSizePerSSTableBundleInBytesS3Transport = MapUtils.getLong(options, WriterOptions.MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT.name(),
                                                                           DEFAULT_MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT);
@@ -390,6 +394,24 @@ public class BulkSparkConf implements Serializable
         }
 
         return CoordinatedWriteConf.create(coordinatedWriteConfJson, consistencyLevel, SimpleClusterConf.class);
+    }
+
+    protected void parseSidecarIdentityProvider(Map<String, String> options)
+    {
+        String providerClazz = MapUtils.getOrDefault(options, WriterOptions.SIDECAR_IDENTITY_PROVIDER_CLASS.name(), null);
+        if (StringUtils.isEmpty(providerClazz))
+        {
+            sidecarIdentityProviderClass = null;
+            sidecarIdentityProviderParameters = Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS;
+        }
+        else
+        {
+            sidecarIdentityProviderClass = providerClazz;
+            sidecarIdentityProviderParameters = MapUtils.getKeysWithPrefix(options,
+                                                                           WriterOptions.SIDECAR_IDENTITY_PROVIDER_PARAMETER.name() + ".",
+                                                                           true,
+                                                                           Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS);
+        }
     }
 
     protected void validateEnvironment() throws RuntimeException
@@ -580,6 +602,16 @@ public class BulkSparkConf implements Serializable
     public int getSidecarRequestTimeoutSeconds()
     {
         return getInt(SIDECAR_REQUEST_TIMEOUT_SECONDS, DEFAULT_SIDECAR_REQUEST_TIMEOUT_SECONDS);
+    }
+
+    public String getSidecarIdentityProviderClass()
+    {
+        return sidecarIdentityProviderClass;
+    }
+
+    public Map<String, String> getSidecarIdentityProviderParameters()
+    {
+        return sidecarIdentityProviderParameters;
     }
 
     public int getHttpConnectionTimeoutMs()

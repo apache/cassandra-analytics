@@ -38,7 +38,7 @@ public class BaseVertxRequestTest<T> extends RequestExecutorTest<T>
     @Override
     protected RequestExecutor sidecarClient()
     {
-        return new VertxRequestExecutor(this.httpClient());
+        return new VertxRequestExecutor(this.httpClient(), this.sidecarIdentityProvider());
     }
 
     @Override

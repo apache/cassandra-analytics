@@ -49,6 +49,8 @@ import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_CLASS;
+import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_MILLIS_TO_SLEEP;
@@ -235,6 +237,8 @@ public class SidecarCdcClient implements AutoCloseable
         private final String cassandraRole;
         private final Map<FileType, Long> maxBufferOverride;
         private final Map<FileType, Long> chunkBufferOverride;
+        private final String identityProviderClass;
+        private final Map<String, String> identityProviderParameters;
 
         // CHECKSTYLE IGNORE: Constructor with many parameters
         private ClientConfig(int userProvidedPort,
@@ -247,7 +251,9 @@ public class SidecarCdcClient implements AutoCloseable
                              int timeoutSeconds,
                              String cassandraRole,
                              Map<FileType, Long> maxBufferOverride,
-                             Map<FileType, Long> chunkBufferOverride)
+                             Map<FileType, Long> chunkBufferOverride,
+                             String identityProviderClass,
+                             Map<String, String> identityProviderParameters)
         {
             this.userProvidedPort = userProvidedPort;
             this.maxRetries = maxRetries;
@@ -260,6 +266,8 @@ public class SidecarCdcClient implements AutoCloseable
             this.cassandraRole = cassandraRole;
             this.maxBufferOverride = maxBufferOverride;
             this.chunkBufferOverride = chunkBufferOverride;
+            this.identityProviderClass = identityProviderClass;
+            this.identityProviderParameters = identityProviderParameters;
         }
 
         public int userProvidedPort()
@@ -328,6 +336,17 @@ public class SidecarCdcClient implements AutoCloseable
         }
 
         @Nullable
+        public String identityProviderClass()
+        {
+            return identityProviderClass;
+        }
+
+        public Map<String, String> identityProviderParameters()
+        {
+            return identityProviderParameters;
+        }
+
+        @Nullable
         public String cassandraRole()
         {
             return cassandraRole;
@@ -358,7 +377,9 @@ public class SidecarCdcClient implements AutoCloseable
                                        DEFAULT_TIMEOUT_SECONDS,
                                        DEFAULT_CASSANDRA_ROLE,
                                        DEFAULT_MAX_BUFFER_OVERRIDE,
-                                       chunkOverride);
+                                       chunkOverride,
+                                       DEFAULT_SIDECAR_IDENTITY_PROVIDER_CLASS,
+                                       DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS);
         }
 
         public static Map<FileType, Long> buildMaxBufferOverride(Map<String, String> options,
@@ -398,7 +419,9 @@ public class SidecarCdcClient implements AutoCloseable
                                           int timeoutSeconds,
                                           String cassandraRole,
                                           Map<FileType, Long> maxBufferOverride,
-                                          Map<FileType, Long> chunkBufferOverride)
+                                          Map<FileType, Long> chunkBufferOverride,
+                                          String identityProviderClass,
+                                          Map<String, String> identityProviderParameters)
         {
             return new ClientConfig(userProvidedPort,
                                     maxRetries,
@@ -410,7 +433,9 @@ public class SidecarCdcClient implements AutoCloseable
                                     timeoutSeconds,
                                     cassandraRole,
                                     maxBufferOverride,
-                                    chunkBufferOverride);
+                                    chunkBufferOverride,
+                                    identityProviderClass,
+                                    identityProviderParameters);
         }
 
         public Sidecar.ClientConfig toGenericSidecarConfig()
@@ -425,7 +450,9 @@ public class SidecarCdcClient implements AutoCloseable
                                                this.timeoutSeconds,
                                                this.cassandraRole,
                                                this.maxBufferOverride,
-                                               this.chunkBufferOverride);
+                                               this.chunkBufferOverride,
+                                               this.identityProviderClass,
+                                               this.identityProviderParameters);
         }
     }
 }

@@ -51,7 +51,7 @@ public class VertxSidecarClientTest extends SidecarClientTest
                                                                            sidecarClientConfig.maxRetryDelayMillis());
 
         VertxHttpClient vertxHttpClient = new VertxHttpClient(vertx, httpClientConfig);
-        VertxRequestExecutor requestExecutor = new VertxRequestExecutor(vertxHttpClient);
+        VertxRequestExecutor requestExecutor = new VertxRequestExecutor(vertxHttpClient, null);
         SimpleSidecarInstancesProvider instancesProvider = new SimpleSidecarInstancesProvider(instances);
         return new SidecarClient(instancesProvider, requestExecutor, sidecarClientConfig, defaultRetryPolicy);
     }

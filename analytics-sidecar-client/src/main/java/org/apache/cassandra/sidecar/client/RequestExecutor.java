@@ -46,10 +46,12 @@ public class RequestExecutor implements AutoCloseable
 
     protected final HttpClient httpClient;
     protected final ScheduledExecutorService singleThreadExecutorService;
+    protected final SidecarIdentityProvider identityProvider;
 
-    public RequestExecutor(HttpClient httpClient)
+    public RequestExecutor(HttpClient httpClient, SidecarIdentityProvider identityProvider)
     {
         this.httpClient = requireNonNull(httpClient, "The httpClient is required");
+        this.identityProvider = identityProvider;
         this.singleThreadExecutorService = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -57,49 +59,51 @@ public class RequestExecutor implements AutoCloseable
      * Executes the request and waits if necessary for at most the configured time in the
      * {@link HttpClientConfig#timeoutMillis()} for this future to complete, and then returns its result, if available.
      *
-     * @param context the request context
-     * @param <T>     the expected type for the instance
+     * @param requestBuilder the request context builder
+     * @param <T>            the expected type for the instance
      * @return the result value
      * @throws CancellationException if this future was cancelled
      * @throws ExecutionException    if this future completed exceptionally
      * @throws InterruptedException  if the current thread was interrupted while waiting
      * @throws TimeoutException      if the wait timed out
      */
-    public <T> T executeRequest(RequestContext context)
+    public <T> T executeRequest(RequestContext.Builder requestBuilder)
     throws ExecutionException, InterruptedException, TimeoutException
     {
-        return executeRequest(context, httpClient.config().timeoutMillis(), TimeUnit.MILLISECONDS);
+        return executeRequest(requestBuilder, httpClient.config().timeoutMillis(), TimeUnit.MILLISECONDS);
     }
 
     /**
      * Executes the request and waits if necessary for at most the provided {@code timeout} with units {@code unit}
      * for this future to complete, and then returns its result, if available.
      *
-     * @param context the request context
-     * @param timeout the maximum time to wait
-     * @param unit    the time unit of the timeout argument
-     * @param <T>     the expected type for the instance
+     * @param requestBuilder the request context builder
+     * @param timeout        the maximum time to wait
+     * @param unit           the time unit of the timeout argument
+     * @param <T>            the expected type for the instance
      * @return the result value
      * @throws CancellationException if this future was cancelled
      * @throws ExecutionException    if this future completed exceptionally
      * @throws InterruptedException  if the current thread was interrupted while waiting
      * @throws TimeoutException      if the wait timed out
      */
-    public <T> T executeRequest(RequestContext context, long timeout, TimeUnit unit)
+    public <T> T executeRequest(RequestContext.Builder requestBuilder, long timeout, TimeUnit unit)
     throws ExecutionException, InterruptedException, TimeoutException
     {
-        return this.<T>executeRequestAsync(context).get(timeout, unit);
+        return this.<T>executeRequestAsync(requestBuilder).get(timeout, unit);
     }
 
     /**
      * Returns the expected instance of type {@code <T>} after executing the {@code request} and processing it.
      *
-     * @param context the request context
-     * @param <T>     the expected type for the instance
+     * @param requestBuilder the request context builder
+     * @param <T>            the expected type for the instance
      * @return the expected instance of type {@code <T>} after executing the {@code request} and processing it
      */
-    public <T> CompletableFuture<T> executeRequestAsync(RequestContext context)
+    public <T> CompletableFuture<T> executeRequestAsync(RequestContext.Builder requestBuilder)
     {
+        injectCredentials(requestBuilder);
+        RequestContext context = requestBuilder.build();
         Iterator<SidecarInstance> iterator = context.instanceSelectionPolicy().iterator();
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
         if (!iterator.hasNext())
@@ -116,7 +120,7 @@ public class RequestExecutor implements AutoCloseable
         executeWithRetries(responseFuture, iterator, instance, context, 1);
 
         responseFuture.whenComplete((response, retryThrowable) ->
-                                    processResponse(resultFuture, context.request(), response, retryThrowable));
+                                    processResponse(resultFuture, context, response, retryThrowable));
 
         return resultFuture;
     }
@@ -124,12 +128,14 @@ public class RequestExecutor implements AutoCloseable
     /**
      * Streams the request from the context to the {@code streamConsumer}.
      *
-     * @param context        the request context
+     * @param requestBuilder the request context builder
      * @param streamConsumer the object that consumes the stream
      */
-    public void streamRequest(RequestContext context, StreamConsumer streamConsumer)
+    public void streamRequest(RequestContext.Builder requestBuilder, StreamConsumer streamConsumer)
     {
         Objects.requireNonNull(streamConsumer, "streamConsumer must be non-null");
+        injectCredentials(requestBuilder);
+        RequestContext context = requestBuilder.build();
         Iterator<SidecarInstance> iterator = context.instanceSelectionPolicy().iterator();
         if (!iterator.hasNext())
         {
@@ -331,17 +337,18 @@ public class RequestExecutor implements AutoCloseable
      * future when an error occurred during processing.
      *
      * @param future    the future for the request
-     * @param request   the request
+     * @param context   the request context
      * @param response  the {@link HttpResponse} received from the server
      * @param throwable the error encountered during the request, or null if no error was encountered
      * @param <T>       the type expected by the requester
      */
     @SuppressWarnings("unchecked")
     private <T> void processResponse(CompletableFuture<T> future,
-                                     Request request,
+                                     RequestContext context,
                                      HttpResponse response,
                                      Throwable throwable)
     {
+        Request request = context.request();
         if (throwable != null)
         {
             logger.error("Failed to process request={}, response={}", request, response, throwable);
@@ -380,5 +387,13 @@ public class RequestExecutor implements AutoCloseable
             singleThreadExecutorService.schedule(runnable, delayMillis, TimeUnit.MILLISECONDS);
         }
         runnable.run();
+    }
+
+    private void injectCredentials(RequestContext.Builder requestBuilder)
+    {
+        if (identityProvider != null)
+        {
+            identityProvider.injectCredentials(requestBuilder);
+        }
     }
 }

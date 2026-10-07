@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -424,6 +425,27 @@ class BulkSparkConfTest
         assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
         .describedAs("SSTable version based bridge should be enabled")
         .isFalse();
+    }
+
+    @Test
+    void testCustomSidecarIdentityProvider()
+    {
+        String providerClass = "org.apache.cassandra.sidecar.client.TestIdentityProvider";
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.SIDECAR_IDENTITY_PROVIDER_CLASS.name(), providerClass);
+        options.put(WriterOptions.SIDECAR_IDENTITY_PROVIDER_PARAMETER.name() + ".param1", "value1");
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options, null);
+        assertThat(bulkSparkConf.getSidecarIdentityProviderClass()).isEqualTo(providerClass);
+        assertThat(bulkSparkConf.getSidecarIdentityProviderParameters()).isEqualTo(ImmutableMap.of("param1", "value1"));
+    }
+
+    @Test
+    void testEmptySidecarIdentityProvider()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options, null);
+        assertThat(bulkSparkConf.getSidecarIdentityProviderClass()).isNull();
+        assertThat(bulkSparkConf.getSidecarIdentityProviderParameters()).isEmpty();
     }
 
     private Map<String, String> copyDefaultOptions()
