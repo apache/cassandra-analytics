@@ -571,9 +571,10 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                 return;
             }
 
+            // TODO: This could crash the process (e.g. Sidecar) to crash. We may want to handle it gracefully depending on the runtime environment.
             JVMStabilityInspector.inspectThrowable(t);
 
-            if (failedMutationHasNoCdcTable(inputBuffer, size))
+            if (!failedMutationMayInvolveCdcTable(inputBuffer, size))
             {
                 // No CDC-enabled table is involved – safe to skip and move on
                 logger.trace("Ignoring mutation that failed to deserialize; no CDC-enabled table involved", "error", t);
@@ -655,42 +656,42 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
     }
 
     /**
-     * Best-effort check for whether a mutation that failed to deserialize is guaranteed not to involve any
-     * CDC-enabled table, so the failure can be safely ignored.
+     * Best-effort check for whether a mutation that failed to deserialize may involve a CDC-enabled table.
+     * When this returns false, the mutation is guaranteed not to involve any CDC-enabled table, so the failure can
+     * be safely ignored.
      * Only reads the first {@link TableId} to make the decision, as mutations contain single partition update in most cases.
      * If a mutation has more than one partition update, it conservatively assumes a CDC-enabled table is involved.
      *
      * @param inputBuffer raw byte array w/Mutation data
      * @param size        serialized size of the mutation
-     * @return false if the first table touched by the mutation is confirmed CDC-enabled, or the mutation has more
-     *         than one {@link PartitionUpdate} (so the rest can't be safely checked); true otherwise, including
+     * @return true if the first table touched by the mutation is confirmed CDC-enabled, or the mutation has more
+     *         than one {@link PartitionUpdate} (so the rest can't be safely checked); false otherwise, including
      *         when the table's metadata can't be found, or even the first {@link TableId} can't be read
      */
     @VisibleForTesting
-    static boolean failedMutationHasNoCdcTable(byte[] inputBuffer, int size)
+    static boolean failedMutationMayInvolveCdcTable(byte[] inputBuffer, int size)
     {
         try (DataInputBuffer in = new DataInputBuffer(inputBuffer, 0, size))
         {
             int updateCount = (int) in.readUnsignedVInt();
-            TableId tableId = TableId.deserialize(in);
-            TableMetadata metadata = Schema.instance.getTableMetadata(tableId);
-            if (metadata != null && metadata.params.cdc)
-            {
-                return false;
-            }
-
             if (updateCount > 1)
             {
                 // Can't safely reach the remaining updates' TableIds without deserializing this update's body,
                 // conservatively assume it may involve a CDC-enabled table.
-                return false;
+                return true;
+            }
+            TableId tableId = TableId.deserialize(in);
+            TableMetadata metadata = Schema.instance.getTableMetadata(tableId);
+            if (metadata != null && metadata.params.cdc)
+            {
+                return true;
             }
         }
         catch (Throwable t)
         {
             // unable to read the first TableId
         }
-        return true;
+        return false;
     }
 
     public void close()

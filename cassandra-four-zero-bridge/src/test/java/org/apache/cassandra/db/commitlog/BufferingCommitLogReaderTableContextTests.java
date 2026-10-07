@@ -40,55 +40,55 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class BufferingCommitLogReaderTableContextTests
 {
     @Test
-    public void testFailedMutationHasNoCdcTableWhenNonCdcTableIdReadableButRestCorrupted() throws Exception
+    public void testFailedMutationMayInvolveCdcTableWhenNonCdcTableIdReadableButRestCorrupted() throws Exception
     {
         TableId tableId = registerTable("ks_non_cdc", "tbl", false);
         byte[] corruptedMutation = buildCorruptedMutation(1, tableId);
 
-        boolean failedMutationHasNoCdcTable = BufferingCommitLogReader.failedMutationHasNoCdcTable(corruptedMutation,
-                                                                                                     corruptedMutation.length);
+        boolean mayInvolveCdcTable = BufferingCommitLogReader.failedMutationMayInvolveCdcTable(corruptedMutation,
+                                                                                               corruptedMutation.length);
 
-        assertThat(failedMutationHasNoCdcTable).isTrue();
+        assertThat(mayInvolveCdcTable).isFalse();
     }
 
     @Test
-    public void testFailedMutationHasNoCdcTableWhenCdcTableIdReadableButRestCorrupted() throws Exception
+    public void testFailedMutationMayInvolveCdcTableWhenCdcTableIdReadableButRestCorrupted() throws Exception
     {
         TableId tableId = registerTable("ks_cdc", "tbl", true);
         byte[] corruptedMutation = buildCorruptedMutation(1, tableId);
 
-        boolean failedMutationHasNoCdcTable = BufferingCommitLogReader.failedMutationHasNoCdcTable(corruptedMutation,
-                                                                                                     corruptedMutation.length);
+        boolean mayInvolveCdcTable = BufferingCommitLogReader.failedMutationMayInvolveCdcTable(corruptedMutation,
+                                                                                               corruptedMutation.length);
 
-        assertThat(failedMutationHasNoCdcTable).isFalse();
+        assertThat(mayInvolveCdcTable).isTrue();
     }
 
     @Test
-    public void testFailedMutationHasNoCdcTableWhenTableIdUnresolvable() throws Exception
+    public void testFailedMutationMayInvolveCdcTableWhenTableIdUnresolvable() throws Exception
     {
         CassandraBridgeImplementation.setup();
         TableId unknownTableId = TableId.fromUUID(UUID.randomUUID());
         byte[] corruptedMutation = buildCorruptedMutation(1, unknownTableId);
 
-        boolean failedMutationHasNoCdcTable = BufferingCommitLogReader.failedMutationHasNoCdcTable(corruptedMutation,
-                                                                                                     corruptedMutation.length);
+        boolean mayInvolveCdcTable = BufferingCommitLogReader.failedMutationMayInvolveCdcTable(corruptedMutation,
+                                                                                               corruptedMutation.length);
 
         // an unresolvable table is treated as not CDC-enabled
-        assertThat(failedMutationHasNoCdcTable).isTrue();
+        assertThat(mayInvolveCdcTable).isFalse();
     }
 
     @Test
-    public void testFailedMutationHasNoCdcTableWhenMultipleUpdatesEvenIfFirstIsNonCdc() throws Exception
+    public void testFailedMutationMayInvolveCdcTableWhenMultipleUpdatesEvenIfFirstIsNonCdc() throws Exception
     {
         TableId tableId = registerTable("ks_non_cdc_multi", "tbl", false);
         byte[] corruptedMutation = buildCorruptedMutation(2, tableId);
 
-        boolean failedMutationHasNoCdcTable = BufferingCommitLogReader.failedMutationHasNoCdcTable(corruptedMutation,
-                                                                                                     corruptedMutation.length);
+        boolean mayInvolveCdcTable = BufferingCommitLogReader.failedMutationMayInvolveCdcTable(corruptedMutation,
+                                                                                               corruptedMutation.length);
 
         // can't safely check the remaining update(s) without deserializing this one's body, so this is
         // conservatively treated as possibly involving a CDC-enabled table
-        assertThat(failedMutationHasNoCdcTable).isFalse();
+        assertThat(mayInvolveCdcTable).isTrue();
     }
 
     private TableId registerTable(String keyspaceName, String tableName, boolean cdc)
