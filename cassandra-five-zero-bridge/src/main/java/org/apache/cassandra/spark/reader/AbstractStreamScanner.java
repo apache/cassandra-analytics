@@ -25,6 +25,7 @@ import java.math.BigInteger;
 import java.util.Iterator;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.ClusteringPrefix;
@@ -40,6 +41,7 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
 import org.apache.cassandra.spark.utils.TimeProvider;
@@ -395,6 +397,15 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
                 rowData.setValueCopy(cell.buffer());
             }
             rowData.setTimestamp(cell.timestamp());
+            if (cell.isExpiring())
+            {
+                long remaining = cell.localDeletionTime() - timeProvider.referenceEpochInSeconds();
+                rowData.setTtl(Ints.checkedCast(remaining));
+            }
+            else
+            {
+                rowData.setTtl(CqlField.NO_TTL);
+            }
             // Null out clustering so hasData will return false
             clustering = null;
         }
@@ -438,6 +449,8 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
             {
                 AbstractComplexTypeBuffer buffer = AbstractComplexTypeBuffer.newBuffer(column.type, cellCount);
                 long maxTimestamp = Long.MIN_VALUE;
+                // from non-frozen complex types, we return the lowest TTL that will modify the type's state
+                long minTtl = CqlField.NO_TTL;
                 while (cells.hasNext())
                 {
                     Cell<?> cell = cells.next();
@@ -453,16 +466,23 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
                     }
                     // In the case the cell is deleted, the deletion time is also the cell's timestamp
                     maxTimestamp = Math.max(maxTimestamp, cell.timestamp());
+                    if (cell.isExpiring())
+                    {
+                        long remaining = cell.localDeletionTime() - timeProvider.referenceEpochInSeconds();
+                        minTtl = minTtl == CqlField.NO_TTL || remaining < 0 ? remaining : Math.min(remaining, minTtl);
+                    }
                 }
 
                 rowData.setValueCopy(buffer.build());
                 rowData.setTimestamp(maxTimestamp);
+                rowData.setTtl(Ints.checkedCast(minTtl));
             }
             else
             {
                 // The entire collection/UDT is deleted
                 handleCellTombstone(rowData.getToken());
                 rowData.setTimestamp(deletionTime.markedForDeleteAt());
+                rowData.setTtl(CqlField.NO_TTL);
             }
 
             // Null out clustering to indicate no data
