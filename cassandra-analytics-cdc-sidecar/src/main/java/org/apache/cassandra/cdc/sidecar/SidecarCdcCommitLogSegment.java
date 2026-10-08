@@ -81,7 +81,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
 
             public long size()
             {
-                return segment.idx;
+                return segment.size;
             }
 
             @Nullable
@@ -106,7 +106,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
 
     public long maxOffset()
     {
-        return segment.idx;
+        return segment.size;
     }
 
     @Override
