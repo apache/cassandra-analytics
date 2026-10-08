@@ -230,11 +230,11 @@ subprojects {
   archivesBaseName = "${project.name}"
 
   repositories {
-    mavenCentral()
     // for dtest-jars
     mavenLocal {
       url Paths.get(dependencyLocation)
     }
+    mavenCentral()
   }
 
   dependencies {

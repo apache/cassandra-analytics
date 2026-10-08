@@ -20,25 +20,39 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 
 /**
  * Stream session for bulk writes to keyspaces with mutation tracking enabled.
  *
  * <p>
- * Tracked stream session uploads and triggers import on the <em>coordinator node only</em>. Cassandra's coordinated
- * transfer then propagates the data to all other replicas, avoiding the duplicate-row updates that would occur if each
- * replica independently streamed the data to its peers.
+ * Unlike bulk write to untracked keyspaces, for tracked keyspaces Cassandra's coordinates SSTable transfer between
+ * nodes for bulk import. Import can be triggered on any one of the replica's of a token range and that replica acts as
+ * a coordinator. {@link TrackedDirectStreamSession} spreads the coordinator pick across the eligible candidates of a
+ * range so that outgoing connections are distributed across the nodes in Cassandra.
  * <p>
+ * Write validation now moves to Cassandra in place of analytics checking consistency level. Resiliency to coordinator
+ * failure mid-session is not handled here; it is handled at Spark's task-level retry.
  */
-public class TrackedDirectStreamSession extends StreamSession<TransportContext.DirectDataBulkWriterContext>
+public class TrackedDirectStreamSession extends DirectStreamSession
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TrackedDirectStreamSession.class);
+    private static final String WRITE_PHASE = "TrackedUploadAndCommit";
+
     public TrackedDirectStreamSession(BulkWriterContext writerContext,
                                       SortedSSTableWriter sstableWriter,
                                       TransportContext.DirectDataBulkWriterContext transportContext,
@@ -50,21 +64,70 @@ public class TrackedDirectStreamSession extends StreamSession<TransportContext.D
         super(writerContext, sstableWriter, transportContext, sessionID, tokenRange, failureHandler, executorService);
     }
 
+    /**
+     * Selects a single replica to act as the coordinator for this token range. The pick varies from range to range, so
+     * that coordinator load is spread across replicas.
+     */
     @Override
-    protected void onSSTablesProduced(Set<SSTableDescriptor> sstables)
+    List<RingInstance> getReplicas()
     {
-        throw new UnsupportedOperationException("TrackedDirectStreamSession is not yet implemented");
+        Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
+        List<RingInstance> candidates = tokenRangeMapping.getSubRanges(tokenRange)
+                                                          .asMapOfRanges().values().stream()
+                                                          .flatMap(Collection::stream)
+                                                          .distinct()
+                                                          .filter(instance -> !failedInstances.contains(instance))
+                                                          // stable order so the range-based pick below is reproducible
+                                                          .sorted(Comparator.comparing(RingInstance::nodeName))
+                                                          .collect(Collectors.toList());
+
+        Preconditions.checkState(!candidates.isEmpty(),
+                                 "No eligible coordinator candidates found for range %s", tokenRange);
+
+        RingInstance coordinator = pickCoordinator(candidates);
+        LOGGER.info("[{}]: Selected {} as coordinator for tracked range {} out of {} candidates",
+                    sessionID, coordinator.nodeName(), tokenRange, candidates.size());
+        List<RingInstance> replicas = new ArrayList<>();
+        replicas.add(coordinator);
+        return replicas;
+    }
+
+    /**
+     * Distributes the coordinator pick across candidates using the range's lower endpoint, so token ranges owned by
+     * the same replica set don't all pick the same coordinator.
+     */
+    private RingInstance pickCoordinator(List<RingInstance> candidates)
+    {
+        int index = tokenRange.lowerEndpoint().mod(BigInteger.valueOf(candidates.size())).intValue();
+        return candidates.get(index);
     }
 
     @Override
     protected StreamResult doFinalizeStream()
     {
-        throw new UnsupportedOperationException("TrackedDirectStreamSession is not yet implemented");
-    }
-
-    @Override
-    protected void sendRemainingSSTables()
-    {
-        throw new UnsupportedOperationException("TrackedDirectStreamSession is not yet implemented");
+        sendRemainingSSTables();
+        DirectStreamResult streamResult = new DirectStreamResult(sessionID,
+                                                                 tokenRange,
+                                                                 errors,
+                                                                 new ArrayList<>(replicas),
+                                                                 sstableWriter.rowCount(),
+                                                                 sstableWriter.bytesWritten());
+        List<CommitResult> commitResults;
+        try
+        {
+            commitResults = commit(streamResult);
+        }
+        catch (Exception exception)
+        {
+            if (exception instanceof InterruptedException)
+            {
+                Thread.currentThread().interrupt();
+            }
+            throw new RuntimeException(exception);
+        }
+        streamResult.setCommitResults(commitResults);
+        LOGGER.debug("[{}]: Tracked StreamResult: {}", sessionID, streamResult);
+        BulkWriteValidator.validateCoordinatorWriteSucceeded(tokenRange, errors, commitResults, LOGGER, WRITE_PHASE, writerContext.job());
+        return streamResult;
     }
 }
