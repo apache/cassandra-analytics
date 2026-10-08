@@ -114,20 +114,62 @@ public class SummaryDbTests
                     assertThat(ssTable).as("Could not find SSTable").isNotNull();
 
                     // Binary search Summary.db file in token order and verify offsets are ordered
-                    SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);
-                    long previous = -1;
-                    for (BigInteger token : tokens)
+                    try (SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable))
                     {
-                        long offset = SummaryDbUtils.findIndexOffsetInSummary(summary.summary(), iPartitioner, token);
-                        if (previous < 0)
+                        long previous = -1;
+                        for (BigInteger token : tokens)
                         {
-                            assertThat(offset).isEqualTo(0);
+                            long offset = SummaryDbUtils.findIndexOffsetInSummary(summary.summary(), iPartitioner, token);
+                            if (previous < 0)
+                            {
+                                assertThat(offset).isEqualTo(0);
+                            }
+                            else
+                            {
+                                assertThat(previous).isLessThanOrEqualTo(offset);
+                            }
+                            previous = offset;
                         }
-                        else
+                    }
+                }
+                catch (IOException exception)
+                {
+                    throw new RuntimeException(exception);
+                }
+            });
+    }
+
+    @Test
+    public void testSummaryCloseReleasesIndexSummary()
+    {
+        qt().forAll(arbitrary().enumValues(Partitioner.class))
+            .checkAssert(partitioner -> {
+                try (TemporaryDirectory directory = new TemporaryDirectory())
+                {
+                    TestSchema schema = TestSchema.basicBuilder(BRIDGE).withCompression(false).build();
+                    schema.writeSSTable(directory, BRIDGE, partitioner, writer -> writer.write(0, 0, 0));
+                    TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
+                    assertThat(metadata).as("Could not find table metadata").isNotNull();
+                    SSTable ssTable = TestSSTable.firstIn(directory.path());
+                    assertThat(ssTable).as("Could not find SSTable").isNotNull();
+
+                    SummaryDbUtils.Summary summary = null;
+                    try
+                    {
+                        summary = SummaryDbUtils.readSummary(metadata, ssTable);
+                        assertThat(summary).isNotNull();
+                        assertThat(summary.summary().isCleanedUp()).isFalse();
+                    }
+                    finally
+                    {
+                        if (summary != null)
                         {
-                            assertThat(previous).isLessThanOrEqualTo(offset);
+                            summary.close();
                         }
-                        previous = offset;
+                    }
+                    if (summary != null)
+                    {
+                        assertThat(summary.summary().isCleanedUp()).isTrue();
                     }
                 }
                 catch (IOException exception)

@@ -48,6 +48,26 @@ public enum SchemaFeatureSet implements SchemaFeature
             {
                 return new LastModifiedTimestampDecorator<>(builder, fieldName());
             }
+        },
+
+    // Constant column carrying the latest autosnap epoch across all nodes.
+    // S3CassandraDataLayer.injectSnapshotTimestamp() MUST replace this enum
+    // entry with a value-carrying SchemaFeature before decorate() is called.
+    SNAPSHOT_TIMESTAMP
+        {
+            @Override
+            public DataType fieldDataType()
+            {
+                return DataTypes.TimestampType;
+            }
+
+            @Override
+            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
+            {
+                throw new IllegalStateException(
+                    "SNAPSHOT_TIMESTAMP enum must be replaced by S3CassandraDataLayer.injectSnapshotTimestamp() "
+                    + "with the actual snapshot epoch before decorate() is called");
+            }
         };
 
     /**

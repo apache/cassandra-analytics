@@ -19,32 +19,56 @@
 
 package org.apache.cassandra.spark.sparksql;
 
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.SSTableTokenIndex;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
 import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class CassandraTableProvider implements TableProvider, DataSourceRegister
 {
     private DataLayer dataLayer;
+    private String dataLayerOptionsKey;
 
     public abstract DataLayer getDataLayer(CaseInsensitiveStringMap options);
 
-    DataLayer getDataLayerInternal(CaseInsensitiveStringMap options)
+    @Nullable
+    public Broadcast<SSTableTokenIndex> getSSTableTokenIndexBroadcast(CaseInsensitiveStringMap options)
     {
+        return null;
+    }
+
+    synchronized DataLayer getDataLayerInternal(CaseInsensitiveStringMap options)
+    {
+        String optionsKey = normalizedOptionsKey(options);
         DataLayer dataLayer = this.dataLayer;
-        if (dataLayer != null)
+        if (dataLayer != null && optionsKey.equals(dataLayerOptionsKey))
         {
             return dataLayer;
         }
         dataLayer = getDataLayer(options);
         this.dataLayer = dataLayer;
+        this.dataLayerOptionsKey = optionsKey;
         return dataLayer;
+    }
+
+    private static String normalizedOptionsKey(CaseInsensitiveStringMap options)
+    {
+        TreeMap<String, String> normalized = new TreeMap<>();
+        for (Map.Entry<String, String> entry : options.entrySet())
+        {
+            normalized.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
+        }
+        return normalized.toString();
     }
 
     @Override
@@ -56,6 +80,7 @@ public abstract class CassandraTableProvider implements TableProvider, DataSourc
     @Override
     public Table getTable(StructType schema, Transform[] partitioning, Map<String, String> properties)
     {
-        return new CassandraTable(getDataLayerInternal(new CaseInsensitiveStringMap(properties)), schema);
+        CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(properties);
+        return new CassandraTable(getDataLayerInternal(options), schema, getSSTableTokenIndexBroadcast(options));
     }
 }

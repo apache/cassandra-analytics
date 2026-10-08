@@ -83,4 +83,15 @@ public enum FileType
     {
         return fileSuffix;
     }
+
+    /**
+     * Whether the on-disk size of this component can drift from the value recorded in a backup
+     * manifest. Cassandra rewrites Summary/Filter/Statistics in place during compaction, so a
+     * stale manifest size for these components can produce truncated ranged-GETs against the
+     * backing store. The data layer treats these components specially when issuing reads.
+     */
+    public boolean isMutableMetadata()
+    {
+        return this == SUMMARY || this == FILTER || this == STATISTICS;
+    }
 }
