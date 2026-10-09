@@ -103,8 +103,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         try
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.createRestoreJob(qualifiedTableName.keyspace(),
-                                           qualifiedTableName.table(),
+            sidecarClient.createRestoreJob(qualifiedTableName.maybeQuotedKeyspace(),
+                                           qualifiedTableName.maybeQuotedTable(),
                                            createRestoreJobRequestPayload).get();
         }
         catch (Exception exception)
@@ -121,8 +121,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         try
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            return sidecarClient.restoreJobSummary(qualifiedTableName.keyspace(),
-                                                   qualifiedTableName.table(),
+            return sidecarClient.restoreJobSummary(qualifiedTableName.maybeQuotedKeyspace(),
+                                                   qualifiedTableName.maybeQuotedTable(),
                                                    jobId).get();
         }
         catch (Exception exception)
@@ -168,8 +168,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         {
             LOGGER.info("Updating the restore job. clusterId={} restoreJobId={}", clusterId, jobId);
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.updateRestoreJob(qualifiedTableName.keyspace(),
-                                           qualifiedTableName.table(),
+            sidecarClient.updateRestoreJob(qualifiedTableName.maybeQuotedKeyspace(),
+                                           qualifiedTableName.maybeQuotedTable(),
                                            jobId,
                                            updateRestoreJobRequestPayload).get();
         }
@@ -188,8 +188,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         {
             LOGGER.info("Abort job. clusterId={} restoreJobId={}", clusterId, jobId);
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.abortRestoreJob(qualifiedTableName.keyspace(),
-                                          qualifiedTableName.table(),
+            sidecarClient.abortRestoreJob(qualifiedTableName.maybeQuotedKeyspace(),
+                                          qualifiedTableName.maybeQuotedTable(),
                                           jobId).get();
         }
         catch (Exception exception)
@@ -207,8 +207,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
                                                                       RetryPolicy retryPolicy)
     {
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
-                                                                                qualifiedTableName.table(),
+        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.maybeQuotedKeyspace(),
+                                                                                qualifiedTableName.maybeQuotedTable(),
                                                                                 jobInfo.getRestoreJobId(clusterId),
                                                                                 createSliceRequestPayload);
         return sidecarClient.executeRequestAsync(sidecarClient.requestBuilder()

@@ -24,12 +24,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.spark.SparkConf;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -37,20 +40,71 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
+import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
 import static org.apache.cassandra.spark.TestUtils.range;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class CassandraClusterInfoTest
 {
+    @Test
+    void testQuotedKeyspacePassedToSchemaAndTokenRanges() throws Exception
+    {
+        Map<String, String> options = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        options.put(WriterOptions.SIDECAR_INSTANCES.name(), "127.0.0.1");
+        options.put(WriterOptions.KEYSPACE.name(), "MyKeyspace");
+        options.put(WriterOptions.TABLE.name(), "MyTable");
+        options.put(WriterOptions.QUOTE_IDENTIFIERS.name(), "true");
+        BulkSparkConf conf = new BulkSparkConf(new SparkConf(), options);
+        CassandraBridge bridge = mock(CassandraBridge.class);
+        when(bridge.maybeQuoteIdentifier("MyKeyspace")).thenReturn("\"MyKeyspace\"");
+        CassandraContext context = mock(CassandraContext.class);
+        SidecarClient sidecar = mock(SidecarClient.class);
+        when(context.getSidecarClient()).thenReturn(sidecar);
+        when(context.getCluster()).thenReturn(Collections.emptySet());
+        SchemaResponse schema = mock(SchemaResponse.class);
+        when(schema.schema()).thenReturn("schema");
+        when(sidecar.schema("\"MyKeyspace\"")).thenReturn(CompletableFuture.completedFuture(schema));
+        CompletableFuture<TokenRangeReplicasResponse> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new IllegalStateException("test failure"));
+        when(sidecar.tokenRangeReplicas(any(), eq("\"MyKeyspace\""))).thenReturn(failed);
+
+        try (CassandraClusterInfo ci = new CassandraClusterInfo(conf)
+        {
+            @Override
+            protected CassandraContext buildCassandraContext()
+            {
+                return context;
+            }
+
+            @Override
+            protected CassandraBridge bridge()
+            {
+                return bridge;
+            }
+        })
+        {
+            assertThat(ci.getCurrentKeyspaceSchema()).isEqualTo("schema");
+            assertThatThrownBy(() -> ci.getTokenRangeMapping(false)).hasMessageContaining("Unable to initialize ring information");
+            verify(sidecar).schema("\"MyKeyspace\"");
+            verify(sidecar).tokenRangeReplicas(any(), eq("\"MyKeyspace\""));
+        }
+    }
+
     @Test
     void testTimeSkewAcceptable()
     {

@@ -169,8 +169,8 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
         SidecarClient sidecarClient = dataTransferApi.sidecarClient();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
         UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
-        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
-                                                                                qualifiedTableName.table(),
+        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.maybeQuotedKeyspace(),
+                                                                                qualifiedTableName.maybeQuotedTable(),
                                                                                 restoreJobId,
                                                                                 createSliceRequestPayload);
         RetryPolicy retryPolicy = new CloudStorageDataTransferApiImpl.ExecutorCreateSliceRetryPolicy(sidecarClient);
@@ -197,8 +197,8 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
         JobInfo jobInfo = dataTransferApi.jobInfo();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
         UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
-        RestoreJobProgressRequestParams requestParams = new RestoreJobProgressRequestParams(qualifiedTableName.keyspace(),
-                                                                                            qualifiedTableName.table(),
+        RestoreJobProgressRequestParams requestParams = new RestoreJobProgressRequestParams(qualifiedTableName.maybeQuotedKeyspace(),
+                                                                                            qualifiedTableName.maybeQuotedTable(),
                                                                                             restoreJobId,
                                                                                             fetchPolicy);
         RestoreJobProgressResponsePayload jobProgress = restoreJobProgress(dataTransferApi, requestParams);
