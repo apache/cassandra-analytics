@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Support Sidecar behind a load balancer for time-skew validation in single-cluster and coordinated writes (CASSANALYTICS-181)
  * Skip CDC-irrelevant mutations on deserialization failure (CASSANALYTICS-196)
  * Opening one keyspace instance rebuilds every keyspace instance in the Cassandra 6.0 bridge (CASSANALYTICS-202)
  * CDC logs NPE for deleted column values (CASSANALYTICS-178)

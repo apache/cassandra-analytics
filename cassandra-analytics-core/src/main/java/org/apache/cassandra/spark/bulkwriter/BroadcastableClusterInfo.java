@@ -100,6 +100,6 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
     @Override
     public ClusterInfo reconstruct()
     {
-        return new CassandraClusterInfo(this);
+        return CassandraClusterInfo.create(this);
     }
 }
