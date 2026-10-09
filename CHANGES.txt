@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Support per-instance Sidecar routing for bulk writes behind load balancers using discovered instance IDs or explicit contact-point IDs (CASSANALYTICS-177)
  * Skip CDC-irrelevant mutations on deserialization failure (CASSANALYTICS-196)
  * Opening one keyspace instance rebuilds every keyspace instance in the Cassandra 6.0 bridge (CASSANALYTICS-202)
  * CDC logs NPE for deleted column values (CASSANALYTICS-178)

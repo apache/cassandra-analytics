@@ -30,6 +30,9 @@ public enum WriterOptions implements WriterOption
     SIDECAR_INSTANCES,
     // The option specifies the initial contact points of sidecar servers to discover the cluster topology
     // Note that the addresses can include port; when port is present, it takes precedence over SIDECAR_PORT
+    // Each address may also carry a trailing "=<id>" suffix (e.g. "host:9043=2") to declare that instance's
+    // own per-instance Sidecar routing id - see SidecarInstanceFactory#createFromString. When an address has no
+    // such suffix, no instanceId is sent for that instance unless Sidecar reports one for it in the ring response.
     SIDECAR_CONTACT_POINTS,
     /**
      * The option specifies the configuration (in JSON) for coordinated write.

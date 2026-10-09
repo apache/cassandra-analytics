@@ -32,4 +32,20 @@ public interface SidecarInstance
      * @return the hostname where the Cassandra Sidecar instance is running
      */
     String hostname();
+
+    /**
+     * Returns the identifier of the specific Cassandra instance that requests sent to this Sidecar
+     * endpoint should be routed to, or {@code null} when no per-instance identifier is configured.
+     *
+     * <p>When non-null, this value is used to populate the {@code instanceId} query parameter on outbound
+     * requests so the Sidecar can resolve the correct local Cassandra instance even when a shared address
+     * (for example a load balancer) hides the real target from the {@code Host} header. When {@code null},
+     * the client falls back to the job-level {@code instanceId} configured on the HTTP client, if any.
+     *
+     * @return the per-instance identifier, or {@code null} when not set
+     */
+    default Integer instanceId()
+    {
+        return null;
+    }
 }
