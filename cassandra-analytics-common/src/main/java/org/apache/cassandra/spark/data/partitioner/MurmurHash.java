@@ -156,4 +156,89 @@ public final class MurmurHash
 
         return new long[]{h1, h2};
     }
+
+    protected static long invRShiftXor(long value, int shift)
+    {
+        long output = 0;
+        long i = 0;
+        while (i * shift < 64)
+        {
+            long c = (0xffffffffffffffffL << (64 - shift)) >>> (shift * i);
+            long partOutput = value & c;
+            value ^= partOutput >>> shift;
+            output |= partOutput;
+            i += 1;
+        }
+        return output;
+    }
+
+    protected static long invRotl64(long v, int n)
+    {
+        return ((v >>> n) | (v << (64 - n)));
+    }
+
+    protected static long invFmix(long k)
+    {
+        k = invRShiftXor(k, 33);
+        k *= 0x9cb4b2f8129337dbL;
+        k = invRShiftXor(k, 33);
+        k *= 0x4f74430c22a54005L;
+        k = invRShiftXor(k, 33);
+        return k;
+    }
+
+    public static long[] invHash3X64128(long[] result)
+    {
+        long c1 = 0xa98409e882ce4d7dL;
+        long c2 = 0xa81e14edd9de2c7fL;
+
+        long k1 = 0;
+        long k2 = 0;
+        long h1 = result[0];
+        long h2 = result[1];
+
+        //----------
+        // reverse finalization
+        h2 -= h1;
+        h1 -= h2;
+
+        h1 = invFmix(h1);
+        h2 = invFmix(h2);
+
+        h2 -= h1;
+        h1 -= h2;
+
+        h1 ^= 16;
+        h2 ^= 16;
+
+        //----------
+        // reverse body
+        h2 -= 0x38495ab5;
+        h2 *= 0xcccccccccccccccdL;
+        h2 -= h1;
+        h2 = invRotl64(h2, 31);
+        k2 = h2;
+        h2 = 0;
+
+        k2 *= c1;
+        k2 = invRotl64(k2, 33);
+        k2 *= c2;
+
+        h1 -= 0x52dce729;
+        h1 *= 0xcccccccccccccccdL;
+        //h1 -= h2;
+        h1 = invRotl64(h1, 27);
+
+        k1 = h1;
+
+        k1 *= c2;
+        k1 = invRotl64(k1, 31);
+        k1 *= c1;
+
+        // note that while this works for body block reversing the tail reverse requires `invTailReverse`
+        k1 = Long.reverseBytes(k1);
+        k2 = Long.reverseBytes(k2);
+
+        return new long[] {k1, k2};
+    }
 }

@@ -20,12 +20,17 @@
 package org.apache.cassandra.spark;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import com.google.common.collect.TreeRangeMap;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -47,6 +52,7 @@ import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.transports.storage.StorageAccessConfiguration;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
@@ -394,6 +400,82 @@ public class KryoSerializationTests
                     assertThat(deserialized.subRanges().get(index)).isEqualTo(tokenPartitioner.subRanges().get(index));
                 }
                 assertThat(deserialized.ring()).isEqualTo(tokenPartitioner.ring());
+            });
+    }
+
+    private void testCassandraRingSerializationWithReplicasForRangesKryo(CassandraBridge bridge,
+                                                                        Partitioner partitioner,
+                                                                        List<CassandraInstance> instances,
+                                                                        RangeMap<BigInteger, List<CassandraInstance>> replicasForRanges,
+                                                                        ReplicationFactor replicationFactor,
+                                                                        int expectedRangeCount)
+    {
+        CassandraRing ring = new CassandraRing(partitioner, "test_keyspace", replicationFactor, instances, replicasForRanges);
+
+        Output out = serialize(bridge.getVersion(), ring);
+        CassandraRing deserialized = deserialize(bridge.getVersion(), out, CassandraRing.class);
+
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized.rangeMap()).isNotNull();
+        assertThat(deserialized.rangeMap().asMapOfRanges()).hasSize(expectedRangeCount);
+        assertThat(deserialized).isEqualTo(ring);
+        assertThat(deserialized.rangeMap().asMapOfRanges()).isEqualTo(ring.rangeMap().asMapOfRanges());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCassandraRingWithReplicasForRangesKryo(CassandraBridge bridge)
+    {
+        // Create test instances that will be reused across different configurations
+        List<CassandraInstance> instances = Arrays.asList(
+        new CassandraInstance("-1000", "node1", "DC1"),
+        new CassandraInstance("0", "node2", "DC1"),
+        new CassandraInstance("1000", "node3", "DC2")
+        );
+
+        // Create different replicasForRanges configurations to test
+        List<RangeMap<BigInteger, List<CassandraInstance>>> replicasForRangesList = new ArrayList<>();
+
+        // Configuration 1: Basic two-range setup
+        RangeMap<BigInteger, List<CassandraInstance>> config1 = TreeRangeMap.create();
+        config1.put(Range.openClosed(new BigInteger("-1000"), BigInteger.ZERO),
+                    Arrays.asList(instances.get(0), instances.get(1)));
+        config1.put(Range.openClosed(BigInteger.ZERO, new BigInteger("1000")),
+                    Arrays.asList(instances.get(1), instances.get(2)));
+        replicasForRangesList.add(config1);
+
+        // Configuration 2: Single range with all replicas
+        RangeMap<BigInteger, List<CassandraInstance>> config2 = TreeRangeMap.create();
+        config2.put(Range.openClosed(new BigInteger("-500"), new BigInteger("500")),
+                    Arrays.asList(instances.get(0), instances.get(1), instances.get(2)));
+        replicasForRangesList.add(config2);
+
+        // Configuration 3: Range with empty replica list
+        RangeMap<BigInteger, List<CassandraInstance>> config4 = TreeRangeMap.create();
+        config4.put(Range.openClosed(new BigInteger("-100"), BigInteger.ZERO),
+                    Collections.emptyList());
+        config4.put(Range.openClosed(BigInteger.ZERO, new BigInteger("100")),
+                    Arrays.asList(instances.get(1)));
+        replicasForRangesList.add(config4);
+
+        // Configuration 4: Token ranges with boundary values (Long.MAX_VALUE, Long.MIN_VALUE)
+        RangeMap<BigInteger, List<CassandraInstance>> config5 = TreeRangeMap.create();
+        config5.put(Range.openClosed(BigInteger.valueOf(Long.MIN_VALUE), BigInteger.ZERO),
+                    Arrays.asList(instances.get(0), instances.get(1)));
+        config5.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(Long.MAX_VALUE)),
+                    Arrays.asList(instances.get(1), instances.get(2)));
+        replicasForRangesList.add(config5);
+
+        qt().forAll(TestUtils.partitioners(), integers().between(0, replicasForRangesList.size() - 1))
+            .checkAssert((partitioner, index) -> {
+                ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
+                                                             ImmutableMap.of("DC1", 2, "DC2", 1));
+
+                int expectedRangeCount = replicasForRangesList.get(index).asMapOfRanges().size();
+
+                testCassandraRingSerializationWithReplicasForRangesKryo(bridge, partitioner, instances,
+                                                                        replicasForRangesList.get(index),
+                                                                        rf, expectedRangeCount);
             });
     }
 
