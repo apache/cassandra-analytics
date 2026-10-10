@@ -37,18 +37,16 @@ import org.apache.cassandra.analytics.TestConsistencyLevel;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
-/**
- * Integration tests to verify bulk writes when half of the Cassandra nodes leave the cluster and the operation
- * succeeds
- */
-class LeavingHalfTest extends LeavingTestBase
+class LegacyLeavingMultiDCTest extends LeavingTestBase
 {
     @Override
     protected boolean requiresConcurrentTopologyChanges()
@@ -57,17 +55,22 @@ class LeavingHalfTest extends LeavingTestBase
     }
 
     @ParameterizedTest(name = "{index} => {0}")
-    @MethodSource("singleDCTestInputs")
-    void halveClusterSize(TestConsistencyLevel cl)
+    @MethodSource("multiDCTestInputs")
+    void testLeavingScenario(TestConsistencyLevel cl)
     {
-        runLeavingTestScenario(cl);
+        QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
+                                            .save();
+        // validate data right after bulk writes
+        validateData(table, cl.readCL, ROW_COUNT);
+        validateNodeSpecificData(table, generateExpectedInstanceData(cluster, leavingNodes, ROW_COUNT), false);
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        singleDCTestInputs().forEach(arguments -> {
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3_DC2_RF3);
+        multiDCTestInputs().forEach(arguments -> {
             QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, arguments.get());
             createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
         });
@@ -76,49 +79,50 @@ class LeavingHalfTest extends LeavingTestBase
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperHalveClusterSize.transitionalStateEnd, singleDCTestInputs());
+        completeTransitionsAndValidateWrites(BBHelperLeavingNodesMultiDC.transitionalStateEnd, multiDCTestInputs());
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(6)
+        return clusterConfig().dcCount(2)
+                              .nodesPerDc(5)
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperHalveClusterSize::install);
+                              .instanceInitializer(BBHelperLeavingNodesMultiDC::install);
     }
 
     @Override
     protected int leavingNodesPerDc()
     {
-        return 3;
+        return 1;
     }
 
     @Override
     protected CountDownLatch transitioningStateStart()
     {
-        return BBHelperHalveClusterSize.transitionalStateStart;
+        return BBHelperLeavingNodesMultiDC.transitionalStateStart;
     }
 
     /**
-     * ByteBuddy helper for shrinking cluster by half its size
+     * ByteBuddy helper for multiple leaving nodes multi-DC
      */
-    public static class BBHelperHalveClusterSize
+    public static class BBHelperLeavingNodesMultiDC
     {
-        static final CountDownLatch transitionalStateStart = new CountDownLatch(3);
-        static final CountDownLatch transitionalStateEnd = new CountDownLatch(3);
+        static final CountDownLatch transitionalStateStart = new CountDownLatch(2);
+        static final CountDownLatch transitionalStateEnd = new CountDownLatch(2);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves halving the size of a 6 node cluster
-            // We intercept the shutdown of the removed nodes (4-6) to validate token ranges
-            if (nodeNumber > 3)
+            // Test case involves 10 node cluster (5 nodes per DC) with a 2 leaving nodes (1 per DC)
+            // We intercept the shutdown of the leaving nodes (9, 10) to validate token ranges
+            if (nodeNumber > 8)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("unbootstrap"))
-                               .intercept(MethodDelegation.to(BBHelperHalveClusterSize.class))
+                               .intercept(MethodDelegation.to(BBHelperLeavingNodesMultiDC.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);

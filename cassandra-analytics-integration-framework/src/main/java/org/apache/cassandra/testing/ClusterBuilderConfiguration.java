@@ -27,6 +27,7 @@ import java.util.function.IntFunction;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.NetworkTopology;
 
 /**
@@ -44,6 +45,7 @@ public class ClusterBuilderConfiguration
     public String partitioner;
     public Map<String, Object> additionalInstanceConfig = null;
     public int tokenCount = 1;
+    public TokenSupplier tokenSupplier;
     public IntFunction<NetworkTopology.DcAndRack> dcAndRackSupplier;
 
     /**
@@ -177,6 +179,18 @@ public class ClusterBuilderConfiguration
     public ClusterBuilderConfiguration tokenCount(int tokenCount)
     {
         this.tokenCount = tokenCount;
+        return this;
+    }
+
+    /**
+     * Overrides the default token allocation for topology-change scenarios.
+     *
+     * @param tokenSupplier the token allocation for existing and joining nodes
+     * @return this configuration instance
+     */
+    public ClusterBuilderConfiguration tokenSupplier(TokenSupplier tokenSupplier)
+    {
+        this.tokenSupplier = tokenSupplier;
         return this;
     }
 

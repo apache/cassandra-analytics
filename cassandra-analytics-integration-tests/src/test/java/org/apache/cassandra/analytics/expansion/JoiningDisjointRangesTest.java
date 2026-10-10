@@ -28,57 +28,77 @@ import org.apache.cassandra.analytics.TopologyChangeBBUtils;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-class JoiningMultiDCFailureTest extends JoiningMultiDCTest
+/**
+ * Bulk writes during concurrent TCM joins with Sidecar's CASSSIDECAR-277 token placement.
+ */
+class JoiningDisjointRangesTest extends JoiningMultiDCTest
 {
     @Override
-    protected void beforeClusterShutdown()
+    protected void beforeClusterProvisioning()
     {
-        completeTransitionsAndValidateWrites(BBHelperMultiDCFailure.transitioningStateEnd,
-                                             multiDCTestInputs(),
-                                             true);
+        super.beforeClusterProvisioning();
+        assumeTrue(usesTcm(), "Disjoint range locks require TCM");
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(3)
+        return clusterConfig().nodesPerDc(5)
                               .newNodesPerDc(1)
                               .dcCount(2)
+                              .tokenSupplier(disjointMultiDcTokens())
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperMultiDCFailure::install);
+                              .instanceInitializer(BBHelper::install);
+    }
+
+    @Override
+    protected int joiningDatacenters()
+    {
+        return 2;
     }
 
     @Override
     protected CountDownLatch transitioningStateStart()
     {
-        return BBHelperMultiDCFailure.transitioningStateStart;
+        return BBHelper.transitioningStateStart;
     }
 
-    /**
-     * ByteBuddy helper for a joining node failure scenario in multiDC
-     */
-    public static class BBHelperMultiDCFailure
+    @Override
+    protected void beforeTestStart()
     {
-        static final CountDownLatch transitioningStateStart = new CountDownLatch(1);
+        super.beforeTestStart();
+        assertThat(newInstances).extracting(instance -> instance.config().localDatacenter())
+                                .containsExactly("datacenter1", "datacenter2");
+    }
+
+    @Override
+    protected void beforeClusterShutdown()
+    {
+        completeTransitionsAndValidateWrites(BBHelper.transitioningStateEnd, multiDCTestInputs(), false);
+    }
+
+    public static class BBHelper
+    {
+        static final CountDownLatch transitioningStateStart = new CountDownLatch(2);
         static final CountDownLatch transitioningStateEnd = new CountDownLatch(1);
 
-        public static void install(ClassLoader cl, Integer nodeNumber)
+        public static void install(ClassLoader loader, Integer nodeNumber)
         {
-            // Intercept the joining node in datacenter1.
-            if (nodeNumber == 7)
+            if (nodeNumber == 11 || nodeNumber == 12)
             {
-                TopologyChangeBBUtils.installBootstrap(cl, BBHelperMultiDCFailure.class);
+                TopologyChangeBBUtils.installBootstrap(loader, BBHelper.class);
             }
         }
 
-        public static boolean bootstrap(@SuperCall Callable<Boolean> orig) throws Exception
+        public static boolean bootstrap(@SuperCall Callable<Boolean> original) throws Exception
         {
-            orig.call();
-            // trigger bootstrap start and wait until bootstrap is ready from test
+            boolean result = original.call();
             transitioningStateStart.countDown();
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
-            throw new UnsupportedOperationException("Simulated failure");
+            return result;
         }
     }
 }
