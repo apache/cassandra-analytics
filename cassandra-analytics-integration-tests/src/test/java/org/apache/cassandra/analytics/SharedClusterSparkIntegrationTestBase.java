@@ -41,6 +41,8 @@ import com.vdurmont.semver4j.Semver;
 import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.distributed.api.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.ICoordinator;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
@@ -144,6 +146,53 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
                                                              Map<String, String> additionalOptions)
     {
         return sparkTestUtils.defaultBulkWriterDataFrameWriter(df, tableName, additionalOptions);
+    }
+
+    /**
+     * Flush the memtable for {@code keyspace} on every node in the cluster.
+     */
+    protected void flushKeyspace(String keyspace)
+    {
+        cluster.stream().forEach(instance -> instance.flush(keyspace));
+    }
+
+    /**
+     * Flush the memtable for the keyspace containing {@code table} on every node in the cluster.
+     */
+    protected void flushKeyspace(QualifiedName table)
+    {
+        flushKeyspace(table.keyspace());
+    }
+
+    /**
+     * Disable auto-compaction for {@code keyspace} on every node. Useful for tests that
+     * intentionally produce multiple SSTables via per-batch flushes — without this, background
+     * compaction can merge them between the last flush and the bulk reader's snapshot, silently
+     * degrading a multi-SSTable merge test to a single-SSTable read.
+     */
+    protected void disableAutoCompaction(String keyspace)
+    {
+        cluster.stream().forEach(instance ->
+            instance.nodetoolResult("disableautocompaction", keyspace).asserts().success());
+    }
+
+    /**
+     * Disable auto-compaction for the keyspace containing {@code table} on every node.
+     */
+    protected void disableAutoCompaction(QualifiedName table)
+    {
+        disableAutoCompaction(table.keyspace());
+    }
+
+    /**
+     * Execute a CQL statement on the first running instance at consistency level {@link
+     * ConsistencyLevel#ALL}. Use for test-setup writes where every replica must observe the data
+     * before the bulk reader runs.
+     */
+    protected void execute(String query)
+    {
+        ICoordinator coordinator = cluster.getFirstRunningInstance().coordinator();
+        coordinator.execute(query, ConsistencyLevel.ALL);
     }
 
     protected SparkConf getOrCreateSparkConf()
