@@ -62,7 +62,7 @@ import static org.mockito.Mockito.when;
 public class CassandraClusterInfoTest
 {
     @Test
-    void testQuotedKeyspacePassedToSchemaAndTokenRanges() throws Exception
+    void testSchemaUsesQuotedKeyspaceAndTokenRangesUseRawKeyspace() throws Exception
     {
         Map<String, String> options = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         options.put(WriterOptions.SIDECAR_INSTANCES.name(), "127.0.0.1");
@@ -81,7 +81,7 @@ public class CassandraClusterInfoTest
         when(sidecar.schema("\"MyKeyspace\"")).thenReturn(CompletableFuture.completedFuture(schema));
         CompletableFuture<TokenRangeReplicasResponse> failed = new CompletableFuture<>();
         failed.completeExceptionally(new IllegalStateException("test failure"));
-        when(sidecar.tokenRangeReplicas(any(), eq("\"MyKeyspace\""))).thenReturn(failed);
+        when(sidecar.tokenRangeReplicas(any(), eq("MyKeyspace"))).thenReturn(failed);
 
         try (CassandraClusterInfo ci = new CassandraClusterInfo(conf)
         {
@@ -101,7 +101,7 @@ public class CassandraClusterInfoTest
             assertThat(ci.getCurrentKeyspaceSchema()).isEqualTo("schema");
             assertThatThrownBy(() -> ci.getTokenRangeMapping(false)).hasMessageContaining("Unable to initialize ring information");
             verify(sidecar).schema("\"MyKeyspace\"");
-            verify(sidecar).tokenRangeReplicas(any(), eq("\"MyKeyspace\""));
+            verify(sidecar).tokenRangeReplicas(any(), eq("MyKeyspace"));
         }
     }
 

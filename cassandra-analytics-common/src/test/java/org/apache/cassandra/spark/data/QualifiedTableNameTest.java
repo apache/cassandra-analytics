@@ -31,16 +31,6 @@ class QualifiedTableNameTest
         QualifiedTableName name = new QualifiedTableName("mykeyspace", "mytable", false);
         assertThat(name.keyspace()).isEqualTo("mykeyspace");
         assertThat(name.table()).isEqualTo("mytable");
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("mykeyspace");
-        assertThat(name.maybeQuotedTable()).isEqualTo("mytable");
-    }
-
-    @Test
-    void testQuotedIdentifiersWrappedInDoubleQuotes()
-    {
-        QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable", true);
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("\"MyKeyspace\"");
-        assertThat(name.maybeQuotedTable()).isEqualTo("\"MyTable\"");
     }
 
     @Test
@@ -70,15 +60,14 @@ class QualifiedTableNameTest
     {
         QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable");
         assertThat(name.quoteIdentifiers()).isFalse();
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("MyKeyspace");
-        assertThat(name.maybeQuotedTable()).isEqualTo("MyTable");
+        assertThat(name.keyspace()).isEqualTo("MyKeyspace");
+        assertThat(name.table()).isEqualTo("MyTable");
     }
 
     @Test
     void testReservedWordIdentifiersQuoted()
     {
         QualifiedTableName name = new QualifiedTableName("keyspace", "table", true);
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("\"keyspace\"");
-        assertThat(name.maybeQuotedTable()).isEqualTo("\"table\"");
+        assertThat(name.toString()).isEqualTo("\"keyspace\".\"table\"");
     }
 }

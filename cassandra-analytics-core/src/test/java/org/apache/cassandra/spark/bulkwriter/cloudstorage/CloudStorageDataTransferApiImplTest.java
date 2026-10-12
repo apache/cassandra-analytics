@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 
 import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPayload;
@@ -33,6 +35,8 @@ import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryRespons
 import o.a.c.sidecar.client.shaded.client.RequestContext;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 
@@ -62,7 +66,8 @@ class CloudStorageDataTransferApiImplTest
         when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("MyKeyspace", "MyTable", true));
         when(jobInfo.getRestoreJobId()).thenReturn(JOB_ID);
         when(jobInfo.getRestoreJobId(null)).thenReturn(JOB_ID);
-        api = new CloudStorageDataTransferApiImpl(jobInfo, sidecarClient, mock(StorageClient.class), null);
+        api = new CloudStorageDataTransferApiImpl(jobInfo, CassandraBridgeFactory.get(CassandraVersion.FOURZERO),
+                                                  sidecarClient, mock(StorageClient.class), null);
     }
 
     @Test
@@ -132,15 +137,53 @@ class CloudStorageDataTransferApiImplTest
         }
     }
 
-    @Test
-    void testUnquotedIdentifiersPassedAsIsWhenFlagNotSet() throws Exception
+    @ParameterizedTest
+    @CsvSource({
+    "false, mykeyspace, mytable, mykeyspace, mytable",
+    "false, MyKeyspace, MyTable, MyKeyspace, MyTable",
+    "true, mykeyspace, mytable, mykeyspace, mytable",
+    "true, MyKeyspace, MyTable, \"MyKeyspace\", \"MyTable\"",
+    "true, select, table, \"select\", \"table\""
+    })
+    void testRestoreApisUseBridgeQuoting(boolean quoteIdentifiers,
+                                         String keyspace,
+                                         String table,
+                                         String expectedKeyspace,
+                                         String expectedTable) throws Exception
     {
-        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("mykeyspace", "mytable", false));
-        when(sidecarClient.createRestoreJob(eq("mykeyspace"), eq("mytable"), any()))
+        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName(keyspace, table, quoteIdentifiers));
+        when(sidecarClient.createRestoreJob(eq(expectedKeyspace), eq(expectedTable), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        when(sidecarClient.restoreJobSummary(expectedKeyspace, expectedTable, JOB_ID))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        when(sidecarClient.updateRestoreJob(eq(expectedKeyspace), eq(expectedTable), eq(JOB_ID), any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        when(sidecarClient.abortRestoreJob(expectedKeyspace, expectedTable, JOB_ID))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        when(sidecarClient.requestBuilder()).thenReturn(new RequestContext.Builder());
+        when(sidecarClient.executeRequestAsync(any(RequestContext.class)))
             .thenReturn(CompletableFuture.completedFuture(null));
 
         api.createRestoreJob(mock(CreateRestoreJobRequestPayload.class));
+        api.restoreJobSummary();
+        api.updateRestoreJob(mock(UpdateRestoreJobRequestPayload.class));
+        api.abortRestoreJob();
+        SidecarInstance instance = mock(SidecarInstance.class);
+        CreateSliceRequestPayload payload = mock(CreateSliceRequestPayload.class);
+        api.createRestoreSliceFromExecutor(instance, payload);
+        api.createRestoreSliceFromDriver(instance, payload).get();
 
-        verify(sidecarClient).createRestoreJob(eq("mykeyspace"), eq("mytable"), any());
+        verify(sidecarClient).createRestoreJob(eq(expectedKeyspace), eq(expectedTable), any());
+        verify(sidecarClient).restoreJobSummary(expectedKeyspace, expectedTable, JOB_ID);
+        verify(sidecarClient).updateRestoreJob(eq(expectedKeyspace), eq(expectedTable), eq(JOB_ID), any());
+        verify(sidecarClient).abortRestoreJob(expectedKeyspace, expectedTable, JOB_ID);
+        ArgumentCaptor<RequestContext> requests = ArgumentCaptor.forClass(RequestContext.class);
+        verify(sidecarClient, times(2)).executeRequestAsync(requests.capture());
+        for (RequestContext request : requests.getAllValues())
+        {
+            assertThat(request.request().requestURI())
+            .isEqualTo("/api/v1/keyspaces/" + expectedKeyspace + "/tables/" + expectedTable + "/restore-jobs/" + JOB_ID + "/slices");
+            assertThat(request.request().requestBody()).isSameAs(payload);
+        }
     }
 }

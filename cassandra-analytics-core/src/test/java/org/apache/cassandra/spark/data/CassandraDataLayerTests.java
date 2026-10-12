@@ -50,7 +50,7 @@ class CassandraDataLayerTests
     "sidecar_contact_points", "localhost");
 
     @Test
-    void testDynamicSizingUsesQuotedIdentifiers()
+    void testDynamicSizingUsesRawIdentifiers()
     {
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("keyspace", "MyKeyspace");
@@ -69,13 +69,13 @@ class CassandraDataLayerTests
         ring.add(entry);
         TableStatsResponse stats = mock(TableStatsResponse.class);
         when(stats.totalDiskSpaceUsedBytes()).thenReturn(1024L);
-        when(layer.sidecar.tableStats(any(SidecarInstance.class), eq("\"MyKeyspace\""), eq("\"MyTable\"")))
+        when(layer.sidecar.tableStats(any(SidecarInstance.class), eq("MyKeyspace"), eq("MyTable")))
             .thenReturn(CompletableFuture.completedFuture(stats));
 
         assertThat(layer.getSizing(CompletableFuture.completedFuture(ring),
                                    ReplicationFactor.simpleStrategy(1), clientConfig).getEffectiveNumberOfCores())
         .isEqualTo(1);
-        verify(layer.sidecar).tableStats(any(SidecarInstance.class), eq("\"MyKeyspace\""), eq("\"MyTable\""));
+        verify(layer.sidecar).tableStats(any(SidecarInstance.class), eq("MyKeyspace"), eq("MyTable"));
     }
 
     @Test

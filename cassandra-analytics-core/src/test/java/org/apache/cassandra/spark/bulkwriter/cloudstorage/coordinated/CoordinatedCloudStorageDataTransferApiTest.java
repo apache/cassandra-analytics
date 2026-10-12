@@ -26,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.util.concurrent.RateLimiter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobProgressFetchPolicy;
@@ -34,6 +36,8 @@ import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobProgressRequest
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobProgressResponsePayload;
 import o.a.c.sidecar.client.shaded.client.RequestContext;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransferApiImpl;
 import org.apache.cassandra.spark.data.QualifiedTableName;
@@ -50,17 +54,19 @@ class CoordinatedCloudStorageDataTransferApiTest
     private static final UUID JOB_ID = UUID.randomUUID();
 
     private SidecarClient sidecarClient;
+    private JobInfo jobInfo;
     private CoordinatedCloudStorageDataTransferApi api;
 
     @BeforeEach
     void setup()
     {
         sidecarClient = mock(SidecarClient.class);
-        JobInfo jobInfo = mock(JobInfo.class);
+        jobInfo = mock(JobInfo.class);
         when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("MyKeyspace", "MyTable", true));
         when(jobInfo.getRestoreJobId(CLUSTER_ID)).thenReturn(JOB_ID);
         CloudStorageDataTransferApiImpl delegate = mock(CloudStorageDataTransferApiImpl.class);
         when(delegate.jobInfo()).thenReturn(jobInfo);
+        when(delegate.bridge()).thenReturn(CassandraBridgeFactory.get(CassandraVersion.FOURZERO));
         when(delegate.sidecarClient()).thenReturn(sidecarClient);
         api = new CoordinatedCloudStorageDataTransferApi(mock(RateLimiter.class),
                                                          Collections.singletonMap(CLUSTER_ID, delegate));
@@ -99,6 +105,43 @@ class CoordinatedCloudStorageDataTransferApiTest
         verify(sidecarClient).restoreJobProgress(params.capture());
         assertThat(params.getValue().keyspace).isEqualTo("\"MyKeyspace\"");
         assertThat(params.getValue().table).isEqualTo("\"MyTable\"");
+        assertThat(params.getValue().jobId).isEqualTo(JOB_ID);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+    "false, mykeyspace, mytable, mykeyspace, mytable",
+    "false, MyKeyspace, MyTable, MyKeyspace, MyTable",
+    "true, mykeyspace, mytable, mykeyspace, mytable",
+    "true, MyKeyspace, MyTable, \"MyKeyspace\", \"MyTable\"",
+    "true, select, table, \"select\", \"table\""
+    })
+    void testCoordinatedRestoreApisUseBridgeQuoting(boolean quoteIdentifiers,
+                                                   String keyspace,
+                                                   String table,
+                                                   String expectedKeyspace,
+                                                   String expectedTable)
+    {
+        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName(keyspace, table, quoteIdentifiers));
+        when(sidecarClient.requestBuilder()).thenReturn(new RequestContext.Builder());
+        when(sidecarClient.executeRequestAsync(any(RequestContext.class)))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        when(sidecarClient.restoreJobProgress(any(RestoreJobProgressRequestParams.class)))
+            .thenReturn(CompletableFuture.completedFuture(mock(RestoreJobProgressResponsePayload.class)));
+        CreateSliceRequestPayload payload = mock(CreateSliceRequestPayload.class);
+
+        api.createRestoreSliceFromExecutor(CLUSTER_ID, payload);
+        api.restoreJobProgress(RestoreJobProgressFetchPolicy.FIRST_FAILED, cluster -> false, (cluster, progress) -> { });
+
+        ArgumentCaptor<RequestContext> request = ArgumentCaptor.forClass(RequestContext.class);
+        verify(sidecarClient).executeRequestAsync(request.capture());
+        assertThat(request.getValue().request().requestURI())
+        .isEqualTo("/api/v1/keyspaces/" + expectedKeyspace + "/tables/" + expectedTable + "/restore-jobs/" + JOB_ID + "/slices");
+        assertThat(request.getValue().request().requestBody()).isSameAs(payload);
+        ArgumentCaptor<RestoreJobProgressRequestParams> params = ArgumentCaptor.forClass(RestoreJobProgressRequestParams.class);
+        verify(sidecarClient).restoreJobProgress(params.capture());
+        assertThat(params.getValue().keyspace).isEqualTo(expectedKeyspace);
+        assertThat(params.getValue().table).isEqualTo(expectedTable);
         assertThat(params.getValue().jobId).isEqualTo(JOB_ID);
     }
 }
