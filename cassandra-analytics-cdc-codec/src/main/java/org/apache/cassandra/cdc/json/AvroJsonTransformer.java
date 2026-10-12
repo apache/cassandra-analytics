@@ -51,7 +51,7 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
             Schema tableSchema = store.getSchema(event.keyspace + '.' + event.table, null);
             GenericData.Record update = new GenericData.Record(tableSchema);
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
-            Object javaValue = type.deserializeToJavaType(field.getValue());
+            Object javaValue = AvroDataUtils.deserialize(type, field.getValue());
             update.put(field.columnName, AvroDataUtils.toAvro(javaValue, tableSchema.getField(field.columnName).schema()));
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
@@ -67,7 +67,7 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
         CdcEventUtils.updatedFields(event)
                      .forEach(field -> {
                          CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
-                         Object javaValue = type.deserializeToJavaType(field.getValue());
+                         Object javaValue = AvroDataUtils.deserialize(type, field.getValue());
                          update.put(field.columnName, AvroDataUtils.toAvro(javaValue, tableSchema.getField(field.columnName).schema()));
                      });
         return update;
