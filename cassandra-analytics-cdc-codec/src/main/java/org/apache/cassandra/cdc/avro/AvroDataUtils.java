@@ -25,14 +25,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -44,9 +39,6 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.TypeConverter;
-import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_KEY_NAME;
 import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_VALUE_NAME;
@@ -63,95 +55,6 @@ public final class AvroDataUtils
     }
 
     private static final Conversions.DecimalConversion decimalConversions = new Conversions.DecimalConversion();
-
-    /**
-     * Converts the values produced by {@link CqlField.CqlType#deserializeToType} into the Java values expected by
-     * {@link #toAvro(Object, Schema)}. Cassandra serializers leave UDTs as raw bytes, including inside collections
-     * and tuples, so they are deserialized into {@code Map<String, Object>} keyed by field name with
-     * {@link CqlField.CqlUdt#deserializeUdt}. All other values are returned unchanged.
-     */
-    private static final TypeConverter CDC_TYPE_CONVERTER = new TypeConverter()
-    {
-        @Override
-        @SuppressWarnings("unchecked")
-        public Object convert(CqlField.CqlType cqlType, Object value, boolean isFrozen)
-        {
-            if (value == null)
-            {
-                return null;
-            }
-            switch (cqlType.internalType())
-            {
-                case Frozen:
-                    return convert(((CqlField.CqlFrozen) cqlType).inner(), value, true);
-                case Udt:
-                    return value instanceof ByteBuffer
-                           ? ((CqlField.CqlUdt) cqlType).deserializeUdt(this, (ByteBuffer) value, isFrozen)
-                           : value;
-                case Tuple:
-                    CqlField.CqlTuple tuple = (CqlField.CqlTuple) cqlType;
-                    Object[] elements = value instanceof ByteBuffer
-                                        ? tuple.deserializeTuple((ByteBuffer) value, true)
-                                        : (Object[]) value;
-                    Object[] tupleResult = new Object[elements.length];
-                    for (int index = 0; index < elements.length; index++)
-                    {
-                        tupleResult[index] = convert(tuple.type(index), elements[index], true);
-                    }
-                    return tupleResult;
-                case List:
-                    CqlField.CqlType listElementType = ((CqlField.CqlCollection) cqlType).type();
-                    List<Object> list = new ArrayList<>(((Collection<Object>) value).size());
-                    for (Object element : (Collection<Object>) value)
-                    {
-                        list.add(convert(listElementType, element, true));
-                    }
-                    return list;
-                case Set:
-                    CqlField.CqlType setElementType = ((CqlField.CqlCollection) cqlType).type();
-                    Set<Object> set = new LinkedHashSet<>();
-                    for (Object element : (Collection<Object>) value)
-                    {
-                        set.add(convert(setElementType, element, true));
-                    }
-                    return set;
-                case Map:
-                    CqlField.CqlMap mapType = (CqlField.CqlMap) cqlType;
-                    Map<Object, Object> map = new LinkedHashMap<>();
-                    for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet())
-                    {
-                        map.put(convert(mapType.keyType(), entry.getKey(), true),
-                                convert(mapType.valueType(), entry.getValue(), true));
-                    }
-                    return map;
-                default:
-                    return value;
-            }
-        }
-    };
-
-    /**
-     * Deserializes a column value into the Java value expected by {@link #toAvro(Object, Schema)}, with UDTs
-     * deserialized into {@code Map<String, Object>} keyed by field name.
-     *
-     * @param type  the CQL type of the column
-     * @param value the serialized column value
-     * @return the deserialized value, or null if the value is null
-     */
-    @Nullable
-    public static Object deserialize(CqlField.CqlType type, @Nullable ByteBuffer value)
-    {
-        if (value == null)
-        {
-            return null;
-        }
-        // only types containing UDTs need conversion; avoid the overhead for everything else
-        if (type.udts().isEmpty())
-        {
-            return type.deserializeToJavaType(value);
-        }
-        return type.deserializeToType(CDC_TYPE_CONVERTER, value);
-    }
 
     /**
      * Converts Cassandra value object to Avro, and eventually the Avro data is used to be converted into
