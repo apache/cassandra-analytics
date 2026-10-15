@@ -76,11 +76,17 @@ jobs:
         with:
           path: ${{ github.workspace }}
           key: build-jdk11-${{ github.sha }}
+      - name: Upload dtest jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtest-jars-jdk11
+          path: dependencies/dtest-*.jar
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   # JDK17 dependency build for the Spark 4 / Scala 2.13 / Cassandra 5.0 and 6.0 matrix.
-  # Produces a distinct workspace cache (build-jdk17-...) so downstream test jobs
-  # must restore from exactly one of build-jdk11 / build-jdk17 — mixing them
-  # would clobber dependency jars.
+  # Test jobs download the dtest jars built with their selected JDK.
   build-jdk17:
     name: Compile and build (JDK 17)
     runs-on: ubuntu-latest
@@ -133,10 +139,18 @@ jobs:
         with:
           path: ${{ github.workspace }}
           key: build-jdk17-${{ github.sha }}
+      - name: Upload dtest jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtest-jars-jdk17
+          path: dependencies/dtest-*.jar
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   unit-test:
     name: Unit test - Scala ${{ matrix.scala }} ${{ matrix.sstable-format }} C${{ matrix.cassandra }} Spark${{ matrix.spark }} JDK${{ matrix.jdk }}
-    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
@@ -165,6 +179,7 @@ jobs:
             spark: '4'
       fail-fast: false
     steps:
+      - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -182,12 +197,11 @@ jobs:
         with:
           path: ~/.m2
           key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
-      - name: Cache workspace
-        id: cache-build-restore
-        uses: actions/cache/restore@v4
+      - name: Download dtest jars
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ github.workspace }}
-          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
+          name: dtest-jars-jdk${{ matrix.jdk }}
+          path: dependencies
       - run: |
           export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"
@@ -212,7 +226,7 @@ jobs:
 
   integration-test:
     name: Integration test - ${{ matrix.config }} (${{ matrix.job_index }})
-    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
@@ -259,6 +273,7 @@ jobs:
             spark: '4'
       fail-fast: false
     steps:
+      - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -276,12 +291,11 @@ jobs:
         with:
           path: ~/.m2
           key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
-      - name: Cache workspace
-        id: cache-build-restore
-        uses: actions/cache/restore@v4
+      - name: Download dtest jars
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ github.workspace }}
-          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
+          name: dtest-jars-jdk${{ matrix.jdk }}
+          path: dependencies
       - run: |
           export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"
