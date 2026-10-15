@@ -27,22 +27,45 @@ public class SidecarInstanceImpl implements SidecarInstance
 {
     protected int port;
     protected String hostname;
+    protected Integer instanceId;
 
     /**
-     * Constructs a new Sidecar instance with the given {@code port} and {@code hostname}
+     * Constructs a new Sidecar instance with the given {@code port} and {@code hostname} and no
+     * per-instance identifier (requests fall back to the job-level {@code instanceId}, if any).
      *
      * @param hostname the host name where Sidecar is running
      * @param port     the port where Sidecar is running
      */
     public SidecarInstanceImpl(String hostname, int port)
     {
+        this(hostname, port, null);
+    }
+
+    /**
+     * Constructs a new Sidecar instance with the given {@code hostname}, {@code port} and per-instance
+     * {@code instanceId}.
+     *
+     * @param hostname   the host name where Sidecar is running
+     * @param port       the port where Sidecar is running
+     * @param instanceId the identifier of the Cassandra instance that requests sent to this Sidecar
+     *                   endpoint should be routed to, or {@code null} to fall back to the job-level
+     *                   {@code instanceId}
+     */
+    public SidecarInstanceImpl(String hostname, int port, Integer instanceId)
+    {
         if (port < 1 || port > 65535)
         {
             throw new IllegalArgumentException(String.format("Invalid port number for the Sidecar service: %d",
                                                              port));
         }
+        if (instanceId != null && instanceId < 0)
+        {
+            throw new IllegalArgumentException(String.format("Invalid instanceId for the Sidecar service: %d",
+                                                             instanceId));
+        }
         this.port = port;
         this.hostname = Objects.requireNonNull(hostname, "The Sidecar hostname must be non-null");
+        this.instanceId = instanceId;
     }
 
     /**
@@ -67,6 +90,15 @@ public class SidecarInstanceImpl implements SidecarInstance
      * {@inheritDoc}
      */
     @Override
+    public Integer instanceId()
+    {
+        return instanceId;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean equals(Object o)
     {
         if (this == o)
@@ -78,7 +110,7 @@ public class SidecarInstanceImpl implements SidecarInstance
             return false;
         }
         SidecarInstanceImpl that = (SidecarInstanceImpl) o;
-        return port == that.port && Objects.equals(hostname, that.hostname);
+        return port == that.port && Objects.equals(hostname, that.hostname) && Objects.equals(instanceId, that.instanceId);
     }
 
     /**
@@ -87,7 +119,7 @@ public class SidecarInstanceImpl implements SidecarInstance
     @Override
     public int hashCode()
     {
-        return Objects.hash(port, hostname);
+        return Objects.hash(port, hostname, instanceId);
     }
 
     /**
@@ -99,6 +131,7 @@ public class SidecarInstanceImpl implements SidecarInstance
         return "SidecarInstanceImpl{" +
                "port=" + port +
                ", hostname='" + hostname + '\'' +
+               ", instanceId=" + instanceId +
                '}';
     }
 }

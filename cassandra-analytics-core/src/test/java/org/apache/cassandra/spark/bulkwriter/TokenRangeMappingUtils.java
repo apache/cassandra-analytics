@@ -261,7 +261,7 @@ public final class TokenRangeMappingUtils
             String address = "localhost" + i;
             int port = 9042;
             String addressWithPort = address + ":" + port;
-            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "dc1");
+            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "dc1", null);
             replicaMetadata.put(addressWithPort, rm);
             startToken = endToken;
         }
