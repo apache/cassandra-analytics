@@ -192,7 +192,7 @@ public class CqlToAvroSchemaConverterTest
         String address = "CREATE TYPE address (city text);";
         String phone = "CREATE TYPE phone (number int);";
         String person = "CREATE TYPE person (home frozen<address>, mobile frozen<phone>);";
-        String tagged ="CREATE TYPE tagged (tags frozen<map<text, int>>);";
+        String tagged = "CREATE TYPE tagged (tags frozen<map<text, int>>);";
         String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, u frozen<address>, l list<frozen<address>>, " +
                                           "s set<frozen<address>>, p frozen<person>, m map<frozen<address>, frozen<phone>>, " +
                                           "v map<int, frozen<address>>, t map<text, text>, n map<int, frozen<map<int, int>>>, " +
