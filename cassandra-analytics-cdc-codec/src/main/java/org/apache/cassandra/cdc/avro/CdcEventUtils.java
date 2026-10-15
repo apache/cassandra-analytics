@@ -323,7 +323,7 @@ public final class CdcEventUtils
                                        "Encountered an unknown field during event encoding. " +
                                        "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
-            Object javaValue = type.deserializeToJavaType(value);
+            Object javaValue = JavaTypeConverter.deserialize(type, value);
             update.put(field.columnName, AvroDataUtils.toAvro(javaValue, column.schema()));
         }
         return new UpdatedEvent(update, truncatedFields);
