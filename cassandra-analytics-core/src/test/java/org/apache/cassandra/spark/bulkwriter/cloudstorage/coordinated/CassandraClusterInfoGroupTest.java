@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
@@ -40,13 +41,17 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfoTest;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
+import org.apache.cassandra.spark.bulkwriter.DataTransport;
+import org.apache.cassandra.spark.bulkwriter.LoadBalancedCassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.utils.SerializationUtils;
+import org.apache.spark.SparkConf;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup.fromBulkSparkConf;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -245,6 +250,45 @@ class CassandraClusterInfoGroupTest
     }
 
     @Test
+    void testFromBulkSparkConfCreatesLoadBalancedClusterInfoForEachClusterWhenSidecarBehindLoadBalancer()
+    {
+        // Coordinated path: fromBulkSparkConf must select the load-balanced variant for every cluster in the group,
+        // so each cluster's requests route through its load balancer contact points rather than per-replica FQDNs.
+        CassandraClusterInfoGroup group = fromBulkSparkConf(coordinatedBulkSparkConf(true));
+        try
+        {
+            assertThat(group.size())
+            .describedAs("Both configured clusters must be present in the group")
+            .isEqualTo(2);
+            group.forEach((clusterId, clusterInfo) ->
+                          assertThat(clusterInfo)
+                          .describedAs("Coordinated write behind a load balancer must select the load-balanced variant for cluster %s", clusterId)
+                          .isExactlyInstanceOf(LoadBalancedCassandraClusterInfo.class));
+        }
+        finally
+        {
+            group.forEach((clusterId, clusterInfo) -> clusterInfo.close());
+        }
+    }
+
+    @Test
+    void testFromBulkSparkConfCreatesPlainClusterInfoForEachClusterByDefault()
+    {
+        CassandraClusterInfoGroup group = fromBulkSparkConf(coordinatedBulkSparkConf(false));
+        try
+        {
+            group.forEach((clusterId, clusterInfo) ->
+                          assertThat(clusterInfo)
+                          .describedAs("Without the load balancer flag, each cluster must use the plain per-replica variant. cluster %s", clusterId)
+                          .isExactlyInstanceOf(CassandraClusterInfo.class));
+        }
+        finally
+        {
+            group.forEach((clusterId, clusterInfo) -> clusterInfo.close());
+        }
+    }
+
+    @Test
     void testSerDeser()
     {
         // Create a CassandraClusterInfoGroup with some test data
@@ -365,5 +409,20 @@ class CassandraClusterInfoGroupTest
         CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class);
         when(clusterInfo.clusterId()).thenReturn(clusterId);
         return clusterInfo;
+    }
+
+    private static BulkSparkConf coordinatedBulkSparkConf(boolean sidecarBehindLoadBalancer)
+    {
+        // No keystore options: SSL stays disabled so fromBulkSparkConf can build real (non-TLS) Sidecar clients
+        // offline, one per cluster. We only assert on the concrete type selected, never issuing a request.
+        Map<String, String> options = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
+        options.put(WriterOptions.KEYSPACE.name(), "ks");
+        options.put(WriterOptions.TABLE.name(), "table");
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(),
+                    "{\"cluster1\":{\"sidecarContactPoints\":[\"127.0.0.1:9043\"]},"
+                    + "\"cluster2\":{\"sidecarContactPoints\":[\"127.0.0.2:9043\"]}}");
+        options.put(WriterOptions.SIDECAR_BEHIND_LOAD_BALANCER.name(), String.valueOf(sidecarBehindLoadBalancer));
+        return new BulkSparkConf(new SparkConf(), options);
     }
 }
