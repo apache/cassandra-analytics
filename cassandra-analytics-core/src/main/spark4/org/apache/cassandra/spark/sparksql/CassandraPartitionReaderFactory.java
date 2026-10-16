@@ -25,8 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.S3CassandraDataLayer;
+import org.apache.cassandra.spark.data.SSTableTokenIndex;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.spark.TaskContext;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -39,14 +42,17 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
     final DataLayer dataLayer;
     final StructType requiredSchema;
     final List<PartitionKeyFilter> partitionKeyFilters;
+    final Broadcast<SSTableTokenIndex> sstableTokenIndexBroadcast;
 
     CassandraPartitionReaderFactory(DataLayer dataLayer,
                                     StructType requiredSchema,
-                                    List<PartitionKeyFilter> partitionKeyFilters)
+                                    List<PartitionKeyFilter> partitionKeyFilters,
+                                    Broadcast<SSTableTokenIndex> sstableTokenIndexBroadcast)
     {
         this.dataLayer = dataLayer;
         this.requiredSchema = requiredSchema;
         this.partitionKeyFilters = partitionKeyFilters;
+        this.sstableTokenIndexBroadcast = sstableTokenIndexBroadcast;
     }
 
     @Override
@@ -63,6 +69,10 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
             LOGGER.warn("InputPartition is not of CassandraInputPartition type. "
                       + "Using TaskContext to determine the partitionId type={}, partitionId={}",
                         partition.getClass().getName(), partitionId);
+        }
+        if (sstableTokenIndexBroadcast != null && dataLayer instanceof S3CassandraDataLayer)
+        {
+            ((S3CassandraDataLayer) dataLayer).setSSTableTokenIndex(sstableTokenIndexBroadcast.value());
         }
         return new SparkRowIterator(partitionId, dataLayer, requiredSchema, partitionKeyFilters);
     }

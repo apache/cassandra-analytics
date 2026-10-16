@@ -62,6 +62,10 @@ dependencies {
     testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
     testImplementation(group: 'io.vertx', name: 'vertx-core', version: "${vertxVersion}")
 
+    // Spark 3.5 dropped commons-lang3/commons-lang as transitive deps; tests still reach for them.
+    testImplementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
+    testImplementation "commons-lang:commons-lang:2.6"
+
     testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
     testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
 }

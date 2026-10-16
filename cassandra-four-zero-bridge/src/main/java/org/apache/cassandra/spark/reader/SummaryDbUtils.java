@@ -39,7 +39,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class SummaryDbUtils
 {
-    public static class Summary
+    public static class Summary implements AutoCloseable
     {
         private final IndexSummary indexSummary;
         private final DecoratedKey firstKey;
@@ -67,6 +67,12 @@ public final class SummaryDbUtils
         public DecoratedKey last()
         {
             return lastKey;
+        }
+
+        @Override
+        public void close()
+        {
+            indexSummary.close();
         }
     }
 
@@ -113,9 +119,17 @@ public final class SummaryDbUtils
         try (DataInputStream is = new DataInputStream(summaryStream))
         {
             IndexSummary indexSummary = IndexSummary.serializer.deserialize(is, partitioner, minIndexInterval, maxIndexInterval);
-            DecoratedKey firstKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(is));
-            DecoratedKey lastKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(is));
-            return new Summary(indexSummary, firstKey, lastKey);
+            try
+            {
+                DecoratedKey firstKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(is));
+                DecoratedKey lastKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(is));
+                return new Summary(indexSummary, firstKey, lastKey);
+            }
+            catch (IOException | RuntimeException exception)
+            {
+                indexSummary.close();
+                throw exception;
+            }
         }
     }
 

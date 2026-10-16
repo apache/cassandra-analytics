@@ -25,4 +25,5 @@ ext {
     sparkGroupId="org.apache.spark"
     sparkMajorVersion="4"
     sparkVersion="4.0.1"
+    commonsLang3Version="3.17.0"
 }

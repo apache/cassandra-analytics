@@ -1,2 +1,3 @@
 org.apache.cassandra.spark.sparksql.CassandraDataSource
 org.apache.cassandra.spark.sparksql.CassandraDataSink
+org.apache.cassandra.spark.sparksql.S3CassandraDataSource
