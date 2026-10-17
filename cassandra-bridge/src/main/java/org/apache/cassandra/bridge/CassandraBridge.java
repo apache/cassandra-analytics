@@ -59,6 +59,7 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
@@ -94,7 +95,9 @@ public abstract class CassandraBridge
                                                                 @NotNull TimeProvider timeProvider,
                                                                 boolean readIndexOffset,
                                                                 boolean useIncrementalRepair,
-                                                                @NotNull Stats stats);
+                                                                @NotNull Stats stats,
+                                                                @NotNull List<SaiFilter> saiFilters,
+                                                                int saiMaxCandidateTokens);
 
     public abstract StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
                                                                        @NotNull Partitioner partitioner,

@@ -32,6 +32,7 @@ import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.utils.FastThreadLocalUtf8Decoder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -46,7 +47,8 @@ public class SparkCellIterator extends CellIterator
     public SparkCellIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                             @NotNull List<SaiFilter> saiFilters)
     {
         super(partitionId,
               dataLayer.cqlTable(),
@@ -55,7 +57,11 @@ public class SparkCellIterator extends CellIterator
               partitionKeyFilters,
               dataLayer.sstableTimeRangeFilter(),
               (cqlTable) -> buildColumnFilter(requiredSchema, cqlTable),
-              dataLayer::openCompactionScanner);
+              (id, filters, timeRange, columnFilter) -> dataLayer.openCompactionScanner(id,
+                                                                                        filters,
+                                                                                        timeRange,
+                                                                                        columnFilter,
+                                                                                        saiFilters));
         this.dataLayer = dataLayer;
         this.sparkTypes = new SparkType[cqlTable.numFields()];
         SparkSqlTypeConverter sparkSqlTypeConverter = ((SparkSqlTypeConverter) this.typeConverter);

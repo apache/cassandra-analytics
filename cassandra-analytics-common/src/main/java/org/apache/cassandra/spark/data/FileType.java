@@ -69,6 +69,11 @@ public enum FileType
         return FILE_TYPE_HASH_MAP.get(extension);
     }
 
+    public static boolean isStandardFileType(String extension)
+    {
+        return FILE_TYPE_HASH_MAP.containsKey(extension);
+    }
+
     @Nullable
     public static Path resolveComponentFile(FileType fileType, Path dataFilePath)
     {

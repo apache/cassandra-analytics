@@ -19,10 +19,13 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
@@ -31,6 +34,7 @@ import org.apache.cassandra.clients.SidecarStreamConsumerAdapter;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.utils.Preconditions;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
@@ -43,6 +47,7 @@ import org.jetbrains.annotations.Nullable;
 public class SidecarProvisionedSSTable extends SSTable
 {
     private static final long serialVersionUID = 6452703925812602832L;
+    private static final FileType customComponentFileType = FileType.INDEX; // using INDEX file type for SAI indexes
     private final SidecarClient sidecar;
     private final SidecarInstance instance;
     private final Sidecar.ClientConfig sidecarClientConfig;
@@ -53,6 +58,8 @@ public class SidecarProvisionedSSTable extends SSTable
     private final String dataFileName;
     @NotNull
     private final Map<FileType, ListSnapshotFilesResponse.FileInfo> components;
+    @NotNull
+    private final Map<String, ListSnapshotFilesResponse.FileInfo> customComponents;
     private final int partitionId;
     private final Stats stats;
 
@@ -64,6 +71,7 @@ public class SidecarProvisionedSSTable extends SSTable
                                         String table,
                                         String snapshotName,
                                         @NotNull Map<FileType, ListSnapshotFilesResponse.FileInfo> components,
+                                        @NotNull Map<String, ListSnapshotFilesResponse.FileInfo> customComponents,
                                         int partitionId,
                                         Stats stats)
     {
@@ -74,6 +82,7 @@ public class SidecarProvisionedSSTable extends SSTable
         this.table = table;
         this.snapshotName = snapshotName;
         this.components = components;
+        this.customComponents = customComponents;
         this.partitionId = partitionId;
         this.stats = stats;
         String fileName = Objects.requireNonNull(components.get(FileType.DATA), "Data.db SSTable file component must exist").fileName;
@@ -131,6 +140,64 @@ public class SidecarProvisionedSSTable extends SSTable
         return !components.containsKey(fileType);
     }
 
+    @NotNull
+    @Override
+    public Set<String> customComponentNames()
+    {
+        return customComponents.keySet();
+    }
+
+    @Nullable
+
+    @Override
+    public int readCustomComponent(@NotNull String componentName,
+                                   long position,
+                                   @NotNull ByteBuffer destination) throws IOException
+    {
+        Preconditions.checkArgument(position >= 0, "position must be non-negative");
+        if (!destination.hasRemaining())
+        {
+            return 0;
+        }
+
+        ListSnapshotFilesResponse.FileInfo snapshotFile = customComponents.get(componentName);
+        if (snapshotFile == null || position >= snapshotFile.size)
+        {
+            return -1;
+        }
+
+        int requested = (int) Math.min(destination.remaining(), snapshotFile.size - position);
+        int originalLimit = destination.limit();
+        destination.limit(destination.position() + requested);
+        CassandraFileSource<SidecarProvisionedSSTable> source = source(snapshotFile,
+                                                                       customComponentFileType,
+                                                                       position + requested);
+        try (BufferingInputStream<SidecarProvisionedSSTable> input =
+             new BufferingInputStream<>(source, stats.bufferingInputStreamStats(), position))
+        {
+            return input.read(destination);
+        }
+        finally
+        {
+            destination.limit(originalLimit);
+        }
+    }
+
+    @Override
+    public InputStream openCustomComponent(@NotNull String componentName)
+    {
+        ListSnapshotFilesResponse.FileInfo snapshotFile = customComponents.get(componentName);
+        return snapshotFile == null ? null : open(snapshotFile, customComponentFileType);
+    }
+
+    @Override
+    public long customComponentLength(@NotNull String componentName)
+    {
+        ListSnapshotFilesResponse.FileInfo snapshotFile = customComponents.get(componentName);
+        Preconditions.checkArgument(snapshotFile != null, "Unknown SSTable component: " + componentName);
+        return snapshotFile.size;
+    }
+
     @Nullable
     private InputStream openStream(ListSnapshotFilesResponse.FileInfo snapshotFile, FileType fileType)
     {
@@ -156,6 +223,11 @@ public class SidecarProvisionedSSTable extends SSTable
      * @return an CassandraFileSource implementation that uses Sidecar client to request bytes
      */
     private CassandraFileSource<SidecarProvisionedSSTable> source(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
+    {
+        return source(fileInfo, fileType, fileInfo.size);
+    }
+
+    private CassandraFileSource<SidecarProvisionedSSTable> source(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType, long size)
     {
         SidecarProvisionedSSTable thisSSTable = this;
         return new CassandraFileSource<SidecarProvisionedSSTable>()
@@ -202,9 +274,15 @@ public class SidecarProvisionedSSTable extends SSTable
             @Override
             public long size()
             {
-                return fileInfo.size;
+                return size;
             }
         };
+    }
+
+    @Override
+    public long customComponentChunkBufferSize(String componentName)
+    {
+        return sidecarClientConfig.chunkBufferSize(customComponentFileType);
     }
 
     @Override
