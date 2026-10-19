@@ -237,11 +237,12 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
                                                                          .record(udtName)
                                                                          .namespace(userType.keyspace)
                                                                          .fields();
+            // UDT fields are nullable, e.g. a field not set, or not written by a partial update of a non-frozen UDT
             for (int i = 0; i < userType.size(); i++)
             {
                 String fieldName = userType.fieldNameAsString(i);
                 udtValue.name(fieldName)
-                        .type(schemaFrom(userType.fieldType(i), fieldNamespace + '.' + fieldName))
+                        .type(SchemaBuilder.nullable().type(schemaFrom(userType.fieldType(i), fieldNamespace + '.' + fieldName)))
                         .noDefault();
             }
             result = udtValue.endRecord();

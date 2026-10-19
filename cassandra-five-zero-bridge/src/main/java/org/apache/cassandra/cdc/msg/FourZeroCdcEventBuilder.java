@@ -32,8 +32,10 @@ import org.slf4j.LoggerFactory;
 import static org.apache.cassandra.spark.utils.ByteBufferUtils.split;
 
 import org.apache.cassandra.cdc.api.CassandraSource;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.DeletionTime;
 import org.apache.cassandra.db.marshal.ListType;
+import org.apache.cassandra.db.marshal.UserType;
 import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.db.rows.ColumnData;
@@ -47,6 +49,7 @@ import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.reader.AbstractComplexTypeBuffer;
+import org.apache.cassandra.spark.reader.UdtBuffer;
 
 public class FourZeroCdcEventBuilder extends CdcEventBuilder
 {
@@ -253,9 +256,20 @@ public class FourZeroCdcEventBuilder extends CdcEventBuilder
         AbstractComplexTypeBuffer buffer = AbstractComplexTypeBuffer.newBuffer(complex.column().type, complex.cellsCount());
         boolean allTombstone = true;
         String columnName = complex.column().name.toCQLString();
+        UserType udt = complex.column().type instanceof UserType ? (UserType) complex.column().type : null;
+        // Without a complex deletion, the UDT is partially updated and only the fields with a cell are written
+        boolean isUdtPartialUpdate = udt != null && complex.complexDeletion().isLive();
         for (Cell<?> cell : complex)
         {
             updateMaxTimestamp(cell.timestamp());
+            if (isUdtPartialUpdate)
+            {
+                int position = UdtBuffer.fieldPosition(cell, udt.size());
+                if (position >= 0)
+                {
+                    addUpdatedUdtField(columnName, ColumnIdentifier.maybeQuote(udt.fieldNameAsString(position)));
+                }
+            }
             if (cell.isTombstone())
             {
                 kind = CdcEvent.Kind.COMPLEX_ELEMENT_DELETE;
@@ -281,7 +295,8 @@ public class FourZeroCdcEventBuilder extends CdcEventBuilder
         // Update to collections does not mix additions with deletions, since updating with 'null' is rejected.
         // However, UDT permits setting 'null' value. It is possible to see tombstone and modification together
         // from the update to UDT
-        if (allTombstone)
+        // A UDT is always packed with all its fields, so a field set to null is published as null
+        if (allTombstone && udt == null)
         {
             holder.add(makeValue(null, complex.column()));
         }

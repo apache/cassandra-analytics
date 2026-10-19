@@ -138,6 +138,26 @@ public class AvroUdtTransformerTest
         assertThat(result.get("code")).isEqualTo(200);
     }
 
+    @Test
+    public void testPartiallyUpdatedNonFrozenUdtColumn() throws IOException
+    {
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".partial (id uuid PRIMARY KEY, result partial_result);",
+                                       "CREATE TYPE " + KEYSPACE + ".partial_result (status text, code int);");
+        // UPDATE ... SET result.code = 500: status is not written, so it is packed as null
+        CdcEventBuilder builder = builder(table, UUID.randomUUID(),
+                                          Value.of(KEYSPACE, "result", "partial_result",
+                                                   list(null, ByteBuffer.allocate(4).putInt(0, 500))));
+        builder.addUpdatedUdtField("result", "code");
+
+        GenericRecord record = encodeAndDecode(table, builder.build());
+        GenericRecord result = (GenericRecord) ((GenericRecord) record.get(AvroConstants.PAYLOAD_KEY)).get("result");
+
+        assertThat(result.get("status")).isNull();
+        assertThat(result.get("code")).isEqualTo(500);
+        assertThat((List<?>) record.get(AvroConstants.UPDATE_FIELDS_KEY)).extracting(Object::toString)
+                                                                         .containsExactly("id", "result.code");
+    }
+
     /**
      * Parses the table and registers its UDTs with the types used for type lookup, as the CDC bridge does
      */
@@ -150,17 +170,30 @@ public class AvroUdtTransformerTest
 
     private static CdcEvent insert(CqlTable table, UUID id, Value... valueColumns)
     {
+        return builder(table, id, valueColumns).build();
+    }
+
+    private static CdcEventBuilder builder(CqlTable table, UUID id, Value... valueColumns)
+    {
         CdcEventBuilder builder = CdcEventBuilder.of(CdcEvent.Kind.INSERT, KEYSPACE, table.table());
         builder.setPartitionKeys(listOf(Value.of(KEYSPACE, "id", "uuid", uuid(id))));
         builder.setValueColumns(listOf(valueColumns));
         builder.setMaxTimestampMicros(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
-        return builder.build();
+        return builder;
     }
 
     /**
      * Transforms the event, encodes and decodes the full CDC record, and returns the decoded payload
      */
     private GenericRecord transformAndEncode(CqlTable table, CdcEvent event) throws IOException
+    {
+        return (GenericRecord) encodeAndDecode(table, event).get(AvroConstants.PAYLOAD_KEY);
+    }
+
+    /**
+     * Transforms the event, encodes and decodes the full CDC record, and returns the decoded record
+     */
+    private GenericRecord encodeAndDecode(CqlTable table, CdcEvent event) throws IOException
     {
         Schema tableSchema = new CqlToAvroSchemaConverterImplementation(bridge).convert(table);
         AvroGenericRecordTransformer transformer =
@@ -172,9 +205,8 @@ public class AvroUdtTransformerTest
 
         // encoding fails with a ClassCastException if UDT values are not Avro records
         byte[] encoded = AvroDataUtils.encode(new GenericDatumWriter<>(record.getSchema()), record, null);
-        GenericRecord decoded = new GenericDatumReader<GenericRecord>(record.getSchema())
-                                .read(null, DecoderFactory.get().binaryDecoder(encoded, null));
-        return (GenericRecord) decoded.get(AvroConstants.PAYLOAD_KEY);
+        return new GenericDatumReader<GenericRecord>(record.getSchema())
+               .read(null, DecoderFactory.get().binaryDecoder(encoded, null));
     }
 
     private static ByteBuffer text(String value)
@@ -189,13 +221,13 @@ public class AvroUdtTransformerTest
                          .putLong(8, value.getLeastSignificantBits());
     }
 
-    // frozen UDT encoding: [int length][bytes] per field
+    // frozen UDT encoding: [int length][bytes] per field, length -1 for null
     private static ByteBuffer fields(ByteBuffer... values)
     {
         return concat(false, values);
     }
 
-    // collection encoding: [int count] followed by [int length][bytes] per element
+    // collection encoding: [int count] followed by [int length][bytes] per element, length -1 for null
     private static ByteBuffer list(ByteBuffer... elements)
     {
         return concat(true, elements);
@@ -206,7 +238,7 @@ public class AvroUdtTransformerTest
         int size = withCount ? Integer.BYTES : 0;
         for (ByteBuffer value : values)
         {
-            size += Integer.BYTES + value.remaining();
+            size += Integer.BYTES + (value == null ? 0 : value.remaining());
         }
         ByteBuffer result = ByteBuffer.allocate(size);
         if (withCount)
@@ -215,6 +247,11 @@ public class AvroUdtTransformerTest
         }
         for (ByteBuffer value : values)
         {
+            if (value == null)
+            {
+                result.putInt(-1);
+                continue;
+            }
             result.putInt(value.remaining());
             result.put(value.duplicate());
         }

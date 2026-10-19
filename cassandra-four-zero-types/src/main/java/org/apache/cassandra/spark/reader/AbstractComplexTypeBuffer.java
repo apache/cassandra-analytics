@@ -63,7 +63,7 @@ public abstract class AbstractComplexTypeBuffer
         }
         else if (type instanceof UserType)
         {
-            buffer = new UdtBuffer(cellCount);
+            buffer = new UdtBuffer(((UserType) type).size());
         }
         else
         {
