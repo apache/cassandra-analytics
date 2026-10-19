@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * CDC Avro schemas have invalid or colliding record names for UDTs and collections (CASSANALYTICS-204)
  * Fix UDT column deserialization in CDC (CASSANALYTICS-203)
  * Skip CDC-irrelevant mutations on deserialization failure (CASSANALYTICS-196)
  * Opening one keyspace instance rebuilds every keyspace instance in the Cassandra 6.0 bridge (CASSANALYTICS-202)
