@@ -202,7 +202,7 @@ class CloudStorageStreamSessionTest
 
         MockBlobTransferApi(JobInfo jobInfo, SidecarClient sidecarClient, StorageClient storageClient)
         {
-            super(jobInfo, sidecarClient, storageClient, null);
+            super(jobInfo, mock(CassandraBridge.class), sidecarClient, storageClient, null);
         }
 
         @Override
