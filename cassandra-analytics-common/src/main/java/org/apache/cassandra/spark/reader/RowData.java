@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 /**
@@ -35,6 +36,7 @@ public class RowData
     private ByteBuffer columnName;
     private ByteBuffer value;
     private long timestamp;
+    private int ttl;
     private BigInteger token;
     @VisibleForTesting
     boolean isNewPartition = false;
@@ -49,6 +51,7 @@ public class RowData
         this.value = null;
         this.isNewPartition = true;
         this.timestamp = 0L;
+        this.ttl = CqlField.NO_TTL;
     }
 
     public boolean isNewPartition()
@@ -105,6 +108,18 @@ public class RowData
     public long getTimestamp()
     {
         return timestamp;
+    }
+
+    // TTL
+
+    public int getTtl()
+    {
+        return ttl;
+    }
+
+    public void setTtl(int ttl)
+    {
+        this.ttl = ttl;
     }
 
     @Override
