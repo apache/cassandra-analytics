@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -259,7 +260,9 @@ public abstract class PartitionedDataLayer extends DataLayer
         ReplicationFactor replicationFactor = ring.replicationFactor();
         validateReplicationFactor(replicationFactor);
         Map<Range<BigInteger>, List<CassandraInstance>> instRanges;
-        Map<Range<BigInteger>, List<CassandraInstance>> subRanges = ring().getSubRanges(range).asMapOfRanges();
+        // Witness replicas do not hold complete data, so they are never candidates: not as primary, backup or
+        // incremental repair primary replicas, and they do not count towards the consistency level
+        Map<Range<BigInteger>, List<CassandraInstance>> subRanges = ring.getFullReplicaSubRanges(range).asMapOfRanges();
         if (partitionKeyFilters.isEmpty())
         {
             instRanges = subRanges;
@@ -280,7 +283,42 @@ public abstract class PartitionedDataLayer extends DataLayer
         LOGGER.info("Creating partitioned SSTablesSupplier for Spark partition partitionId={} rangeLower={} rangeUpper={} numReplicas={}",
                     partitionId, range.lowerEndpoint(), range.upperEndpoint(), replicas.size());
 
-        return constructSSTablesSupplier(partitionId, replicationFactor, instRanges, replicas, range);
+        try
+        {
+            return constructSSTablesSupplier(partitionId, replicationFactor, instRanges, replicas, range);
+        }
+        catch (NotEnoughReplicasException exception)
+        {
+            if (!ring.hasWitnesses())
+            {
+                throw exception;
+            }
+            Set<CassandraInstance> witnesses = excludedWitnesses(ring, range, instRanges);
+            throw new NotEnoughReplicasException(String.format(
+            "%s. Only full replicas count, witness replicas are excluded as they do not hold complete data: %s",
+            exception.getMessage(),
+            witnesses.stream().map(CassandraInstance::nodeName).sorted().collect(Collectors.toList())), exception);
+        }
+    }
+
+    /**
+     * @return the witness replicas left out of {@code instRanges}, considering only the sub-ranges it contains and,
+     * for a datacenter-local consistency level, only the datacenter being read
+     */
+    private Set<CassandraInstance> excludedWitnesses(CassandraRing ring,
+                                                     Range<BigInteger> range,
+                                                     Map<Range<BigInteger>, List<CassandraInstance>> instRanges)
+    {
+        // Both views are sub-range maps of the same ring, so they share their sub-ranges
+        Map<Range<BigInteger>, List<CassandraInstance>> allReplicas = ring.getSubRanges(range).asMapOfRanges();
+        Set<CassandraInstance> witnesses = new HashSet<>();
+        instRanges.forEach((subRange, fullReplicas) -> {
+            Set<CassandraInstance> subRangeWitnesses = new HashSet<>(allReplicas.getOrDefault(subRange, Collections.emptyList()));
+            fullReplicas.forEach(subRangeWitnesses::remove);
+            witnesses.addAll(subRangeWitnesses);
+        });
+        return rangesToReplicas(consistencyLevel, datacenter,
+                                Collections.singletonMap(range, new ArrayList<>(witnesses)));
     }
 
     @NotNull
@@ -312,6 +350,12 @@ public abstract class PartitionedDataLayer extends DataLayer
             return new MultiDCReplicas(perDCSSTablesSupplier);
         }
         int minReplicas = consistencyLevel.blockFor(replicationFactor, datacenter);
+        if (consistencyLevel == ConsistencyLevel.ALL)
+        {
+            // Witness replicas are never read, so ALL means every full replica. Identical to the total for a keyspace
+            // without witnesses.
+            minReplicas = replicationFactor.getFullReplicationFactor();
+        }
         return constructSSTablesSupplierSingleDC(partitionId, instRanges, replicas, range, minReplicas);
     }
 

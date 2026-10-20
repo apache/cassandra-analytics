@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -315,5 +316,178 @@ class CassandraDataLayerTests
 
         assertThat(result.getReplicas(BigInteger.valueOf(10L))).hasSize(2);
         assertThat(replicaNames(result, 10L)).containsExactly("n1", "n2");
+    }
+
+    // Witness replicas reported by the Sidecar
+
+    private static final ReplicationFactor WITNESS_RF = new ReplicationFactor(ImmutableMap.of(
+    "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+    "dc1", "3/1"));
+
+    private static final String[] THREE_NODE_ADDRESSES = {"1.1.1.1:9042", "n1",
+                                                          "1.1.1.2:9042", "n2",
+                                                          "1.1.1.3:9042", "n3"};
+
+    private static RingResponse threeNodeRing()
+    {
+        return ringOf("n1", "0", "dc1", "n2", "100", "dc1", "n3", "200", "dc1");
+    }
+
+    private static List<String> fullReplicaNames(CassandraRing ring, long token)
+    {
+        BigInteger point = BigInteger.valueOf(token);
+        return ring.getFullReplicaSubRanges(Range.closed(point, point))
+                   .asMapOfRanges()
+                   .values()
+                   .stream()
+                   .flatMap(List::stream)
+                   .map(CassandraInstance::nodeName)
+                   .sorted()
+                   .collect(Collectors.toList());
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasExcludesReportedWitnesses()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        List<String> all = Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042");
+        List<ReplicaInfo> readReplicas = Arrays.asList(
+        new ReplicaInfo("-9223372036854775808", "50", ImmutableMap.of("dc1", all),
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.3:9042"))),
+        new ReplicaInfo("50", "9223372036854775807", ImmutableMap.of("dc1", all),
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.1:9042"))));
+
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES));
+
+        assertThat(result.hasWitnesses()).isTrue();
+        // placement keeps the witness, reads must not
+        assertThat(replicaNames(result, 10L)).containsExactly("n1", "n2", "n3");
+        assertThat(fullReplicaNames(result, 10L)).containsExactly("n1", "n2");
+        assertThat(fullReplicaNames(result, 1000L)).containsExactly("n2", "n3");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasFailsWhenWitnessesAreNotReported()
+    {
+        // An older Sidecar: without knowing which replica is the witness, a read could silently miss data
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042"))));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("did not report which replicas")
+        .hasMessageContaining("witnessesByDatacenter");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasWithoutWitnessesIgnoresMissingField()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042"))));
+        ReplicationFactor rf = new ReplicationFactor(ImmutableMap.of(
+        "class", "org.apache.cassandra.locator.NetworkTopologyStrategy", "dc1", "3"));
+
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, rf, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES));
+
+        assertThat(result.hasWitnesses()).isFalse();
+        assertThat(fullReplicaNames(result, 10L)).containsExactly("n1", "n2", "n3");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasAcceptsRangeWithNoWitness()
+    {
+        // Cassandra reduces the witness count when a datacenter has fewer nodes than its replication factor,
+        // so an empty witness list is legitimate for a keyspace with witnesses
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042")),
+                        ImmutableMap.of("dc1", Collections.emptyList())));
+
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES));
+
+        assertThat(result.hasWitnesses()).isFalse();
+        assertThat(fullReplicaNames(result, 10L)).containsExactly("n1", "n2");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasRejectsWitnessThatIsNotAReplica()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042")),
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.3:9042"))));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("is not one of the range's replicas");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasRejectsMoreWitnessesThanReplicationFactorAllows()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042")),
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.2:9042", "1.1.1.3:9042"))));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("reported 2 witnesses")
+        .hasMessageContaining("allows at most 1");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasRejectsWitnessesForKeyspaceWithoutThem()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042")),
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.3:9042"))));
+        ReplicationFactor rf = new ReplicationFactor(ImmutableMap.of(
+        "class", "org.apache.cassandra.locator.NetworkTopologyStrategy", "dc1", "3"));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, rf, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("allows at most 0");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasIgnoresWitnessesInOtherDatacenters()
+    {
+        CassandraDataLayer layer = dataLayer("dc1");
+        RingResponse ring = ringOf("n1", "0", "dc1", "n2", "100", "dc1", "n3", "200", "dc1",
+                                   "n4", "300", "dc2", "n5", "400", "dc2", "n6", "500", "dc2");
+        ReplicationFactor rf = new ReplicationFactor(ImmutableMap.of(
+        "class", "org.apache.cassandra.locator.NetworkTopologyStrategy", "dc1", "3/1", "dc2", "3/1"));
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042"),
+                                        "dc2", Arrays.asList("1.1.1.4:9042", "1.1.1.5:9042", "1.1.1.6:9042")),
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.2:9042"),
+                                        "dc2", Collections.singletonList("1.1.1.4:9042"))));
+        TokenRangeReplicasResponse topology = topologyOf(readReplicas,
+                                                         "1.1.1.1:9042", "n1", "1.1.1.2:9042", "n2", "1.1.1.3:9042", "n3",
+                                                         "1.1.1.4:9042", "n4", "1.1.1.5:9042", "n5", "1.1.1.6:9042", "n6");
+
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, rf, ring, topology);
+
+        assertThat(replicaNames(result, 10L)).containsExactly("n1", "n2", "n3");
+        assertThat(fullReplicaNames(result, 10L)).containsExactly("n1", "n3");
     }
 }
