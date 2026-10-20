@@ -134,7 +134,8 @@ public final class AvroDataUtils
                 GenericData.Record udtEntry = new GenericData.Record(unwrapped);
                 map.forEach((key, value) -> {
                     final String fieldName = key.toString(); // UDT key should always be the fieldName of type String
-                    udtEntry.put(fieldName, toAvro(value, unwrapped.getField(fieldName).schema()));
+                    Schema.Field udtField = AvroSchemas.field(unwrapped, fieldName);
+                    udtEntry.put(udtField.name(), toAvro(value, udtField.schema()));
                 });
                 return udtEntry;
             }

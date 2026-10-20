@@ -144,6 +144,43 @@ public class AvroSchemas
         return schema.getProp(AvroConstants.CQL_TYPE_NAME);
     }
 
+    /**
+     * Keep the name a field has in CQL, when its Avro name had to be changed to be valid and unique. See {@link AvroNames}.
+     */
+    public static void flagCqlName(Schema.Field field, String cqlName)
+    {
+        field.addProp(AvroConstants.CQL_NAME_PROP, cqlName);
+    }
+
+    /**
+     * @return the name of the field in CQL, which is the name of the field unless it had to be changed
+     */
+    public static String cqlName(Schema.Field field)
+    {
+        String cqlName = field.getProp(AvroConstants.CQL_NAME_PROP);
+        return cqlName == null ? field.name() : cqlName;
+    }
+
+    /**
+     * Find the field of a record by its name in CQL.
+     *
+     * @return the field, or null if the record has no such field
+     */
+    @Nullable
+    public static Schema.Field field(Schema record, String cqlName)
+    {
+        Schema.Field field = record.getField(cqlName);
+        if (field != null && cqlName(field).equals(cqlName))
+        {
+            return field;
+        }
+        // the Avro name of the field is not the one in CQL, or the name is taken by a field that was renamed to it
+        return record.getFields().stream()
+                     .filter(candidate -> candidate.getProp(AvroConstants.CQL_NAME_PROP) != null && cqlName(candidate).equals(cqlName))
+                     .findFirst()
+                     .orElse(null);
+    }
+
     public static boolean isFrozen(Schema schema)
     {
         String flag = schema.getProp(AvroConstants.FROZEN_FLAG_PROP);

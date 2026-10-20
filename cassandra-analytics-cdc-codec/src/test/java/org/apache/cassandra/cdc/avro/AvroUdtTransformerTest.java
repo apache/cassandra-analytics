@@ -139,14 +139,13 @@ public class AvroUdtTransformerTest
     }
 
     @Test
-    public void testPartiallyUpdatedNonFrozenUdtColumn() throws IOException
-    {
+    public void testPartiallyUpdatedNonFrozenUdtColumn() throws IOException {
         CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".partial (id uuid PRIMARY KEY, result partial_result);",
-                                       "CREATE TYPE " + KEYSPACE + ".partial_result (status text, code int);");
+                "CREATE TYPE " + KEYSPACE + ".partial_result (status text, code int);");
         // UPDATE ... SET result.code = 500: status is not written, so it is packed as null
         CdcEventBuilder builder = builder(table, UUID.randomUUID(),
-                                          Value.of(KEYSPACE, "result", "partial_result",
-                                                   list(null, ByteBuffer.allocate(4).putInt(0, 500))));
+                Value.of(KEYSPACE, "result", "partial_result",
+                        list(null, ByteBuffer.allocate(4).putInt(0, 500))));
         builder.addUpdatedUdtField("result", "code");
 
         GenericRecord record = encodeAndDecode(table, builder.build());
@@ -155,7 +154,23 @@ public class AvroUdtTransformerTest
         assertThat(result.get("status")).isNull();
         assertThat(result.get("code")).isEqualTo(500);
         assertThat((List<?>) record.get(AvroConstants.UPDATE_FIELDS_KEY)).extracting(Object::toString)
-                                                                         .containsExactly("id", "result.code");
+                .containsExactly("id", "result.code");
+    }
+
+    @Test
+    public void testQuotedColumnAndUdtFieldNames() throws IOException
+    {
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".quoted (id uuid PRIMARY KEY, \"my-col\" frozen<quoted_result>);",
+                                       "CREATE TYPE " + KEYSPACE + ".quoted_result (\"status-code\" int, message text);");
+        CdcEvent event = insert(table, UUID.randomUUID(),
+                                Value.of(KEYSPACE, "my-col", "frozen<quoted_result>",
+                                         fields(ByteBuffer.allocate(4).putInt(0, 200), text("ok"))));
+
+        // the fields are written under their Avro names
+        GenericRecord result = (GenericRecord) transformAndEncode(table, event).get("my_col");
+
+        assertThat(result.get("status_code")).isEqualTo(200);
+        assertThat(result.get("message")).hasToString("ok");
     }
 
     /**

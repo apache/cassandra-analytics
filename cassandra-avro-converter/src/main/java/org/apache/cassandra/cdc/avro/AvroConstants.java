@@ -46,6 +46,7 @@ public final class AvroConstants
     public static final String VARIABLE_INTEGER_NAME = "varint";
     public static final String INET_NAME = "inet";
     static final String CQL_TYPE_NAME = "cqlType";
+    public static final String CQL_NAME_PROP = "cqlName";
     static final String FROZEN_FLAG_PROP = "isFrozen";
     static final String PRIMARY_KEYS_PROP = "primary_keys";
     static final String PARTITION_KEYS_PROP = "partition_keys";

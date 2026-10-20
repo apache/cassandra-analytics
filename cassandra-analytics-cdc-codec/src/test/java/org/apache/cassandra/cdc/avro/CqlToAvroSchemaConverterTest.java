@@ -26,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -213,6 +215,67 @@ public class CqlToAvroSchemaConverterTest
         assertThat(fullNameOf(schema, "c2")).as("second colliding name").isEqualTo("a.a_b3");
         assertThat(fullNameOf(schema, "c3")).as("name that is valid as is").isEqualTo("a.a_b");
         assertThat(readCqlType(schema, "c1")).as("CQL type keeps the original name").isEqualTo("a-b");
+    }
+
+    @Test
+    public void testQuotedKeyspaceTableColumnAndUdtFieldNames()
+    {
+        String udt = "CREATE TYPE \"my-ks\".address (\"zip-code\" int, city text);";
+        String createStmt = "CREATE TABLE \"my-ks\".\"my-table\" (\"my-pk\" int, \"my-ck\" int, \"my-static\" text static, " +
+                            "\"my-col\" frozen<address>, PRIMARY KEY (\"my-pk\", \"my-ck\"));";
+        Schema schema = cqlToAvroSchemaConverter.convert("my-ks", createStmt, setOf(udt));
+
+        assertThat(schema.getFullName()).as("sanitized table record").isEqualTo("my_ks.my_table.my_table");
+        assertThat(schema.getNamespace()).isEqualTo("my_ks.my_table");
+        assertThat(AvroSchemas.primaryKeys(schema)).as("key props use Avro names").containsExactly("my_pk", "my_ck");
+        assertThat(AvroSchemas.partitionKeys(schema)).containsExactly("my_pk");
+        assertThat(AvroSchemas.clusteringKeys(schema)).containsExactly("my_ck");
+        assertThat(AvroSchemas.staticColumns(schema)).containsExactly("my_static");
+
+        Schema.Field column = AvroSchemas.field(schema, "my-col");
+        assertThat(column).as("column found by its CQL name").isNotNull();
+        assertThat(column.name()).isEqualTo("my_col");
+        assertThat(AvroSchemas.cqlName(column)).isEqualTo("my-col");
+        assertThat(schema.getField("my-col")).as("the CQL name is not an Avro field name").isNull();
+
+        Schema udtSchema = AvroSchemas.unwrapNullable(column.schema());
+        assertThat(udtSchema.getFullName()).isEqualTo("my_ks.address");
+        Schema.Field zip = AvroSchemas.field(udtSchema, "zip-code");
+        assertThat(zip).as("UDT field found by its CQL name").isNotNull();
+        assertThat(zip.name()).isEqualTo("zip_code");
+        // names that are valid are not flagged, and are found by their name
+        assertThat(AvroSchemas.field(udtSchema, "city").getProp(AvroConstants.CQL_NAME_PROP)).isNull();
+        assertThat(AvroSchemas.field(udtSchema, "missing")).isNull();
+        // the schema is valid Avro
+        assertThat(new Schema.Parser().parse(schema.toString()).toString()).isEqualTo(schema.toString());
+    }
+
+    @Test
+    public void testSanitizedColumnNamesDoNotCollide()
+    {
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"a-b\" int, \"a+b\" text, a_b bigint);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, Collections.emptySet());
+
+        assertThat(AvroSchemas.field(schema, "a_b").name()).as("valid name keeps its name").isEqualTo("a_b");
+        // the order in which the renamed columns are numbered is the order of the table's fields
+        assertThat(Arrays.asList(AvroSchemas.field(schema, "a-b").name(), AvroSchemas.field(schema, "a+b").name()))
+        .containsExactlyInAnyOrder("a_b2", "a_b3");
+        assertThat(AvroSchemas.unwrapNullable(AvroSchemas.field(schema, "a_b").schema()).getType()).isEqualTo(LONG);
+        // a name taken by a renamed field is not the CQL name of that field
+        assertThat(AvroSchemas.field(schema, "a_b2")).isNull();
+        assertThat(AvroSchemas.field(schema, "a_b3")).isNull();
+    }
+
+    @Test
+    public void testUdtNamedLikeTheTableDoesNotCollideWithIt()
+    {
+        String udt = "CREATE TYPE same (id text);";
+        String createStmt = "CREATE TABLE a.same (pk int PRIMARY KEY, c1 frozen<same>);";
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt));
+
+        assertThat(schema.getName()).as("the table keeps its name").isEqualTo("same");
+        assertThat(fullNameOf(schema, "c1")).as("the UDT is renumbered").isEqualTo("a.same2");
+        assertThat(readCqlType(schema, "c1")).as("CQL type keeps the original name").isEqualTo("same");
     }
 
     private static String fullNameOf(Schema schema, String field)
