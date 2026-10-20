@@ -187,6 +187,40 @@ public class CqlToAvroSchemaConverterTest
     }
 
     @Test
+    public void testQuotedUdtNameWithCharactersInvalidInAvro()
+    {
+        // quoted CQL identifiers may contain characters that are illegal in Avro names
+        String udt = "CREATE TYPE \"my-type\" (id text);";
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<\"my-type\">);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt));
+
+        assertThat(fullNameOf(schema, "c1")).as("sanitized record name").isEqualTo("a.my_type");
+        assertThat(readCqlType(schema, "c1")).as("CQL type for 'c1' field").isEqualTo("my-type");
+    }
+
+    @Test
+    public void testSanitizedUdtNamesDoNotCollide()
+    {
+        // "a-b", "a+b" and "a_b" all sanitize to a_b; the name that is already valid keeps it, the others get 2 and 3
+        String hyphen = "CREATE TYPE \"a-b\" (id text);";
+        String space = "CREATE TYPE \"a+b\" (id int);";
+        String valid = "CREATE TYPE a_b (id bigint);";
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<\"a-b\">, c2 frozen<\"a+b\">, " +
+                                          "c3 frozen<a_b>);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(hyphen, space, valid));
+
+        assertThat(fullNameOf(schema, "c1")).as("first colliding name").isEqualTo("a.a_b2");
+        assertThat(fullNameOf(schema, "c2")).as("second colliding name").isEqualTo("a.a_b3");
+        assertThat(fullNameOf(schema, "c3")).as("name that is valid as is").isEqualTo("a.a_b");
+        assertThat(readCqlType(schema, "c1")).as("CQL type keeps the original name").isEqualTo("a-b");
+    }
+
+    private static String fullNameOf(Schema schema, String field)
+    {
+        return AvroSchemas.unwrapNullable(schema.getField(field).schema()).getFullName();
+    }
+
+    @Test
     public void testRecordNamesAreValidAndUnique()
     {
         String address = "CREATE TYPE address (city text);";
