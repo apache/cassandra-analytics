@@ -31,6 +31,11 @@ public class NotEnoughReplicasException extends RuntimeException
         super(message);
     }
 
+    public NotEnoughReplicasException(String message, Throwable cause)
+    {
+        super(message, cause);
+    }
+
     public NotEnoughReplicasException(@NotNull ConsistencyLevel consistencyLevel,
                                       @Nullable BigInteger lower,
                                       @Nullable BigInteger upper,
