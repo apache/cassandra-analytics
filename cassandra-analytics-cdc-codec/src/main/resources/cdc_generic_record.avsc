@@ -71,7 +71,7 @@
     },
     {
       "name": "updateFields",
-      "doc": "used to differentiate between absent data, and data being updated to a null value (when isPartial = true)",
+      "doc": "used to differentiate between absent data, and data being updated to a null value (when isPartial = true). A partially updated non-frozen UDT is listed as its written fields, e.g. udt.field",
       "type": [
         "null",
         {

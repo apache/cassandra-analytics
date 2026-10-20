@@ -137,23 +137,23 @@ public class CqlToAvroSchemaConverterTest
             assertThat(udt.getType()).as("UDT type should be RECORD").isEqualTo(RECORD);
             assertThat(AvroSchemas.isRecordBasedUdt(udt)).as("Should be record-based UDT").isTrue();
 
-            Schema ids = udt.getField("ids").schema();
+            Schema ids = nullableField(udt, "ids");
             assertThat(ids).as("UDT ids field should not be null").isNotNull();
             assertThat(AvroSchemas.isFrozen(ids)).as("UDT ids field should be frozen").isTrue();
             assertThat(ids.getType()).as("UDT ids field type should be ARRAY").isEqualTo(ARRAY);
             assertThat(ids.getElementType().getType()).as("UDT ids element type should be STRING").isEqualTo(STRING);
 
-            Schema a = udt.getField("a").schema();
+            Schema a = nullableField(udt, "a");
             assertThat(a).as("UDT a field should not be null").isNotNull();
             assertThat(AvroSchemas.isFrozen(a)).as("UDT a field should not be frozen").isFalse();
             assertThat(a.getType()).as("UDT a field type should be INT").isEqualTo(INT);
 
-            Schema b = udt.getField("b").schema();
+            Schema b = nullableField(udt, "b");
             assertThat(b).as("UDT b field should not be null").isNotNull();
             assertThat(AvroSchemas.isFrozen(b)).as("UDT b field should not be frozen").isFalse();
             assertThat(b.getType()).as("UDT b field type should be LONG").isEqualTo(LONG);
 
-            Schema c = udt.getField("c").schema();
+            Schema c = nullableField(udt, "c");
             assertThat(c).as("UDT c field should not be null").isNotNull();
             assertThat(AvroSchemas.isFrozen(c)).as("UDT c field should not be frozen").isFalse();
             assertThat(c.getType()).as("UDT c field type should be STRING").isEqualTo(STRING);
@@ -172,11 +172,11 @@ public class CqlToAvroSchemaConverterTest
             assertThat(AvroSchemas.isFrozen(innerUdt)).as("Inner UDT should not carry the frozen flag").isFalse();
             assertThat(AvroSchemas.cqlType(AvroSchemas.unwrapNullable(innerUdt))).as("Inner UDT CQL type").isEqualTo("udt_2");
 
-            Schema id = innerUdt.getField("id").schema();
+            Schema id = nullableField(innerUdt, "id");
             assertThat(id).as("Inner UDT id field should not be null").isNotNull();
             assertThat(id.getType()).as("Inner UDT id field type should be STRING").isEqualTo(STRING);
 
-            Schema show = innerUdt.getField("show").schema();
+            Schema show = nullableField(innerUdt, "show");
             assertThat(show).as("Inner UDT show field should not be null").isNotNull();
             assertThat(show.getType()).as("Inner UDT show field type should be BOOLEAN").isEqualTo(BOOLEAN);
         });
@@ -208,8 +208,8 @@ public class CqlToAvroSchemaConverterTest
         assertThat(columnType(schema, "s").getElementType().getFullName()).isEqualTo("a.address");
         Schema personRecord = columnType(schema, "p");
         assertThat(personRecord.getFullName()).isEqualTo("a.person");
-        assertThat(personRecord.getField("home").schema().getFullName()).isEqualTo("a.address");
-        assertThat(personRecord.getField("mobile").schema().getFullName()).isEqualTo("a.phone");
+        assertThat(nullableField(personRecord, "home").getFullName()).isEqualTo("a.address");
+        assertThat(nullableField(personRecord, "mobile").getFullName()).isEqualTo("a.phone");
         Schema mapEntry = columnType(schema, "m").getElementType();
         assertThat(mapEntry.getField("key").schema().getFullName()).isEqualTo("a.address");
         assertThat(mapEntry.getField("value").schema().getFullName()).isEqualTo("a.phone");
@@ -232,7 +232,7 @@ public class CqlToAvroSchemaConverterTest
         assertThat(columnType(schema, "c").getElementType().getElementType().getFullName()).isEqualTo(ns + ".c.array_map.array_map");
         assertThat(columnType(schema, "cs").getElementType().getElementType().getFullName()).isEqualTo(ns + ".cs.array_map.array_map");
         // records nested in UDT fields are named by the UDT
-        assertThat(columnType(schema, "g").getField("tags").schema().getElementType().getFullName())
+        assertThat(nullableField(columnType(schema, "g"), "tags").getElementType().getFullName())
         .isEqualTo("a.tagged.record_udt.tags.array_map.array_map");
 
         // all names are valid, and the schema is unchanged after a JSON round trip, which fails if two different
@@ -464,6 +464,14 @@ public class CqlToAvroSchemaConverterTest
             arrayBasedMapVerifier.accept(s);
             assertArrayBasedMap(s, keyVerifier, valueVerifier);
         });
+    }
+
+    private static Schema nullableField(Schema record, String name)
+    {
+        Schema field = record.getField(name).schema();
+        assertNullable(field, type -> {
+        });
+        return AvroSchemas.unwrapNullable(field);
     }
 
     private static void assertNullable(Schema nullable, Consumer<Schema> actualTypeVerifier)
