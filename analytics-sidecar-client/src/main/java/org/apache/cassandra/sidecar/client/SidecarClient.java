@@ -117,8 +117,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .sidecarHealthRequest()
-                                            .retryPolicy(oncePerInstanceRetryPolicy)
-                                            .build());
+                                            .retryPolicy(oncePerInstanceRetryPolicy));
     }
 
     /**
@@ -132,8 +131,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
                                             .retryPolicy(oncePerInstanceRetryPolicy)
-                                            .sidecarHealthRequest()
-                                            .build());
+                                            .sidecarHealthRequest());
     }
 
     /**
@@ -147,8 +145,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .cassandraHealthRequest()
-                                            .retryPolicy(oncePerInstanceRetryPolicy)
-                                            .build());
+                                            .retryPolicy(oncePerInstanceRetryPolicy));
     }
 
     /**
@@ -160,8 +157,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .cassandraNativeHealthRequest()
-                                            .retryPolicy(new OncePerInstanceRetryPolicy())
-                                            .build());
+                                            .retryPolicy(new OncePerInstanceRetryPolicy()));
     }
 
     /**
@@ -173,8 +169,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .cassandraJmxHealthRequest()
-                                            .retryPolicy(new OncePerInstanceRetryPolicy())
-                                            .build());
+                                            .retryPolicy(new OncePerInstanceRetryPolicy()));
     }
 
     /**
@@ -184,7 +179,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<SchemaResponse> fullSchema()
     {
-        return executor.executeRequestAsync(requestBuilder().schemaRequest().build());
+        return executor.executeRequestAsync(requestBuilder().schemaRequest());
     }
 
     /**
@@ -196,7 +191,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<SchemaResponse> schema(String keyspace)
     {
-        return executor.executeRequestAsync(requestBuilder().schemaRequest(keyspace).build());
+        return executor.executeRequestAsync(requestBuilder().schemaRequest(keyspace));
     }
 
     /**
@@ -208,7 +203,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<RingResponse> ring(String keyspace)
     {
-        return executor.executeRequestAsync(requestBuilder().ringRequest(keyspace).build());
+        return executor.executeRequestAsync(requestBuilder().ringRequest(keyspace));
     }
 
     /**
@@ -218,7 +213,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<NodeSettings> nodeSettings()
     {
-        return executor.executeRequestAsync(requestBuilder().nodeSettingsRequest().build());
+        return executor.executeRequestAsync(requestBuilder().nodeSettingsRequest());
     }
 
     /**
@@ -230,8 +225,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<NodeSettings> nodeSettings(SidecarInstance instance)
     {
         return executor.executeRequestAsync(requestBuilder().singleInstanceSelectionPolicy(instance)
-                                                            .nodeSettingsRequest()
-                                                            .build());
+                                                            .nodeSettingsRequest());
     }
 
     /**
@@ -241,7 +235,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<GossipInfoResponse> gossipInfo()
     {
-        return executor.executeRequestAsync(requestBuilder().gossipInfoRequest().build());
+        return executor.executeRequestAsync(requestBuilder().gossipInfoRequest());
     }
 
     /**
@@ -253,8 +247,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<GossipInfoResponse> gossipInfo(SidecarInstance instance)
     {
         return executor.executeRequestAsync(requestBuilder().singleInstanceSelectionPolicy(instance)
-                                                            .gossipInfoRequest()
-                                                            .build());
+                                                            .gossipInfoRequest());
     }
 
     /**
@@ -266,8 +259,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .gossipHealthRequest()
-                                            .build());
+                                            .gossipHealthRequest());
     }
 
     /**
@@ -277,7 +269,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      */
     public CompletableFuture<TimeSkewResponse> timeSkew()
     {
-        return executor.executeRequestAsync(requestBuilder().timeSkewRequest().build());
+        return executor.executeRequestAsync(requestBuilder().timeSkewRequest());
     }
 
     /**
@@ -293,8 +285,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         InstanceSelectionPolicy instanceSelectionPolicy = new RandomInstanceSelectionPolicy(instancesProvider);
         return executor.executeRequestAsync(requestBuilder()
                                             .instanceSelectionPolicy(instanceSelectionPolicy)
-                                            .timeSkewRequest()
-                                            .build());
+                                            .timeSkewRequest());
     }
 
     /**
@@ -311,8 +302,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         InstanceSelectionPolicy instanceSelectionPolicy = new RandomInstanceSelectionPolicy(instancesProvider);
         return executeRequestAsync(requestBuilder()
                                    .instanceSelectionPolicy(instanceSelectionPolicy)
-                                   .tokenRangeReplicasRequest(keyspace)
-                                   .build());
+                                   .tokenRangeReplicasRequest(keyspace));
     }
 
     /**
@@ -354,8 +344,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                             .listSnapshotFilesRequest(keyspace,
                                                                                       table,
                                                                                       snapshotName,
-                                                                                      includeSecondaryIndexFiles)
-                                                            .build());
+                                                                                      includeSecondaryIndexFiles));
     }
 
     /**
@@ -373,8 +362,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                  String snapshotName)
     {
         return executor.executeRequestAsync(requestBuilder().singleInstanceSelectionPolicy(instance)
-                                                            .clearSnapshotRequest(keyspace, table, snapshotName)
-                                                            .build());
+                                                            .clearSnapshotRequest(keyspace, table, snapshotName));
     }
 
     /**
@@ -416,8 +404,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         return executor.executeRequestAsync(requestBuilder().retryPolicy(ignoreConflictRetryPolicy)
                                                             .singleInstanceSelectionPolicy(instance)
                                                             .createSnapshotRequest(keyspace, table,
-                                                                                   snapshotName, snapshotTTL)
-                                                            .build());
+                                                                                   snapshotName, snapshotTTL));
     }
 
     /**
@@ -446,8 +433,8 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         executor.streamRequest(requestBuilder()
                                .singleInstanceSelectionPolicy(instance)
-                               .ssTableComponentRequest(keyspace, table, snapshotName, componentName, range)
-                               .build(), streamConsumer);
+                               .ssTableComponentRequest(keyspace, table, snapshotName, componentName, range),
+                               streamConsumer);
     }
 
     /**
@@ -467,8 +454,8 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         executor.streamRequest(requestBuilder()
                                .singleInstanceSelectionPolicy(instance)
-                               .ssTableComponentRequest(fileInfo, range)
-                               .build(), streamConsumer);
+                               .ssTableComponentRequest(fileInfo, range),
+                               streamConsumer);
     }
 
     /**
@@ -497,8 +484,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                                                   uploadId,
                                                                                   componentName,
                                                                                   digest,
-                                                                                  filename)
-                                                            .build());
+                                                                                  filename));
     }
 
     /**
@@ -526,8 +512,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                                       10);
         return executor.executeRequestAsync(requestBuilder().singleInstanceSelectionPolicy(instance)
                                                             .retryPolicy(retryPolicy)
-                                                            .importSSTableRequest(keyspace, table, uploadId, options)
-                                                            .build());
+                                                            .importSSTableRequest(keyspace, table, uploadId, options));
     }
 
     /**
@@ -540,8 +525,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<Void> cleanUploadSession(SidecarInstance instance, String uploadId)
     {
         return executor.executeRequestAsync(requestBuilder().singleInstanceSelectionPolicy(instance)
-                                                            .cleanSSTableUploadSessionRequest(uploadId)
-                                                            .build());
+                                                            .cleanSSTableUploadSessionRequest(uploadId));
     }
 
     /**
@@ -553,8 +537,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(sidecarInstance)
-                                            .request(new ListCdcSegmentsRequest())
-                                            .build());
+                                            .request(new ListCdcSegmentsRequest()));
     }
 
     /**
@@ -575,8 +558,8 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         executor.streamRequest(requestBuilder()
                                .singleInstanceSelectionPolicy(sidecarInstance)
-                               .request(new StreamCdcSegmentRequest(segment, range))
-                               .build(), streamConsumer);
+                               .request(new StreamCdcSegmentRequest(segment, range)),
+                               streamConsumer);
     }
 
     /**
@@ -592,8 +575,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
                                             .reportSchemaRequest()
-                                            .noRetryPolicy()  // {@link NoRetryPolicy} is the preferred behavior here
-                                            .build());
+                                            .noRetryPolicy()); // {@link NoRetryPolicy} is the preferred behavior here
     }
 
     /**
@@ -605,8 +587,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<AllServicesConfigPayload> allServicesConfig()
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new AllServicesConfigRequest())
-                                            .build());
+                                            .request(new AllServicesConfigRequest()));
     }
 
     /**
@@ -619,8 +600,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<UpdateCdcServiceConfigPayload> updateCdcServiceConfig(Service service, Map<String, String> config)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new UpdateServiceConfigRequest(service, new UpdateCdcServiceConfigPayload(config)))
-                                            .build());
+                                            .request(new UpdateServiceConfigRequest(service, new UpdateCdcServiceConfigPayload(config))));
     }
 
     /**
@@ -631,8 +611,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<Void> deleteCdcServiceConfig(Service service)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new DeleteServiceConfigRequest(service))
-                                            .build());
+                                            .request(new DeleteServiceConfigRequest(service)));
     }
 
     /**
@@ -646,8 +625,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
         Objects.requireNonNull(payload, "payload cannot be null");
         return executor.executeRequestAsync(requestBuilder()
                                             .retryPolicy(new CreateRestoreJobRetryPolicy(defaultRetryPolicy))
-                                            .request(new CreateRestoreJobRequest(keyspace, table, payload))
-                                            .build());
+                                            .request(new CreateRestoreJobRequest(keyspace, table, payload)));
     }
 
     /**
@@ -660,8 +638,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                     UpdateRestoreJobRequestPayload payload)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new UpdateRestoreJobRequest(keyspace, table, jobId, payload))
-                                            .build());
+                                            .request(new UpdateRestoreJobRequest(keyspace, table, jobId, payload)));
     }
 
     /**
@@ -672,8 +649,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                    AbortRestoreJobRequestPayload payload)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new AbortRestoreJobRequest(keyspace, table, jobId, payload))
-                                            .build());
+                                            .request(new AbortRestoreJobRequest(keyspace, table, jobId, payload)));
     }
 
     /**
@@ -685,8 +661,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                                                  UUID jobId)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new RestoreJobSummaryRequest(keyspace, table, jobId))
-                                            .build());
+                                            .request(new RestoreJobSummaryRequest(keyspace, table, jobId)));
     }
 
     /**
@@ -701,8 +676,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .request(new CreateRestoreJobSliceRequest(keyspace, table, jobId, payload))
-                                            .build());
+                                            .request(new CreateRestoreJobSliceRequest(keyspace, table, jobId, payload)));
     }
 
     /**
@@ -712,8 +686,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<Void> createRestoreJobSlice(String keyspace, String table, UUID jobId, CreateSliceRequestPayload payload)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new CreateRestoreJobSliceRequest(keyspace, table, jobId, payload))
-                                            .build());
+                                            .request(new CreateRestoreJobSliceRequest(keyspace, table, jobId, payload)));
     }
 
     /**
@@ -723,8 +696,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     public CompletableFuture<RestoreJobProgressResponsePayload> restoreJobProgress(RestoreJobProgressRequestParams params)
     {
         return executor.executeRequestAsync(requestBuilder()
-                                            .request(new RestoreJobProgressRequest(params))
-                                            .build());
+                                            .request(new RestoreJobProgressRequest(params)));
     }
 
     /**
@@ -737,8 +709,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .connectedClientStatsRequest()
-                                            .build());
+                                            .connectedClientStatsRequest());
     }
 
     /**
@@ -755,8 +726,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .tableStatsRequest(keyspace, table)
-                                            .build());
+                                            .tableStatsRequest(keyspace, table));
     }
 
     /**
@@ -770,8 +740,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .operationalJobRequest(jobId)
-                                            .build());
+                                            .operationalJobRequest(jobId));
     }
 
     /**
@@ -784,8 +753,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .listOperationalJobsRequest()
-                                            .build());
+                                            .listOperationalJobsRequest());
     }
 
     /**
@@ -797,8 +765,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .streamsStatsRequest()
-                                            .build());
+                                            .streamsStatsRequest());
     }
 
     /**
@@ -810,8 +777,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
     {
         return executor.executeRequestAsync(requestBuilder()
                                             .singleInstanceSelectionPolicy(instance)
-                                            .nodeDecommissionRequest()
-                                            .build());
+                                            .nodeDecommissionRequest());
     }
 
     /**
@@ -850,14 +816,14 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      * Returns a future with the expected instance of type {@code <T>} after executing the {@code request} and
      * processing it.
      *
-     * @param context the request context
-     * @param <T>     the expected type for the instance
+     * @param requestBuilder the request context builder
+     * @param <T>            the expected type for the instance
      * @return a future with the expected instance of type {@code <T>} after executing the {@code request} and
      * processing it
      */
-    public <T> CompletableFuture<T> executeRequestAsync(RequestContext context)
+    public <T> CompletableFuture<T> executeRequestAsync(RequestContext.Builder requestBuilder)
     {
-        return executor.executeRequestAsync(context);
+        return executor.executeRequestAsync(requestBuilder);
     }
 
     /**

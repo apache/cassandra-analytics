@@ -49,11 +49,11 @@ configurations {
     configureEach {
         resolutionStrategy {
             // Force set the vertx versions that do not depend on a newer jackson version
-            force("io.vertx:vertx-web:${vertxVersion}")
-            force("io.vertx:vertx-core:${vertxVersion}")
-            force("io.vertx:vertx-auth-common:${vertxVersion}")
-            force("io.vertx:vertx-dropwizard-metrics:${vertxVersion}")
-            force("io.vertx:vertx-web-client:${vertxVersion}")
+            force("io.vertx:vertx-web:${vertxTestVersion}")
+            force("io.vertx:vertx-core:${vertxTestVersion}")
+            force("io.vertx:vertx-auth-common:${vertxTestVersion}")
+            force("io.vertx:vertx-dropwizard-metrics:${vertxTestVersion}")
+            force("io.vertx:vertx-web-client:${vertxTestVersion}")
         }
     }
 }

@@ -45,6 +45,8 @@ public class SidecarClientConfigTest
         assertThat(clientConfig.chunkBufferSize()).isEqualTo(4L * 1024L * 1024L);
         assertThat(clientConfig.maxPoolSize()).isEqualTo(64);
         assertThat(clientConfig.timeoutSeconds()).isEqualTo(600);
+        assertThat(clientConfig.identityProviderClass()).isNull();
+        assertThat(clientConfig.identityProviderParameters()).isEmpty();
     }
 
     @Test
@@ -112,5 +114,15 @@ public class SidecarClientConfigTest
 
         userAgentStr = AnalyticsSidecarClient.transportModeBasedWriterUserAgent(DataTransport.S3_COMPAT);
         assertThat(userAgentStr.endsWith(" writer-s3")).isTrue();
+    }
+
+    @Test
+    public void testCustomSidecarIdentityProvider()
+    {
+        String providerClass = "org.apache.cassandra.sidecar.client.TestIdentityProvider";
+        Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("sidecar_identity_provider_class", providerClass,
+                                                                                        "sidecar_identity_provider_parameter.param1", "value1"));
+        assertThat(clientConfig.identityProviderClass()).isEqualTo(providerClass);
+        assertThat(clientConfig.identityProviderParameters()).isEqualTo(ImmutableMap.of("param1", "value1"));
     }
 }

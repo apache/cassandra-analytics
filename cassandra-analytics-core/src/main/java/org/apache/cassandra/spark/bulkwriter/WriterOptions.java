@@ -50,6 +50,8 @@ public enum WriterOptions implements WriterOption
     KEYSTORE_PATH,
     KEYSTORE_BASE64_ENCODED,
     KEYSTORE_TYPE,
+    SIDECAR_IDENTITY_PROVIDER_CLASS,
+    SIDECAR_IDENTITY_PROVIDER_PARAMETER,
     /**
      * Option that specifies cassandra role used for role based access control in Sidecar.
      * <p>

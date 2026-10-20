@@ -29,9 +29,9 @@ public class SidecarClientVertxRequestExecutor extends VertxRequestExecutor
 {
     private final Vertx vertx;
 
-    public SidecarClientVertxRequestExecutor(VertxHttpClient httpClient)
+    public SidecarClientVertxRequestExecutor(VertxHttpClient httpClient, SidecarIdentityProvider identityProvider)
     {
-        super(httpClient);
+        super(httpClient, identityProvider);
         this.vertx = requireNonNull(httpClient.vertx(), "The vertx instance is required");
     }
 

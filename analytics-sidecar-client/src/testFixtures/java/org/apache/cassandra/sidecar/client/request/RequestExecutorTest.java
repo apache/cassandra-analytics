@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -36,6 +37,7 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.RequestContext;
+import org.apache.cassandra.sidecar.client.SidecarIdentityProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
 
@@ -43,6 +45,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Provides base functionality for testing the RequestExecutor
@@ -51,6 +57,14 @@ import static org.assertj.core.api.Assertions.assertThatException;
  */
 public abstract class RequestExecutorTest<T> extends BaseRequestTest
 {
+    SidecarIdentityProvider mockIdentityProvider;
+
+    @BeforeEach
+    void setUp()
+    {
+        mockIdentityProvider = mock(SidecarIdentityProvider.class);
+    }
+
     @AfterEach
     void cleanup() throws Exception
     {
@@ -73,6 +87,7 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
             RecordedRequest request = server.takeRequest();
             assertThat(request.getPath()).isEqualTo(parameters.expectedEndpointPath());
             assertThat(request.getHeader("User-Agent")).isEqualTo("sidecar-client-test/1.0.0");
+            verify(mockIdentityProvider, times(1)).injectCredentials(any());
         }
     }
 
@@ -104,6 +119,8 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
             RecordedRequest requestToFastServer = fastServer.takeRequest();
             assertThat(requestToFastServer.getPath()).isEqualTo(parameters.expectedEndpointPath());
             assertThat(requestToFastServer.getHeader("User-Agent")).isEqualTo("sidecar-client-test/1.0.0");
+
+            verify(mockIdentityProvider, times(1)).injectCredentials(any());
         }
     }
 
@@ -134,6 +151,8 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
             RecordedRequest requestToNormalServer = normalOperatingServer.takeRequest();
             assertThat(requestToNormalServer.getPath()).isEqualTo(parameters.expectedEndpointPath());
             assertThat(requestToNormalServer.getHeader("User-Agent")).isEqualTo("sidecar-client-test/1.0.0");
+
+            verify(mockIdentityProvider, times(1)).injectCredentials(any());
         }
     }
 
@@ -159,6 +178,8 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
             RecordedRequest request = server.takeRequest();
             assertThat(request.getPath()).isEqualTo(parameters.expectedEndpointPath());
             assertThat(request.getHeader("User-Agent")).isEqualTo("sidecar-client-test/1.0.0");
+
+            verify(mockIdentityProvider, times(1)).injectCredentials(any());
         }
     }
 
@@ -192,6 +213,7 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
             RecordedRequest request = server.takeRequest();
             assertThat(request.getPath()).isEqualTo(parameters.expectedEndpointPath());
             assertThat(request.getHeader("User-Agent")).isEqualTo("sidecar-client-test/1.0.0");
+            verify(mockIdentityProvider, times(1)).injectCredentials(any());
         }
     }
 
@@ -204,21 +226,26 @@ public abstract class RequestExecutorTest<T> extends BaseRequestTest
                .idleTimeoutMillis(100);
     }
 
+    protected SidecarIdentityProvider sidecarIdentityProvider()
+    {
+        return mockIdentityProvider;
+    }
+
     private void runTestScenario(RequestTestParameters<T> parameters,
                                  InstanceSelectionPolicy policy,
                                  boolean async) throws Exception
     {
-        RequestContext requestContext = parameters.specificRequest(builder(policy)).build();
+        RequestContext.Builder requestContextBuilder = parameters.specificRequest(builder(policy));
         T responseObject;
         if (async)
         {
-            CompletableFuture<T> future = sidecarClient().executeRequestAsync(requestContext);
+            CompletableFuture<T> future = sidecarClient().executeRequestAsync(requestContextBuilder);
             responseObject = future.join();
             assertThat(future).isDone();
         }
         else
         {
-            responseObject = sidecarClient().executeRequest(requestContext, 20, TimeUnit.SECONDS);
+            responseObject = sidecarClient().executeRequest(requestContextBuilder, 20, TimeUnit.SECONDS);
         }
         assertThat(responseObject).isNotNull();
         parameters.validateResponse(responseObject);
