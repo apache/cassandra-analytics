@@ -27,11 +27,14 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -47,6 +50,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 @SuppressWarnings("UnstableApiUsage")
 public class CassandraRingTests
@@ -710,5 +714,205 @@ public class CassandraRingTests
                                                    instances, explicit))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not present in the ring instances");
+    }
+
+    // Witness replicas: Cassandra-reported ranges that also identify which replica of each range is a witness
+
+    private static final List<CassandraInstance> WITNESS_RING_INSTANCES = Arrays.asList(
+    new CassandraInstance("0", "n1", "dc1"),
+    new CassandraInstance("100", "n2", "dc1"),
+    new CassandraInstance("200", "n3", "dc1"));
+
+    private static Map<Range<BigInteger>, List<CassandraInstance>> witnessRingReplicas()
+    {
+        CassandraInstance n1 = WITNESS_RING_INSTANCES.get(0);
+        CassandraInstance n2 = WITNESS_RING_INSTANCES.get(1);
+        CassandraInstance n3 = WITNESS_RING_INSTANCES.get(2);
+        Map<Range<BigInteger>, List<CassandraInstance>> replicas = new LinkedHashMap<>();
+        replicas.put(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.ZERO), Arrays.asList(n1, n2, n3));
+        replicas.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)), Arrays.asList(n2, n3, n1));
+        replicas.put(Range.openClosed(BigInteger.valueOf(100L), BigInteger.valueOf(200L)), Arrays.asList(n3, n1, n2));
+        replicas.put(Range.openClosed(BigInteger.valueOf(200L), Partitioner.Murmur3Partitioner.maxToken()), Arrays.asList(n1, n2, n3));
+        return replicas;
+    }
+
+    /**
+     * Three nodes with {@code '3/1'}: every node replicates every range, and is the witness for some of them, which is
+     * why witness status cannot be a per-node property.
+     */
+    private static CassandraRing witnessRing()
+    {
+        CassandraInstance n1 = WITNESS_RING_INSTANCES.get(0);
+        CassandraInstance n2 = WITNESS_RING_INSTANCES.get(1);
+        CassandraInstance n3 = WITNESS_RING_INSTANCES.get(2);
+        Map<Range<BigInteger>, List<CassandraInstance>> witnesses = new LinkedHashMap<>();
+        witnesses.put(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.ZERO), Collections.singletonList(n3));
+        witnesses.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)), Collections.singletonList(n1));
+        witnesses.put(Range.openClosed(BigInteger.valueOf(100L), BigInteger.valueOf(200L)), Collections.singletonList(n2));
+        witnesses.put(Range.openClosed(BigInteger.valueOf(200L), Partitioner.Murmur3Partitioner.maxToken()), Collections.singletonList(n3));
+        return new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                 new ReplicationFactor(ImmutableMap.of(
+                                 "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                 "dc1", "3/1")),
+                                 WITNESS_RING_INSTANCES, witnessRingReplicas(), witnesses);
+    }
+
+    private static Set<String> fullReplicaNamesAt(CassandraRing ring, long token)
+    {
+        Set<String> names = new TreeSet<>();
+        Range<BigInteger> point = Range.closed(BigInteger.valueOf(token), BigInteger.valueOf(token));
+        ring.getFullReplicaSubRanges(point).asMapOfRanges().values()
+            .forEach(replicas -> replicas.forEach(instance -> names.add(instance.nodeName())));
+        return names;
+    }
+
+    private static void assertWitnessesExcluded(CassandraRing ring)
+    {
+        assertThat(ring.hasWitnesses()).isTrue();
+        assertThat(fullReplicaNamesAt(ring, -10L)).containsExactly("n1", "n2");
+        assertThat(fullReplicaNamesAt(ring, 50L)).containsExactly("n2", "n3");
+        assertThat(fullReplicaNamesAt(ring, 150L)).containsExactly("n1", "n3");
+        assertThat(fullReplicaNamesAt(ring, 1000L)).containsExactly("n1", "n2");
+    }
+
+    @Test
+    public void testWitnessesAreExcludedFromFullReplicas()
+    {
+        assertWitnessesExcluded(witnessRing());
+    }
+
+    @Test
+    public void testWitnessesRemainInPlacement()
+    {
+        // getSubRanges describes placement, which still includes the witness
+        CassandraRing ring = witnessRing();
+        assertThat(replicaNamesAt(ring, 50L)).containsExactly("n1", "n2", "n3");
+        assertThat(ring.tokenRanges().get(WITNESS_RING_INSTANCES.get(0))).hasSize(4);
+    }
+
+    @Test
+    public void testFullReplicasSpanningSeveralRangesExcludeEachRangesOwnWitness()
+    {
+        // A Spark partition usually covers more than one Cassandra range, each with a different witness
+        Range<BigInteger> partition = Range.openClosed(BigInteger.valueOf(-10L), BigInteger.valueOf(150L));
+        Map<Range<BigInteger>, List<CassandraInstance>> subRanges = witnessRing().getFullReplicaSubRanges(partition)
+                                                                                 .asMapOfRanges();
+        Map<BigInteger, Set<String>> namesByUpperBound = new TreeMap<>();
+        subRanges.forEach((range, replicas) -> namesByUpperBound.put(range.upperEndpoint(),
+                                                                     replicas.stream()
+                                                                             .map(CassandraInstance::nodeName)
+                                                                             .collect(Collectors.toCollection(TreeSet::new))));
+        assertThat(namesByUpperBound).containsOnly(entry(BigInteger.ZERO, new TreeSet<>(Arrays.asList("n1", "n2"))),
+                                                   entry(BigInteger.valueOf(100L), new TreeSet<>(Arrays.asList("n2", "n3"))),
+                                                   entry(BigInteger.valueOf(150L), new TreeSet<>(Arrays.asList("n1", "n3"))));
+    }
+
+    @Test
+    public void testRingWithoutWitnessesReturnsEveryReplicaAsFull()
+    {
+        CassandraRing ring = explicitRangeRing();
+        assertThat(ring.hasWitnesses()).isFalse();
+        assertThat(fullReplicaNamesAt(ring, 10L)).containsExactly("n1", "n2");
+        assertThat(fullReplicaNamesAt(ring, 1000L)).containsExactly("n2", "n3");
+    }
+
+    @Test
+    public void testDerivedRingHasNoWitnesses()
+    {
+        CassandraRing derived = new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                                  new ReplicationFactor(ImmutableMap.of(
+                                                  "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                                  "dc1", "3")),
+                                                  WITNESS_RING_INSTANCES);
+        assertThat(derived.hasWitnesses()).isFalse();
+        assertThat(derived.getFullReplicaSubRanges(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
+                                                                    Partitioner.Murmur3Partitioner.maxToken())))
+        .isEqualTo(derived.getSubRanges(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
+                                                         Partitioner.Murmur3Partitioner.maxToken())));
+    }
+
+    @Test
+    public void testWitnessesSurviveJdkSerialization() throws Exception
+    {
+        CassandraRing original = witnessRing();
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(original);
+        }
+        CassandraRing deserialized;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = (CassandraRing) in.readObject();
+        }
+        assertWitnessesExcluded(deserialized);
+    }
+
+    @Test
+    public void testWitnessesSurviveKryoSerialization()
+    {
+        CassandraRing original = witnessRing();
+        Kryo kryo = new Kryo();
+        kryo.register(CassandraRing.class, new CassandraRing.Serializer());
+        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
+        kryo.register(CassandraInstance.class, new CassandraInstance.Serializer());
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (Output out = new Output(bytes))
+        {
+            kryo.writeObject(out, original);
+        }
+        CassandraRing deserialized;
+        try (Input in = new Input(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = kryo.readObject(in, CassandraRing.class);
+        }
+        assertWitnessesExcluded(deserialized);
+        assertThat(deserialized).isEqualTo(original);
+    }
+
+    @Test
+    public void testWitnessThatIsNotAReplicaIsRejected()
+    {
+        Map<Range<BigInteger>, List<CassandraInstance>> replicas = new LinkedHashMap<>();
+        replicas.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)),
+                     Arrays.asList(WITNESS_RING_INSTANCES.get(0), WITNESS_RING_INSTANCES.get(1)));
+        Map<Range<BigInteger>, List<CassandraInstance>> witnesses = new LinkedHashMap<>();
+        witnesses.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)),
+                      Collections.singletonList(WITNESS_RING_INSTANCES.get(2)));
+        assertThatThrownBy(() -> new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                                   new ReplicationFactor(ImmutableMap.of(
+                                                   "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                                   "dc1", "3/1")),
+                                                   WITNESS_RING_INSTANCES, replicas, witnesses))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("is not one of its replicas");
+    }
+
+    @Test
+    public void testWitnessForUnknownRangeIsRejected()
+    {
+        Map<Range<BigInteger>, List<CassandraInstance>> witnesses = new LinkedHashMap<>();
+        witnesses.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(50L)),
+                      Collections.singletonList(WITNESS_RING_INSTANCES.get(0)));
+        assertThatThrownBy(() -> new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                                   new ReplicationFactor(ImmutableMap.of(
+                                                   "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                                   "dc1", "3/1")),
+                                                   WITNESS_RING_INSTANCES, witnessRingReplicas(), witnesses))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("which has no replicas");
+    }
+
+    @Test
+    public void testWitnessesRequireReportedRanges()
+    {
+        assertThatThrownBy(() -> new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                                   new ReplicationFactor(ImmutableMap.of(
+                                                   "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                                   "dc1", "3/1")),
+                                                   WITNESS_RING_INSTANCES, null, Collections.emptyMap()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Cassandra-reported ranges");
     }
 }

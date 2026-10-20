@@ -847,17 +847,22 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
 
         Map<Range<BigInteger>, List<CassandraInstance>> rangeReplicas = new HashMap<>();
+        Map<Range<BigInteger>, List<CassandraInstance>> rangeWitnesses = new HashMap<>();
         for (TokenRangeReplicasResponse.ReplicaInfo replicaInfo : topology.readReplicas())
         {
             Range<BigInteger> range = Range.openClosed(new BigInteger(replicaInfo.start()),
                                                        new BigInteger(replicaInfo.end()));
+            Map<String, List<String>> witnessesByDatacenter = witnessesByDatacenter(replicationFactor, replicaInfo);
             List<CassandraInstance> replicas = new ArrayList<>();
+            List<CassandraInstance> witnesses = new ArrayList<>();
             for (Map.Entry<String, List<String>> byDatacenter : replicaInfo.replicasByDatacenter().entrySet())
             {
                 if (datacenter != null && !datacenter.equalsIgnoreCase(byDatacenter.getKey()))
                 {
                     continue;
                 }
+                List<String> datacenterWitnesses = witnessesByDatacenter.getOrDefault(byDatacenter.getKey(),
+                                                                                      Collections.emptyList());
                 for (String replicaKey : byDatacenter.getValue())
                 {
                     TokenRangeReplicasResponse.ReplicaMetadata metadata = topology.replicaMetadata().get(replicaKey);
@@ -873,6 +878,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                         continue;
                     }
                     replicas.add(instance);
+                    if (datacenterWitnesses.contains(replicaKey))
+                    {
+                        witnesses.add(instance);
+                    }
                 }
             }
             if (!replicas.isEmpty())
@@ -880,6 +889,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 // Distinct, because a duplicated replica would inflate the per-range replica count that
                 // PartitionedDataLayer uses to decide whether the consistency level is satisfied
                 rangeReplicas.put(range, replicas.stream().distinct().collect(Collectors.toList()));
+                if (!witnesses.isEmpty())
+                {
+                    rangeWitnesses.put(range, witnesses.stream().distinct().collect(Collectors.toList()));
+                }
             }
         }
 
@@ -891,9 +904,77 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         validateCompleteRingCoverage(partitioner, rangeReplicas.keySet());
 
-        LOGGER.info("Using token ranges reported by Cassandra keyspace={} numRanges={} numInstances={}",
-                    keyspace, rangeReplicas.size(), instances.size());
-        return new CassandraRing(partitioner, keyspace, replicationFactor, instances, rangeReplicas);
+        LOGGER.info("Using token ranges reported by Cassandra keyspace={} numRanges={} numRangesWithWitnesses={} "
+                    + "numInstances={}", keyspace, rangeReplicas.size(), rangeWitnesses.size(), instances.size());
+        return new CassandraRing(partitioner, keyspace, replicationFactor, instances, rangeReplicas, rangeWitnesses);
+    }
+
+    /**
+     * Returns the witness replicas the Sidecar reported for a range, after checking them against the replication
+     * factor.
+     * <p>
+     * A keyspace with transient replicas must have its witnesses reported: a witness does not hold complete data, so
+     * without knowing which replica is the witness the reader could select it and silently return incomplete
+     * results. Failing is the only safe option.
+     *
+     * @param replicationFactor the keyspace replication factor
+     * @param replicaInfo       the replicas of one token range
+     * @return datacenter to witness replicas, empty when the range has none
+     * @throws IllegalStateException when witnesses are expected but not reported, or do not match the replication
+     *                               factor
+     */
+    @VisibleForTesting
+    static Map<String, List<String>> witnessesByDatacenter(ReplicationFactor replicationFactor,
+                                                           TokenRangeReplicasResponse.ReplicaInfo replicaInfo)
+    {
+        Map<String, List<String>> witnessesByDatacenter = replicaInfo.witnessesByDatacenter();
+        if (witnessesByDatacenter == null)
+        {
+            if (replicationFactor.hasTransientReplicas())
+            {
+                throw new IllegalStateException(String.format(
+                "Keyspace has witness replicas (%s) but the Sidecar did not report which replicas of range (%s, %s] "
+                + "are witnesses. A witness does not hold complete data, so reading without excluding it can "
+                + "silently return incomplete results. Use a Sidecar version that reports witnessesByDatacenter.",
+                replicationFactor.getReplication(), replicaInfo.start(), replicaInfo.end()));
+            }
+            return Collections.emptyMap();
+        }
+
+        int totalWitnesses = 0;
+        for (Map.Entry<String, List<String>> byDatacenter : witnessesByDatacenter.entrySet())
+        {
+            String datacenter = byDatacenter.getKey();
+            List<String> witnesses = byDatacenter.getValue();
+            List<String> replicas = replicaInfo.replicasByDatacenter().getOrDefault(datacenter, Collections.emptyList());
+            for (String witness : witnesses)
+            {
+                if (!replicas.contains(witness))
+                {
+                    throw new IllegalStateException(String.format(
+                    "Sidecar reported witness %s for range (%s, %s] in datacenter %s, but it is not one of the "
+                    + "range's replicas %s", witness, replicaInfo.start(), replicaInfo.end(), datacenter, replicas));
+                }
+            }
+            if (replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy
+                && witnesses.size() > replicationFactor.getTransientReplicas(datacenter))
+            {
+                // Fewer is legitimate: Cassandra reduces the witness count when a datacenter has fewer nodes than
+                // its replication factor
+                throw new IllegalStateException(String.format(
+                "Sidecar reported %d witnesses for range (%s, %s] in datacenter %s, but the replication factor "
+                + "allows at most %d", witnesses.size(), replicaInfo.start(), replicaInfo.end(), datacenter,
+                replicationFactor.getTransientReplicas(datacenter)));
+            }
+            totalWitnesses += witnesses.size();
+        }
+        if (totalWitnesses > replicationFactor.getTransientReplicationFactor())
+        {
+            throw new IllegalStateException(String.format(
+            "Sidecar reported %d witnesses for range (%s, %s], but the replication factor allows at most %d",
+            totalWitnesses, replicaInfo.start(), replicaInfo.end(), replicationFactor.getTransientReplicationFactor()));
+        }
+        return witnessesByDatacenter;
     }
 
     /**
