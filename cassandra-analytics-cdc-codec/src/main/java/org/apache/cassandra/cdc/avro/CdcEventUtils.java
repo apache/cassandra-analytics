@@ -303,28 +303,28 @@ public final class CdcEventUtils
 
         for (Value field : CdcEventUtils.updatedFields(event))
         {
+            Schema.Field column = AvroSchemas.field(tableSchema, field.columnName);
+            Preconditions.checkNotNull(column,
+                                       "Encountered an unknown field during event encoding. " +
+                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
             ByteBuffer value = field.getValue();
             if (value == null) // the field is deleted
             {
-                update.put(field.columnName, null);
+                update.put(column.name(), null);
                 continue;
             }
 
             if (totalSize + value.remaining() > truncateThreshold)
             {
-                truncatedFields.add(field.columnName);
+                truncatedFields.add(column.name());
                 continue;
             }
 
             totalSize += value.remaining();
 
-            Schema.Field column = tableSchema.getField(field.columnName);
-            Preconditions.checkNotNull(column,
-                                       "Encountered an unknown field during event encoding. " +
-                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
             Object javaValue = JavaTypeConverter.deserialize(type, value);
-            update.put(field.columnName, AvroDataUtils.toAvro(javaValue, column.schema()));
+            update.put(column.name(), AvroDataUtils.toAvro(javaValue, column.schema()));
         }
         return new UpdatedEvent(update, truncatedFields);
     }

@@ -138,6 +138,22 @@ public class AvroUdtTransformerTest
         assertThat(result.get("code")).isEqualTo(200);
     }
 
+    @Test
+    public void testQuotedColumnAndUdtFieldNames() throws IOException
+    {
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".quoted (id uuid PRIMARY KEY, \"my-col\" frozen<quoted_result>);",
+                                       "CREATE TYPE " + KEYSPACE + ".quoted_result (\"status-code\" int, message text);");
+        CdcEvent event = insert(table, UUID.randomUUID(),
+                                Value.of(KEYSPACE, "my-col", "frozen<quoted_result>",
+                                         fields(ByteBuffer.allocate(4).putInt(0, 200), text("ok"))));
+
+        // the fields are written under their Avro names
+        GenericRecord result = (GenericRecord) transformAndEncode(table, event).get("my_col");
+
+        assertThat(result.get("status_code")).isEqualTo(200);
+        assertThat(result.get("message")).hasToString("ok");
+    }
+
     /**
      * Parses the table and registers its UDTs with the types used for type lookup, as the CDC bridge does
      */
