@@ -285,7 +285,7 @@ class SSTableIndexFileAccessTests
 
         @Override
         @NotNull
-        public Set<String> customComponentNames()
+        public Set<String> saiComponentNames()
         {
             return Collections.singleton(componentName);
         }

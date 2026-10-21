@@ -749,7 +749,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             }
             else
             {
-                if (SSTable.isCustomComponentSupported(fileName))
+                if (SSTable.isSupportedComponent(fileName))
                 {
                     customComponents.computeIfAbsent(ssTableName, k -> new LinkedHashMap<>())
                                     .put(fileName, file);

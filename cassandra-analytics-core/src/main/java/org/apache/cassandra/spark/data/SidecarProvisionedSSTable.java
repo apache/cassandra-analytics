@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
@@ -142,9 +143,11 @@ public class SidecarProvisionedSSTable extends SSTable
 
     @NotNull
     @Override
-    public Set<String> customComponentNames()
+    public Set<String> saiComponentNames()
     {
-        return customComponents.keySet();
+        return customComponents.keySet()
+               .stream().filter(SSTable::isSaiComponent)
+               .collect(Collectors.toSet());
     }
 
     @Nullable

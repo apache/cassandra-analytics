@@ -367,7 +367,7 @@ public final class SaiIndexReader
                                      @NotNull SSTable sstable,
                                      @NotNull List<StorageAttachedIndex> indexes) throws IOException
         {
-            if (sstable.customComponentNames().isEmpty())
+            if (sstable.saiComponentNames().isEmpty())
             {
                 throw new IOException("SSTable has no SAI components: " + sstable.getDataFileName());
             }

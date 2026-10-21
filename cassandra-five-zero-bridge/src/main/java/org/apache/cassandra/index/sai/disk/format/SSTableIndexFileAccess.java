@@ -50,7 +50,7 @@ public final class SSTableIndexFileAccess implements IndexDescriptor.FileAccess
     public SSTableIndexFileAccess(SSTable sstable)
     {
         this.sstable = sstable;
-        this.components = sstable.customComponentNames();
+        this.components = sstable.saiComponentNames();
     }
 
     @Override

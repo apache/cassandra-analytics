@@ -77,6 +77,6 @@ class CassandraBridgeImplementationSaiTests
                                                Integer.MAX_VALUE))
         .isSameAs(EmptyStreamScanner.INSTANCE);
 
-        verify(sstable, never()).customComponentNames();
+        verify(sstable, never()).saiComponentNames();
     }
 }

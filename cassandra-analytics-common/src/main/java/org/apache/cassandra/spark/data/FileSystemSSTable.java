@@ -98,7 +98,7 @@ public class FileSystemSSTable extends SSTable
 
     @NotNull
     @Override
-    public Set<String> customComponentNames()
+    public Set<String> saiComponentNames()
     {
         Path parent = dataFilePath.getParent();
         if (parent == null)
@@ -106,11 +106,14 @@ public class FileSystemSSTable extends SSTable
             return Collections.emptySet();
         }
 
+        String sstablePrefix = dataFilePath.getFileName().toString()
+                                           .replace(FileType.DATA.getFileSuffix(), "");
         try (Stream<Path> files = Files.list(parent))
         {
             return files.filter(Files::isRegularFile)
                         .map(p -> p.getFileName().toString())
-                        .filter(SSTable::isCustomComponentSupported)
+                        .filter(name -> name.startsWith(sstablePrefix))
+                        .filter(SSTable::isSaiComponent)
                         .collect(Collectors.toSet());
         }
         catch (IOException exception)
@@ -124,7 +127,7 @@ public class FileSystemSSTable extends SSTable
     @Override
     public InputStream openCustomComponent(@NotNull String componentName)
     {
-        if (!isCustomComponentSupported(componentName))
+        if (!isSupportedComponent(componentName))
         {
             return null;
         }
@@ -143,7 +146,7 @@ public class FileSystemSSTable extends SSTable
     @Override
     public long customComponentLength(@NotNull String componentName)
     {
-        if (!isCustomComponentSupported(componentName))
+        if (!isSupportedComponent(componentName))
         {
             throw new IllegalArgumentException("Unknown SSTable component: " + componentName);
         }

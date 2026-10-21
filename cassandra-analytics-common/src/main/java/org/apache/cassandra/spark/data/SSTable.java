@@ -29,7 +29,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
 
 import org.apache.cassandra.spark.utils.Preconditions;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
@@ -46,10 +45,9 @@ public abstract class SSTable implements Serializable, CassandraFile
 {
     public static final long serialVersionUID = 42L;
 
-    protected static final Set<String> customComponentPrefixes = ImmutableSet.of("SAI+");
-
     private static final String FILENAME_SEPARATOR = "-";
     private static final Splitter filenameSplitter = Splitter.on(FILENAME_SEPARATOR);
+    private static final String saiComponentPrefix = "SAI+";
 
     public SSTable()
     {
@@ -105,13 +103,13 @@ public abstract class SSTable implements Serializable, CassandraFile
     public abstract boolean isMissing(FileType fileType);
 
     /**
-     * Returns non-standard SSTable component file names exposed by this SSTable.
+     * Returns file names of SAI components exposed by this SSTable.
      *
-     * SAI uses dynamically named custom components (files beginning with {@code SAI+})
+     * SAI uses dynamically named (files beginning with {@code SAI+})
      * which cannot be represented by {@link FileType} enumeration.
      */
     @NotNull
-    public Set<String> customComponentNames()
+    public Set<String> saiComponentNames()
     {
         return Collections.emptySet();
     }
@@ -238,17 +236,20 @@ public abstract class SSTable implements Serializable, CassandraFile
         return tokens.get(tokens.size() - 4);
     }
 
-    public static boolean isCustomComponentSupported(String fileName)
+    public static boolean isSupportedComponent(String fileName)
+    {
+        return isSaiComponent(fileName);
+    }
+
+    public static boolean isSaiComponent(String fileName)
+    {
+        return hasComponentPrefix(fileName, saiComponentPrefix);
+    }
+
+    public static boolean hasComponentPrefix(String fileName, String component)
     {
         int separator = fileName.lastIndexOf('-');
         String componentName = separator > 0 ? fileName.substring(separator + 1) : fileName;
-        for (String type : customComponentPrefixes)
-        {
-            if (componentName.startsWith(type))
-            {
-                return true;
-            }
-        }
-        return false;
+        return componentName.startsWith(component);
     }
 }
