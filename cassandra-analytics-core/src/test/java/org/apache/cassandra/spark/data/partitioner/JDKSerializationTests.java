@@ -85,6 +85,40 @@ public class JDKSerializationTests extends VersionRunner
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCassandraRingWithAuthoritativeReplicas(CassandraBridge bridge)
+    {
+        // Round-trip a 5-arg authoritative ring. Asserting equality covers both the
+        // boolean presence flag and the flat RangeReplicas payload.
+        java.util.List<CassandraInstance> instances = java.util.Arrays.asList(
+            new CassandraInstance("0",   "dc1-a", "DC1"),
+            new CassandraInstance("100", "dc1-b", "DC1"),
+            new CassandraInstance("200", "dc1-c", "DC1"),
+            new CassandraInstance("1",   "dc2-a", "DC2"),
+            new CassandraInstance("101", "dc2-b", "DC2"),
+            new CassandraInstance("201", "dc2-c", "DC2"));
+        ReplicationFactor rf = new ReplicationFactor(ImmutableMap.of(
+            "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+            "DC1", "3", "DC2", "3"));
+        BigInteger minToken = Partitioner.Murmur3Partitioner.minToken();
+        BigInteger maxToken = Partitioner.Murmur3Partitioner.maxToken();
+        com.google.common.collect.RangeMap<BigInteger, java.util.List<CassandraInstance>> auth =
+            com.google.common.collect.TreeRangeMap.create();
+        auth.put(Range.openClosed(minToken, BigInteger.ZERO),
+                 java.util.Arrays.asList(instances.get(0), instances.get(3)));
+        auth.put(Range.openClosed(BigInteger.ZERO, maxToken),
+                 java.util.Arrays.asList(instances.get(1), instances.get(2),
+                                         instances.get(4), instances.get(5)));
+
+        CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner, "ks", rf, instances, auth);
+        byte[] bytes = bridge.javaSerialize(ring);
+        CassandraRing deserialized = bridge.javaDeserialize(bytes, CassandraRing.class);
+        assertThat(deserialized).isEqualTo(ring);
+        assertThat(deserialized.rangeMap().asMapOfRanges()).isEqualTo(auth.asMapOfRanges());
+        assertThat(deserialized.tokenRanges().keySet()).hasSize(instances.size());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testTokenPartitioner(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.partitioners(),

@@ -161,14 +161,15 @@ public class ReaderUtilsTests
 
                     // Read Summary.db file for first and last partition keys from Summary.db
                     Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    SummaryDbUtils.Summary summaryKeys;
-                    try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
+                    Pair<DecoratedKey, DecoratedKey> summaryKeys;
+                    try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile));
+                         SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(in, Murmur3Partitioner.instance, 128, 2048))
                     {
-                        summaryKeys = SummaryDbUtils.readSummary(in, Murmur3Partitioner.instance, 128, 2048);
+                        summaryKeys = Pair.of(summary.first(), summary.last());
                     }
                     assertThat(summaryKeys).isNotNull();
-                    assertThat(summaryKeys.first()).isNotNull();
-                    assertThat(summaryKeys.last()).isNotNull();
+                    assertThat(summaryKeys.left).isNotNull();
+                    assertThat(summaryKeys.right).isNotNull();
 
                     // Read Primary Index.db file for first and last partition keys from Summary.db
                     Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
@@ -180,8 +181,8 @@ public class ReaderUtilsTests
                                             Murmur3Partitioner.instance.decorateKey(keys.right));
                     }
                     assertThat(indexKeys).isNotNull();
-                    assertThat(summaryKeys.first()).isEqualTo(indexKeys.left);
-                    assertThat(summaryKeys.last()).isEqualTo(indexKeys.right);
+                    assertThat(summaryKeys.left).isEqualTo(indexKeys.left);
+                    assertThat(summaryKeys.right).isEqualTo(indexKeys.right);
                 }
                 catch (IOException exception)
                 {
