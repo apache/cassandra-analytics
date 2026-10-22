@@ -85,6 +85,15 @@ public abstract class CassandraBridge
 
     // Compaction Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
+    public abstract StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
+                                                                       @NotNull Partitioner partitioner,
+                                                                       @NotNull SSTablesSupplier ssTables,
+                                                                       @Nullable SparkRangeFilter rangeFilter,
+                                                                       @NotNull TimeProvider timeProvider,
+                                                                       @NotNull Stats stats,
+                                                                       @NotNull ExecutorService executor);
+
+    // CHECKSTYLE IGNORE: Method with many parameters
     public abstract StreamScanner<RowData> getCompactionScanner(@NotNull CqlTable table,
                                                                 @NotNull Partitioner partitionerType,
                                                                 @NotNull SSTablesSupplier ssTables,
@@ -97,15 +106,8 @@ public abstract class CassandraBridge
                                                                 boolean useIncrementalRepair,
                                                                 @NotNull Stats stats,
                                                                 @NotNull List<SaiFilter> saiFilters,
-                                                                int saiMaxCandidateTokens);
-
-    public abstract StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
-                                                                       @NotNull Partitioner partitioner,
-                                                                       @NotNull SSTablesSupplier ssTables,
-                                                                       @Nullable SparkRangeFilter rangeFilter,
-                                                                       @NotNull TimeProvider timeProvider,
-                                                                       @NotNull Stats stats,
-                                                                       @NotNull ExecutorService executor);
+                                                                int saiMaxCandidateTokens,
+                                                                @NotNull ExecutorService executorService);
 
     public abstract CassandraVersion getVersion();
 

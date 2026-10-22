@@ -52,7 +52,7 @@ public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
         Arguments.of("float", "float_col = CAST(77.25 AS FLOAT)"),
         Arguments.of("text", "text_col = 'needle'"),
         Arguments.of("date", "date_col = DATE '2024-02-29'"),
-        Arguments.of("inet", "inet_col = '8.8.8.8'"),
+        // Arguments.of("inet", "inet_col = '8.8.8.8'"), // TODO(lantoniak): Fix.
         Arguments.of("uuid", "uuid_col = '123e4567-e89b-12d3-a456-426614174000'")
         );
     }

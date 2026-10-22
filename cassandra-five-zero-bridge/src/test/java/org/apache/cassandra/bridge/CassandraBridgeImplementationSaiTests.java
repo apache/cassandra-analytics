@@ -20,6 +20,7 @@ package org.apache.cassandra.bridge;
 
 import java.math.BigInteger;
 import java.util.Collections;
+import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 import org.apache.cassandra.analytics.stats.Stats;
@@ -74,7 +75,8 @@ class CassandraBridgeImplementationSaiTests
                                                false,
                                                Stats.DoNothingStats.INSTANCE,
                                                Collections.singletonList(null),
-                                               Integer.MAX_VALUE))
+                                               Integer.MAX_VALUE,
+                                               Executors.newSingleThreadExecutor()))
         .isSameAs(EmptyStreamScanner.INSTANCE);
 
         verify(sstable, never()).saiComponentNames();

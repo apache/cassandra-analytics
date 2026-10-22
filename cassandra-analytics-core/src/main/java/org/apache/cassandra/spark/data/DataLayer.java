@@ -315,7 +315,8 @@ public abstract class DataLayer implements Serializable
                                              useIncrementalRepair(),
                                              stats(),
                                              saiFilteringEnabled() ? saiFilters : Collections.emptyList(),
-                                             saiMaxCandidateTokens());
+                                             saiMaxCandidateTokens(),
+                                             executorService());
     }
 
     /**

@@ -213,7 +213,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                        boolean useIncrementalRepair,
                                                        @NotNull Stats stats,
                                                        @NotNull List<SaiFilter> saiFilters,
-                                                       int saiMaxCandidateTokens)
+                                                       int saiMaxCandidateTokens,
+                                                       @NotNull ExecutorService executorService)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
