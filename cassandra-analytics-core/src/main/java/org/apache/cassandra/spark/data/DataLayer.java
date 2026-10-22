@@ -439,7 +439,21 @@ public abstract class DataLayer implements Serializable
         }
 
         SaiIndex index = saiIndexForAttribute(attribute);
-        return index == null ? null : new SaiFilter(index, operator, String.valueOf(value));
+        if (index == null)
+        {
+            return null;
+        }
+        CqlField field = resolveField(attribute);
+        return new SaiFilter(index, operator, serializeSaiFilterValue(field, value));
+    }
+
+    private String serializeSaiFilterValue(CqlField field, Object value)
+    {
+        if ("inet".equals(field.cqlTypeName()))
+        {
+            return new String((byte[]) value);
+        }
+        return String.valueOf(value);
     }
 
     /**

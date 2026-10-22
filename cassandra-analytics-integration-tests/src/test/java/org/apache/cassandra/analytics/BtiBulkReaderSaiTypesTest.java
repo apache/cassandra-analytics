@@ -18,7 +18,7 @@
  */
 package org.apache.cassandra.analytics;
 
-public class BtiBulkReaderSaiTest extends BulkReaderSaiTest
+public class BtiBulkReaderSaiTypesTest extends BulkReaderSaiTypesTest
 {
     @Override
     protected String sstableFormat()
