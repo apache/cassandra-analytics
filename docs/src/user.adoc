@@ -242,6 +242,35 @@ Relevant configuration properties:
 |all sstables are selected
 |Define an inclusive time-range filter for sstable selection. Both timestamps are expressed in microseconds
 
+|_saiFilteringEnabled_
+|no
+|`false`
+a|Experimental feature that leverages Storage-Attached Indexes (SAI) to reduce SSTable scanning. Consider enabling this
+option only when Spark filters reference columns backed by SAI indexes. The best results are expected for selective SAI
+queries, for example when approximately 1% of the data set matches the filter criteria.
+
+When enabled, each Spark worker first searches the relevant SAI indexes for partitions matching the filter criteria.
+This produces a set of candidate partition tokens. The number of candidate tokens is bounded by `saiMaxCandidateTokens`;
+if the limit is exceeded, SAI-based pruning is abandoned and the worker falls back to the normal full SSTable scan.
+
+The candidate tokens are then passed to the BTI or BIG primary index to identify the ranges that need to be read from
+`Data.db`, allowing non-matching portions of the SSTable to be skipped.
+
+SAI-based filtering may perform better with lower Spark parallelism. With fewer workers, fewer executors need to
+download and scan the complete SAI indexes, and each worker is assigned a larger token range, increasing the likelihood
+that SAI matches fall within that range.
+
+Increasing `chunkBufferSizeBytes_Index.db` may improve SAI index scanning performance by reducing the number of
+remote reads required while scanning index files.
+
+|_saiMaxCandidateTokens_
+|no
+|`1000000`
+|Maximum number of unique partition tokens that may be materialized from Storage-Attached Index (SAI)
+results for a single read task. If the number of candidate tokens exceeds this limit, SAI-based pruning is abandoned
+and the task falls back to the normal full SSTable scan. The appropriate limit shall be chosen proportionally
+to the expected number of Cassandra partitions matching the Spark filter criteria.
+
 |===
 
 == Bulk Writer

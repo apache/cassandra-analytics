@@ -46,10 +46,12 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.reader.sai.CandidateTokens;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
+import org.assertj.core.groups.Tuple;
 import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.TestUtils.BIG_FORMAT;
@@ -59,6 +61,8 @@ import static org.quicktheories.generators.Generate.constant;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.integers;
 import static org.quicktheories.generators.SourceDSL.maps;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class IndexDbTests
 {
@@ -195,6 +199,40 @@ public class IndexDbTests
                         throw new RuntimeException(exception);
                     }
                 });
+    }
+
+    @Test
+    public void testFindDataDbRangesConsultsCandidateTokens() throws IOException
+    {
+        IPartitioner partitioner = BRIDGE.getPartitioner(Partitioner.Murmur3Partitioner);
+        IndexRow[] rows = IntStream.rangeClosed(1, 4)
+                                   .mapToObj(value -> new IndexRow(partitioner, value))
+                                   .sorted()
+                                   .toArray(IndexRow[]::new);
+        IntStream.range(0, rows.length).forEach(index -> rows[index].position = index * 100_000);
+
+        int[] valuesAndOffsets = Arrays.stream(rows)
+                                       .map(row -> new int[]{row.value, row.position})
+                                       .flatMapToInt(Arrays::stream)
+                                       .toArray();
+        SSTable ssTable = mock(SSTable.class);
+        when(ssTable.openPrimaryIndexStream()).thenReturn(mockDataInputStream(valuesAndOffsets));
+        when(ssTable.getDataFileName()).thenReturn("test-Data.db");
+
+        CandidateTokens.Builder builder = CandidateTokens.builder(partitioner);
+        builder.add(rows[0].token);
+        builder.add(rows[2].token);
+        CandidateTokens candidates = builder.build();
+
+        List<DataDbRange> ranges = IndexDbUtils.findDataDbRanges(null,
+                                                                 candidates.slice(rows[0].token, rows[2].token),
+                                                                 partitioner,
+                                                                 ssTable,
+                                                                 Stats.DoNothingStats.INSTANCE);
+
+        assertThat(ranges).extracting(DataDbRange::start, DataDbRange::end)
+                          .containsExactly(Tuple.tuple(0L, 100_000L),
+                                           Tuple.tuple(200_000L, 300_000L));
     }
 
     @Test

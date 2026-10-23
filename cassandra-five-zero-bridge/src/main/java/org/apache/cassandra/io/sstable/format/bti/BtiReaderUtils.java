@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -54,10 +55,12 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.reader.DataDbRange;
 import org.apache.cassandra.spark.reader.IndexConsumer;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.ReaderUtils;
 import org.apache.cassandra.spark.reader.SSTableCache;
+import org.apache.cassandra.spark.reader.sai.CandidateTokens;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
@@ -71,6 +74,7 @@ import static org.apache.cassandra.spark.reader.BigIndexReader.calculateCompress
 public class BtiReaderUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BtiReaderUtils.class);
+    private static final int SAI_TOKEN_RANGE_BATCH_SIZE = 4096;
 
     private static final Set<Component> indexComponents = ImmutableSet.of(BtiFormat.Components.DATA,
                                                                           BtiFormat.Components.PARTITION_INDEX,
@@ -167,6 +171,60 @@ public class BtiReaderUtils
                         tokenRange, ssTable, e);
         }
         return offset.get();
+    }
+
+    @NotNull
+    public static List<DataDbRange> dataRangesInDataFile(@NotNull SSTable ssTable,
+                                                         @NotNull TableMetadata metadata,
+                                                         @NotNull Descriptor descriptor,
+                                                         @NotNull CandidateTokens.Slice candidates) throws IOException
+    {
+        if (candidates.isEmpty())
+        {
+            return Collections.emptyList();
+        }
+
+        long maxGapBytes = ssTable.customComponentChunkBufferSize(FileType.INDEX.getFileSuffix()) / 2;
+        DataDbRange.Accumulator result = new DataDbRange.Accumulator(maxGapBytes);
+        withPartitionIndex(ssTable, descriptor, metadata, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+            TableMetadataRef metadataRef = TableMetadataRef.forOfflineTools(metadata);
+            BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
+                                            .setDataFile(dataFileHandle)
+                                            .setPartitionIndex(partitionIndex)
+                                            .setRowIndexFile(rowFileHandle)
+                                            .setComponents(indexComponents)
+                                            .setTableMetadataRef(metadataRef)
+                                            .setFilter(FilterFactory.AlwaysPresent)
+                                            .build(null, false, false);
+            try
+            {
+                // BtiTableReader consumes Cassandra range objects. Materialize them in bounded batches rather than
+                // retaining one range (and two token objects) for every SAI candidate. Returned physical ranges are
+                // immediately coalesced to optimize memory usage.
+                for (int batchStart = 0; batchStart < candidates.size(); batchStart += SAI_TOKEN_RANGE_BATCH_SIZE)
+                {
+                    int batchEnd = Math.min(batchStart + SAI_TOKEN_RANGE_BATCH_SIZE, candidates.size());
+                    List<Range<Token>> ranges = new ArrayList<>(batchEnd - batchStart);
+                    for (int index = batchStart; index < batchEnd; index++)
+                    {
+                        BigInteger token = candidates.tokenAt(index);
+                        Token tokenStart = TokenUtils.bigIntegerToToken(metadata.partitioner, token.subtract(BigInteger.ONE));
+                        Token tokenEnd = TokenUtils.bigIntegerToToken(metadata.partitioner, token);
+                        ranges.add(new Range<>(tokenStart, tokenEnd));
+                    }
+
+                    for (SSTableReader.PartitionPositionBounds positions : btiTableReader.getPositionsForRanges(ranges))
+                    {
+                        result.add(positions.lowerPosition, positions.upperPosition);
+                    }
+                }
+            }
+            finally
+            {
+                btiTableReader.selfRef().release();
+            }
+        });
+        return result.build();
     }
 
     public static void consumePrimaryIndex(@NotNull SSTable ssTable,

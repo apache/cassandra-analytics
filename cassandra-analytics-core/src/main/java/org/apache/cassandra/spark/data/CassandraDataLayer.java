@@ -139,11 +139,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected boolean enableStats;
     protected boolean readIndexOffset;
     protected boolean useIncrementalRepair;
+    protected boolean saiFilteringEnabled;
+    protected int saiMaxCandidateTokens;
     protected List<SchemaFeature> requestedFeatures;
     protected Map<String, ReplicationFactor> rfMap;
     @Nullable
     protected String lastModifiedTimestampField;
     protected Set<String> sstableVersionsOnCluster;
+    protected List<SaiIndex> saiIndexes;
     // volatile in order to publish the reference for visibility
     protected volatile CqlTable cqlTable;
     protected transient TimeProvider timeProvider;
@@ -172,6 +175,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = options.enableStats();
         this.readIndexOffset = options.readIndexOffset();
         this.useIncrementalRepair = options.useIncrementalRepair();
+        this.saiFilteringEnabled = options.saiFilteringEnabled();
+        this.saiMaxCandidateTokens = options.saiMaxCandidateTokens();
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
         this.sstableTimeRangeFilter = options.sstableTimeRangeFilter;
@@ -198,12 +203,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  boolean enableStats,
                                  boolean readIndexOffset,
                                  boolean useIncrementalRepair,
+                                 boolean saiFilteringEnabled,
+                                 int saiMaxCandidateTokens,
                                  @Nullable String lastModifiedTimestampField,
                                  List<SchemaFeature> requestedFeatures,
                                  @NotNull Map<String, ReplicationFactor> rfMap,
                                  TimeProvider timeProvider,
                                  SSTableTimeRangeFilter sstableTimeRangeFilter,
-                                 Set<String> sstableVersionsOnCluster)
+                                 Set<String> sstableVersionsOnCluster,
+                                 List<SaiIndex> saiIndexes)
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
@@ -221,6 +229,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = enableStats;
         this.readIndexOffset = readIndexOffset;
         this.useIncrementalRepair = useIncrementalRepair;
+        this.saiFilteringEnabled = saiFilteringEnabled;
+        this.saiMaxCandidateTokens = saiMaxCandidateTokens;
         this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
         if (lastModifiedTimestampField != null)
@@ -231,6 +241,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.timeProvider = timeProvider;
         this.sstableTimeRangeFilter = sstableTimeRangeFilter;
         this.sstableVersionsOnCluster = sstableVersionsOnCluster;
+        this.saiIndexes = saiIndexes;
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
         this.initInstanceMap();
@@ -306,6 +317,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         String fullSchema = schemaFuture.get().schema();
         String createStmt = CqlUtils.extractTableSchema(fullSchema, keyspace, table);
         int indexCount = CqlUtils.extractIndexCount(fullSchema, keyspace, table);
+        saiIndexes = CqlUtils.extractSaiIndexes(fullSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
 
@@ -332,6 +344,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         int effectiveNumberOfCores = sizingFuture.get();
         tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism(), effectiveNumberOfCores);
         return effectiveNumberOfCores;
+    }
+
+    @NotNull
+    @Override
+    public List<SaiIndex> saiIndexes()
+    {
+        return saiIndexes;
     }
 
     /**
@@ -520,6 +539,18 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     @Override
+    public boolean saiFilteringEnabled()
+    {
+        return saiFilteringEnabled;
+    }
+
+    @Override
+    public int saiMaxCandidateTokens()
+    {
+        return saiMaxCandidateTokens;
+    }
+
+    @Override
     public boolean readIndexOffset()
     {
         return readIndexOffset;
@@ -631,10 +662,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         return hint != null ? hint : PartitionedDataLayer.AvailabilityHint.UNKNOWN;
     }
 
-    private String snapshotKey(SidecarInstance instance)
+    private String snapshotKey(SidecarInstance instance, boolean includeSecondaryIndexes)
     {
-        return String.format("%s/%s/%d/%s/%s/%s",
-                             datacenter, instance.hostname(), instance.port(), keyspace, table, snapshotName);
+        return String.format("%s/%s/%d/%s/%s/%s/%s",
+                             datacenter, instance.hostname(), instance.port(), keyspace, table, snapshotName, includeSecondaryIndexes);
     }
 
     @Override
@@ -647,11 +678,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             throw new IllegalStateException("Could not find matching cassandra instance: " + instance.nodeName());
         }
-        String key = snapshotKey(sidecarInstance);  // NOTE: We don't currently support token filtering in list snapshot
+        boolean includeSecondaryIndexes = saiFilteringEnabled && !saiIndexes.isEmpty();
+        // NOTE: We don't currently support token filtering in list snapshot
+        String key = snapshotKey(sidecarInstance, includeSecondaryIndexes);
         LOGGER.info("Listing snapshot partition={} lowerBound={} upperBound={} "
-                    + "instance={} port={} keyspace={} tableName={} snapshotName={}",
+                    + "instance={} port={} keyspace={} tableName={} snapshotName={} includeSecondaryIndexes={}",
                     partitionId, range.lowerEndpoint(), range.upperEndpoint(),
-                    sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable, snapshotName);
+                    sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable,
+                    snapshotName, includeSecondaryIndexes);
         try
         {
             return SNAPSHOT_CACHE.get(key, () -> {
@@ -659,7 +693,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                             + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
                             partitionId, range.lowerEndpoint(), range.upperEndpoint(),
                             sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable, snapshotName, key);
-                return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName, false)
+                return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName, includeSecondaryIndexes)
                               .thenApply(response -> collectSSTableList(sidecarInstance, response, partitionId));
             }).thenApply(Collection::stream);
         }
@@ -688,9 +722,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         // Group SSTable components together
         Map<String, Map<FileType, ListSnapshotFilesResponse.FileInfo>> result = new LinkedHashMap<>(1024);
+        Map<String, Map<String, ListSnapshotFilesResponse.FileInfo>> customComponents = new LinkedHashMap<>(1024);
         for (ListSnapshotFilesResponse.FileInfo file : snapshotFilesInfo)
         {
             String fileName = file.fileName;
+            // Traditional secondary indexes (2i) are snapshot under index subdirectories. We request secondary-index
+            // files so Sidecar exposes SAI components, but only base-table components belong in this SSTable set.
+            if (fileName.indexOf('/') >= 0 || fileName.indexOf('\\') >= 0)
+            {
+                LOGGER.debug("Skipping Secondary Index (2i) snapshot file: {}", fileName);
+                continue;
+            }
             int lastIndexOfDash = fileName.lastIndexOf('-');
             if (lastIndexOfDash < 0)
             {
@@ -698,29 +740,35 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 continue;
             }
             String ssTableName = fileName.substring(0, lastIndexOfDash);
-            try
+            String extension = fileName.substring(lastIndexOfDash + 1);
+            if (FileType.isStandardFileType(extension))
             {
-                FileType fileType = FileType.fromExtension(fileName.substring(lastIndexOfDash + 1));
+                FileType fileType = FileType.fromExtension(extension);
                 result.computeIfAbsent(ssTableName, k -> new LinkedHashMap<>())
                       .put(fileType, file);
             }
-            catch (IllegalArgumentException ignore)
+            else
             {
-                // Ignore unknown SSTable component types
+                if (SSTable.isSupportedComponent(fileName))
+                {
+                    customComponents.computeIfAbsent(ssTableName, k -> new LinkedHashMap<>())
+                                    .put(fileName, file);
+                }
             }
         }
 
         // Map to SSTable
-        List<SSTable> sstables = result.values().stream()
-                     .map(components -> new SidecarProvisionedSSTable(sidecar,
-                                                                      sidecarClientConfig,
-                                                                      sidecarInstance,
-                                                                      maybeQuotedKeyspace,
-                                                                      maybeQuotedTable,
-                                                                      snapshotName,
-                                                                      components,
-                                                                      partitionId,
-                                                                      stats()))
+        List<SSTable> sstables = result.entrySet().stream()
+                     .map(entry -> new SidecarProvisionedSSTable(sidecar,
+                                                                 sidecarClientConfig,
+                                                                 sidecarInstance,
+                                                                 maybeQuotedKeyspace,
+                                                                 maybeQuotedTable,
+                                                                 snapshotName,
+                                                                 entry.getValue(),
+                                                                 customComponents.getOrDefault(entry.getKey(), Collections.emptyMap()),
+                                                                 partitionId,
+                                                                 stats()))
                      .collect(Collectors.toList());
 
         // Validate SSTable versions against expected versions from gossip
@@ -847,6 +895,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = in.readBoolean();
         this.readIndexOffset = in.readBoolean();
         this.useIncrementalRepair = in.readBoolean();
+        this.saiFilteringEnabled = in.readBoolean();
+        this.saiMaxCandidateTokens = in.readInt();
         this.lastModifiedTimestampField = readNullable(in);
         int features = in.readShort();
         List<SchemaFeature> requestedFeatures = new ArrayList<>(features);
@@ -865,6 +915,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.timeProvider = new ReaderTimeProvider(in.readLong());
         this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
         this.sstableVersionsOnCluster = (Set<String>) in.readObject();
+        this.saiIndexes = (List<SaiIndex>) in.readObject();
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
         this.initInstanceMap();
@@ -900,6 +951,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeBoolean(this.enableStats);
         out.writeBoolean(this.readIndexOffset);
         out.writeBoolean(this.useIncrementalRepair);
+        out.writeBoolean(this.saiFilteringEnabled);
+        out.writeInt(this.saiMaxCandidateTokens);
         // If lastModifiedTimestampField exist, it aliases the LMT field
         writeNullable(out, this.lastModifiedTimestampField);
         // Write the list of requested features: first write the size, then write the feature names
@@ -912,6 +965,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeLong(timeProvider.referenceEpochInSeconds());
         out.writeObject(this.sstableTimeRangeFilter);
         out.writeObject(this.sstableVersionsOnCluster);
+        out.writeObject(this.saiIndexes);
     }
 
     private static void writeNullable(ObjectOutputStream out, @Nullable String string) throws IOException
@@ -1038,6 +1092,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeBoolean(dataLayer.enableStats);
             out.writeBoolean(dataLayer.readIndexOffset);
             out.writeBoolean(dataLayer.useIncrementalRepair);
+            out.writeBoolean(dataLayer.saiFilteringEnabled);
+            out.writeInt(dataLayer.saiMaxCandidateTokens);
             // If lastModifiedTimestampField exist, it aliases the LMT field
             out.writeString(dataLayer.lastModifiedTimestampField);
             // Write the list of requested features: first write the size, then write the feature names
@@ -1050,6 +1106,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeLong(dataLayer.timeProvider.referenceEpochInSeconds());
             kryo.writeObject(out, dataLayer.sstableTimeRangeFilter);
             kryo.writeObject(out, dataLayer.sstableVersionsOnCluster);
+            kryo.writeObject(out, new ArrayList<>(dataLayer.saiIndexes));
         }
 
         @SuppressWarnings("unchecked")
@@ -1088,12 +1145,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             in.readBoolean(),
             in.readBoolean(),
             in.readBoolean(),
+            in.readBoolean(),
+            in.readInt(),
             in.readString(),
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
             kryo.readObject(in, HashMap.class),
             new ReaderTimeProvider(in.readLong()),
             kryo.readObject(in, SSTableTimeRangeFilter.class),
-            kryo.readObject(in, HashSet.class));
+            kryo.readObject(in, HashSet.class),
+            kryo.readObject(in, ArrayList.class));
         }
 
         // Wrapper only used internally for Kryo serialization/deserialization
