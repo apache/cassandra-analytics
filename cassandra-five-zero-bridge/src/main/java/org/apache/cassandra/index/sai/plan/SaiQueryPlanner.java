@@ -18,6 +18,7 @@
  */
 package org.apache.cassandra.index.sai.plan;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -86,7 +87,7 @@ public class SaiQueryPlanner
                             column, previous, index);
                 return null;
             }
-            rowFilter.add(column, operator, index.termType().fromString(filter.value()));
+            rowFilter.add(column, operator, ByteBuffer.wrap(filter.value()));
         }
         return new Plan(rowFilter, indexesByColumn);
     }

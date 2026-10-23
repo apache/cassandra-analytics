@@ -207,12 +207,12 @@ public class DataLayerUnsupportedPushDownFiltersTest
             List<SaiFilter> saiFilters = dataLayer.saiFilters(allFilters);
             assertThat(saiFilters).hasSize(3);
             assertThat(saiFilters.get(0).operator()).isEqualTo(SaiFilter.Operator.EQ);
-            assertThat(saiFilters.get(0).value()).isEqualTo("25");
+            assertThat(saiFilters.get(0).value()).isEqualTo(bridge.aInt().serialize(25).array());
             assertThat(saiFilters.get(1).operator()).isEqualTo(SaiFilter.Operator.GT);
-            assertThat(saiFilters.get(1).value()).isEqualTo("10");
+            assertThat(saiFilters.get(1).value()).isEqualTo(bridge.aInt().serialize(10).array());
             assertThat(saiFilters.get(2).index().name()).isEqualTo("b_idx");
             assertThat(saiFilters.get(2).operator()).isEqualTo(SaiFilter.Operator.LT);
-            assertThat(saiFilters.get(2).value()).isEqualTo("100");
+            assertThat(saiFilters.get(2).value()).isEqualTo(bridge.aInt().serialize(100).array());
 
             // SAI is only an I/O pruning hint. Spark must still evaluate the predicates for correctness.
             assertThat(dataLayer.unsupportedPushDownFilters(allFilters)).containsExactly(allFilters);
@@ -230,7 +230,7 @@ public class DataLayerUnsupportedPushDownFiltersTest
                                                                                       lowerBound)});
             assertThat(nestedBoolean).containsExactly(new SaiFilter(new SaiIndex("c_idx", "c", false, Collections.emptyMap()),
                                                                     SaiFilter.Operator.GT,
-                                                                    "10"));
+                                                                    bridge.aInt().serialize(10).array()));
 
             List<SaiFilter> partialOr = dataLayer.saiFilters(new Filter[]{new Or(equality,
                                                                                  new StringContains("not_indexed", "x"))});
@@ -241,7 +241,7 @@ public class DataLayerUnsupportedPushDownFiltersTest
                                                                                    new StringContains("not_indexed", "x"))});
             assertThat(partialAnd).containsExactly(new SaiFilter(new SaiIndex("c_idx", "c", false, Collections.emptyMap()),
                                                                  SaiFilter.Operator.EQ,
-                                                                 "25"));
+                                                                 bridge.aInt().serialize(25).array()));
         });
     }
 

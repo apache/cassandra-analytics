@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.sparksql.filters;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Objects;
 
 import org.apache.cassandra.spark.data.SaiIndex;
@@ -46,9 +47,9 @@ public final class SaiFilter implements Serializable
     @NotNull
     private final Operator operator;
     @NotNull
-    private final String value;
+    private final byte[] value;
 
-    public SaiFilter(@NotNull SaiIndex index, @NotNull Operator operator, @NotNull String value)
+    public SaiFilter(@NotNull SaiIndex index, @NotNull Operator operator, @NotNull byte[] value)
     {
         this.index = index;
         this.operator = operator;
@@ -68,7 +69,7 @@ public final class SaiFilter implements Serializable
     }
 
     @NotNull
-    public String value()
+    public byte[] value()
     {
         return value;
     }
@@ -87,13 +88,13 @@ public final class SaiFilter implements Serializable
         SaiFilter that = (SaiFilter) other;
         return Objects.equals(index, that.index)
                && Objects.equals(operator, that.operator)
-               && Objects.equals(value, that.value);
+               && Arrays.equals(value, that.value);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(index, operator, value);
+        return 31 * Objects.hash(index, operator) + Arrays.hashCode(value);
     }
 
     @Override

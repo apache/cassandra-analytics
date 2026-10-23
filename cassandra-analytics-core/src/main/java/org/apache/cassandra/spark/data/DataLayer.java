@@ -33,6 +33,7 @@ import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -444,17 +445,16 @@ public abstract class DataLayer implements Serializable
         {
             return null;
         }
-        CqlField field = resolveField(attribute);
-        return new SaiFilter(index, operator, serializeSaiFilterValue(field, value));
-    }
 
-    private String serializeSaiFilterValue(CqlField field, Object value)
-    {
-        if ("inet".equals(field.cqlTypeName()))
-        {
-            return new String((byte[]) value);
-        }
-        return String.valueOf(value);
+        CqlField field = resolveField(attribute);
+        Object cqlValue = SqlToCqlTypeConverter.getConverter(field.type())
+                                               .convert(value);
+
+        ByteBuffer buffer = field.serialize(cqlValue);
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.duplicate().get(bytes);
+
+        return new SaiFilter(index, operator, bytes);
     }
 
     /**
