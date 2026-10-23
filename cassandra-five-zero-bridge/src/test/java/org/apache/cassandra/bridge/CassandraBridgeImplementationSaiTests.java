@@ -19,20 +19,27 @@
 package org.apache.cassandra.bridge;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
+
 import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.db.BufferDecoratedKey;
+import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
-import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.cassandra.utils.TokenUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -49,13 +56,13 @@ class CassandraBridgeImplementationSaiTests
         when(sstable.isBigFormat()).thenReturn(true);
         CassandraBridgeImplementation bridge = new CassandraBridgeImplementation()
         {
-            @Override
-            protected SSTableSummary getSSTableSummary(IPartitioner partitioner,
-                                                       SSTable ignored,
-                                                       int minIndexInterval,
-                                                       int maxIndexInterval)
+            protected Pair<DecoratedKey, DecoratedKey> getFirstLastKeyFromSSTable(TableMetadata metadata,
+                                                                                  SSTable sstable)
             {
-                return new SSTableSummary(BigInteger.ZERO, BigInteger.TEN, "test-sstable");
+                Token first = TokenUtils.bigIntegerToToken(metadata.partitioner, BigInteger.ZERO);
+                Token last = TokenUtils.bigIntegerToToken(metadata.partitioner, BigInteger.TEN);
+                return Pair.of(new BufferDecoratedKey(first, ByteBuffer.allocate(0)),
+                               new BufferDecoratedKey(last, ByteBuffer.allocate(0)));
             }
         };
         CqlTable table = bridge.buildSchema("CREATE TABLE sai_pruning_tbl (pk bigint PRIMARY KEY, value text)",

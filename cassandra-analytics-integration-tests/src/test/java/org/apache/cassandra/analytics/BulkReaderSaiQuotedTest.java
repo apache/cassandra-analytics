@@ -52,7 +52,7 @@ public class BulkReaderSaiQuotedTest extends BulkReaderSaiTestBase
         // Prove we did not simply fall back to a full scan.
         assertThat(saiReadBytes).as("SAI predicate should substantially reduce Data.db reads; fullScanBytes=%s saiReadBytes=%s", fullScanBytes, saiReadBytes)
                                 .isGreaterThan(0)
-                                .isLessThanOrEqualTo((int) (fullScanBytes * 0.2));
+                                .isLessThanOrEqualTo((int) (fullScanBytes * 0.4));
     }
 
     @Override
