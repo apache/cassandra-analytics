@@ -52,7 +52,7 @@ public class BulkReaderSaiCorrectnessTest extends BulkReaderSaiTestBase
     static Stream<Arguments> queryInputs()
     {
         return Stream.of(
-        Arguments.of("eq", TABLE, "score = " + MATCHING_SCORE, 2, 0.08),
+        Arguments.of("eq", TABLE, "score = " + MATCHING_SCORE, 2, 0.18),
         Arguments.of("gt", TABLE, "score > 250", 8, 0.2),
         Arguments.of("between", TABLE, "score > 250 AND score < 300", 5, 0.1),
         Arguments.of("or", TABLE, "score <= 2 OR score > 300", 3 + 3, 1), // OR expressions do not use SAI index

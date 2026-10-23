@@ -56,6 +56,7 @@ class CassandraBridgeImplementationSaiTests
         when(sstable.isBigFormat()).thenReturn(true);
         CassandraBridgeImplementation bridge = new CassandraBridgeImplementation()
         {
+            @Override
             protected Pair<DecoratedKey, DecoratedKey> getFirstLastKeyFromSSTable(TableMetadata metadata,
                                                                                   SSTable sstable)
             {

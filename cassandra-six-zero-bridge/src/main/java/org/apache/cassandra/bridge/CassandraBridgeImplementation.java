@@ -272,16 +272,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             {
                 return new SaiSSTableReference(sstable, isRepairPrimary);
             }
-            Pair<DecoratedKey, DecoratedKey> keys = null;
-            if (sstable.isBigFormat())
-            {
-                SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, sstable);
-                keys = Pair.of(summary.first(), summary.last());
-            }
-            else
-            {
-                keys = ReaderUtils.keysFromIndex(metadata.partitioner, sstable);
-            }
+            Pair<DecoratedKey, DecoratedKey> keys = getFirstLastKeyFromSSTable(metadata, sstable);
             if (keys == null)
             {
                 return new SaiSSTableReference(sstable, isRepairPrimary);
@@ -325,6 +316,22 @@ public class CassandraBridgeImplementation extends CassandraBridge
         return openCompactionScanner(metadata, partitioner, timeProvider, references, sparkRangeFilter,
                                      Collections.emptyList(), candidateTokens, sstableTimeRangeFilter,
                                      columnFilter, executorService, readIndexOffset, useIncrementalRepair, stats);
+    }
+
+    protected Pair<DecoratedKey, DecoratedKey> getFirstLastKeyFromSSTable(TableMetadata metadata,
+                                                                          SSTable sstable) throws IOException
+    {
+        Pair<DecoratedKey, DecoratedKey> keys = null;
+        if (sstable.isBigFormat())
+        {
+            SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, sstable);
+            keys = Pair.of(summary.first(), summary.last());
+        }
+        else
+        {
+            keys = ReaderUtils.keysFromIndex(metadata.partitioner, sstable);
+        }
+        return keys;
     }
 
     @NotNull
