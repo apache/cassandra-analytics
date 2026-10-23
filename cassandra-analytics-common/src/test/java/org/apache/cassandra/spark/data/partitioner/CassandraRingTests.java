@@ -561,26 +561,26 @@ public class CassandraRingTests
         return -1;
     }
 
-    // Cassandra-reported (explicit) token ranges, used for witness-enabled keyspaces where the locally
+    // Cassandra-reported token ranges, used for witness-enabled keyspaces where the locally
     // derived ranges cannot be trusted because the derivation ignores racks
 
-    private static CassandraRing explicitRangeRing()
+    private static CassandraRing reportedRangeRing()
     {
         List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "n1", "dc1"),
                                                          new CassandraInstance("100", "n2", "dc1"),
                                                          new CassandraInstance("200", "n3", "dc1"));
         // Deliberately not what the derivation would produce: boundary at 50, and only two of three
         // replicas per range. A derived ring can never produce this shape.
-        Map<Range<BigInteger>, List<CassandraInstance>> explicit = new LinkedHashMap<>();
-        explicit.put(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.valueOf(50L)),
+        Map<Range<BigInteger>, List<CassandraInstance>> reported = new LinkedHashMap<>();
+        reported.put(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.valueOf(50L)),
                      Arrays.asList(instances.get(0), instances.get(1)));
-        explicit.put(Range.openClosed(BigInteger.valueOf(50L), Partitioner.Murmur3Partitioner.maxToken()),
+        reported.put(Range.openClosed(BigInteger.valueOf(50L), Partitioner.Murmur3Partitioner.maxToken()),
                      Arrays.asList(instances.get(1), instances.get(2)));
         return new CassandraRing(Partitioner.Murmur3Partitioner, "test",
                                  new ReplicationFactor(ImmutableMap.of(
                                  "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                  "dc1", "3/1")),
-                                 instances, explicit);
+                                 instances, reported);
     }
 
     private static Set<String> replicaNamesAt(CassandraRing ring, long token)
@@ -591,17 +591,17 @@ public class CassandraRingTests
     }
 
     @Test
-    public void testExplicitRangesAreHonouredInsteadOfDerived()
+    public void testReportedRangesAreHonouredInsteadOfDerived()
     {
-        CassandraRing explicitRing = explicitRangeRing();
-        assertThat(explicitRing.hasExplicitRanges()).isTrue();
+        CassandraRing reportedRing = reportedRangeRing();
+        assertThat(reportedRing.hasReportedRanges()).isTrue();
         // the supplied boundary at 50 is used, and only the supplied replicas are returned
-        assertThat(replicaNamesAt(explicitRing, 10L)).containsExactly("n1", "n2");
-        assertThat(replicaNamesAt(explicitRing, 1000L)).containsExactly("n2", "n3");
+        assertThat(replicaNamesAt(reportedRing, 10L)).containsExactly("n1", "n2");
+        assertThat(replicaNamesAt(reportedRing, 1000L)).containsExactly("n2", "n3");
     }
 
     @Test
-    public void testDerivedRingIsUnchangedByExplicitRangeSupport()
+    public void testDerivedRingIsUnchangedByReportedRangeSupport()
     {
         List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "n1", "dc1"),
                                                          new CassandraInstance("100", "n2", "dc1"),
@@ -611,7 +611,7 @@ public class CassandraRingTests
                                                   "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                                   "dc1", "3")),
                                                   instances);
-        assertThat(derived.hasExplicitRanges()).isFalse();
+        assertThat(derived.hasReportedRanges()).isFalse();
         // derivation puts boundaries at node tokens, so 50 is not a boundary
         Set<BigInteger> upperBounds = new TreeSet<>();
         derived.rangeMap().asMapOfRanges().forEach((range, replicas) -> {
@@ -624,9 +624,9 @@ public class CassandraRingTests
     }
 
     @Test
-    public void testExplicitRangesSurviveJdkSerialization() throws Exception
+    public void testReportedRangesSurviveJdkSerialization() throws Exception
     {
-        CassandraRing original = explicitRangeRing();
+        CassandraRing original = reportedRangeRing();
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ObjectOutputStream out = new ObjectOutputStream(bytes))
         {
@@ -637,15 +637,15 @@ public class CassandraRingTests
         {
             deserialized = (CassandraRing) in.readObject();
         }
-        assertThat(deserialized.hasExplicitRanges()).isTrue();
+        assertThat(deserialized.hasReportedRanges()).isTrue();
         assertThat(replicaNamesAt(deserialized, 10L)).containsExactly("n1", "n2");
         assertThat(replicaNamesAt(deserialized, 1000L)).containsExactly("n2", "n3");
     }
 
     @Test
-    public void testExplicitRangesSurviveKryoSerialization()
+    public void testReportedRangesSurviveKryoSerialization()
     {
-        CassandraRing original = explicitRangeRing();
+        CassandraRing original = reportedRangeRing();
         Kryo kryo = new Kryo();
         kryo.register(CassandraRing.class, new CassandraRing.Serializer());
         kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
@@ -661,7 +661,7 @@ public class CassandraRingTests
         {
             deserialized = kryo.readObject(in, CassandraRing.class);
         }
-        assertThat(deserialized.hasExplicitRanges()).isTrue();
+        assertThat(deserialized.hasReportedRanges()).isTrue();
         assertThat(replicaNamesAt(deserialized, 10L)).containsExactly("n1", "n2");
     }
 
@@ -691,23 +691,23 @@ public class CassandraRingTests
         {
             deserialized = kryo.readObject(in, CassandraRing.class);
         }
-        assertThat(deserialized.hasExplicitRanges()).isFalse();
+        assertThat(deserialized.hasReportedRanges()).isFalse();
         assertThat(deserialized).isEqualTo(derived);
     }
 
     @Test
-    public void testExplicitRangeWithUnknownReplicaIsRejected()
+    public void testReportedRangeWithUnknownReplicaIsRejected()
     {
         List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "n1", "dc1"),
                                                          new CassandraInstance("100", "n2", "dc1"));
-        Map<Range<BigInteger>, List<CassandraInstance>> explicit = new LinkedHashMap<>();
-        explicit.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)),
+        Map<Range<BigInteger>, List<CassandraInstance>> reported = new LinkedHashMap<>();
+        reported.put(Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(100L)),
                      Arrays.asList(new CassandraInstance("999", "nope", "dc1")));
         assertThatThrownBy(() -> new CassandraRing(Partitioner.Murmur3Partitioner, "test",
                                                    new ReplicationFactor(ImmutableMap.of(
                                                    "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                                    "dc1", "2")),
-                                                   instances, explicit))
+                                                   instances, reported))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not present in the ring instances");
     }

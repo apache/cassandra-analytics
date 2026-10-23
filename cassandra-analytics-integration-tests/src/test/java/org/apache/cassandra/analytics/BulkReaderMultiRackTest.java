@@ -193,7 +193,7 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
         options.put("clearSnapshotStrategy", "noop");
         options.put("forcecassandratokenranges", String.valueOf(forceCassandraTokenRanges));
         CassandraDataLayer dataLayer = (CassandraDataLayer) CassandraDataSourceHelper.getDataLayer(options, CassandraDataLayer::initialize);
-        assertThat(dataLayer.ring().hasExplicitRanges()).isEqualTo(forceCassandraTokenRanges);
+        assertThat(dataLayer.ring().hasReportedRanges()).isEqualTo(forceCassandraTokenRanges);
         return dataLayer.ring();
     }
 

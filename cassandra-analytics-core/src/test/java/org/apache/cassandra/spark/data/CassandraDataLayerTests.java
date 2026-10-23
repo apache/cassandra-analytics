@@ -151,7 +151,7 @@ class CassandraDataLayerTests
         CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
         Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(3), ring, topology);
 
-        assertThat(result.hasExplicitRanges()).isTrue();
+        assertThat(result.hasReportedRanges()).isTrue();
         assertThat(replicaNames(result, 10L)).containsExactly("n1", "n2");
         assertThat(replicaNames(result, 1000L)).containsExactly("n2", "n3");
     }
