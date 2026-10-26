@@ -55,14 +55,7 @@ public class ClientConfig
     public static final String SNAPSHOT_NAME_KEY = "snapshotName";
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
-    /**
-     * Forces token ranges to be sourced from Cassandra via the token-range-replicas endpoint even for keyspaces
-     * without witness replicas. Normally this happens only for keyspaces with transient replicas. Exists so the code
-     * path can be exercised against ordinary clusters, which is the only coverage available until witness keyspaces
-     * can be created in integration tests.
-     * <p>
-     * Set as {@code forcecassandratokenranges}; Spark lowercases option keys.
-     */
+    // Sources token ranges from Cassandra for any keyspace, not only those with transient replicas
     public static final String FORCE_CASSANDRA_TOKEN_RANGES_KEY = "forceCassandraTokenRanges";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
     /**

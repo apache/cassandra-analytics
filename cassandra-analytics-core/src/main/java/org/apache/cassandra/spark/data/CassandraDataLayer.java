@@ -331,11 +331,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
-        // A keyspace with transient replicas may replicate a range to a witness that holds no data, so the range to
-        // replica mapping must come from Cassandra rather than being derived locally. Gated on transient replicas
-        // rather than replication_type = 'tracked': Cassandra requires mutation tracking for transient replicas, so
-        // this covers every witness keyspace, while a tracked keyspace without witnesses may run on vnodes, which
-        // this path cannot represent. See createCassandraRingFromTokenRangeReplicas.
+        // Keyspaces with transient replicas take their ranges from Cassandra; see createCassandraRingFromTokenRangeReplicas
         boolean hasWitnesses = replicationFactor.hasTransientReplicas();
         CassandraRing ring;
         if (hasWitnesses || options.forceCassandraTokenRanges())
@@ -343,7 +339,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             LOGGER.info("Sourcing token ranges from Cassandra keyspace={} transientReplicas={} forced={}",
                         keyspace, hasWitnesses, options.forceCassandraTokenRanges());
             TokenRangeReplicasResponse topology = sidecar.tokenRangeReplicas(new ArrayList<>(clusterConfig),
-                                                                            maybeQuotedKeyspace).get();
+                                                                             maybeQuotedKeyspace).get();
             ring = createCassandraRingFromTokenRangeReplicas(partitioner, replicationFactor, ringFuture.get(), topology);
         }
         else
@@ -805,10 +801,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     /**
-     * Builds the ring using the token ranges Cassandra reports, rather than deriving them from tokens and the
-     * replication factor. The local derivation assumes racks are not in use, whereas Cassandra's replica assignment
-     * is rack aware, so for keyspaces with transient replicas - where a replica may be a witness holding no data -
-     * the derived ranges cannot be relied on to identify which instance replicates which range.
+     * Builds the ring using the token ranges and replicas Cassandra reports, rather than deriving them from tokens and
+     * the replication factor. There are two independent reasons to prefer Cassandra's: the local derivation assumes
+     * racks are not in use, whereas Cassandra's replica assignment is rack aware, and for keyspaces with transient
+     * replicas the reader needs Cassandra's exact placement to tell which replica of a range is a witness. Only
+     * keyspaces with transient replicas use it by default, as they are guaranteed single-token, which this path
+     * requires.
      * <p>
      * Node discovery still comes from the ring response, so snapshot creation, sizing and the Sidecar client pool
      * are unaffected. Only the range to replica mapping is taken from Cassandra.
@@ -830,8 +828,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                             .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
                                             .collect(Collectors.toList());
 
-        // Token range replicas identify replicas by "address:port", while instances built from the ring are keyed
-        // by fqdn, so the replica metadata is used to translate between them
         Map<String, CassandraInstance> instanceByNodeName = new HashMap<>(instances.size());
         for (CassandraInstance instance : instances)
         {
@@ -860,6 +856,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 }
                 for (String replicaKey : byDatacenter.getValue())
                 {
+                    // Replicas are identified by "address:port", while instances built from the ring are keyed by
+                    // fqdn, so the replica metadata translates between them
                     TokenRangeReplicasResponse.ReplicaMetadata metadata = topology.replicaMetadata().get(replicaKey);
                     String nodeName = metadata != null ? metadata.fqdn() : replicaKey;
                     CassandraInstance instance = instanceByNodeName.get(nodeName);
