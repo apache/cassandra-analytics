@@ -940,11 +940,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             return Collections.emptyMap();
         }
 
+        // Every datacenter must report exactly as many witnesses as Cassandra assigns to the range. Too few is as
+        // unsafe as too many: an unreported witness would be read as a full replica.
+        Set<String> datacenters = new HashSet<>(replicaInfo.replicasByDatacenter().keySet());
+        datacenters.addAll(witnessesByDatacenter.keySet());
+        int totalReplicas = 0;
         int totalWitnesses = 0;
-        for (Map.Entry<String, List<String>> byDatacenter : witnessesByDatacenter.entrySet())
+        for (String datacenter : datacenters)
         {
-            String datacenter = byDatacenter.getKey();
-            List<String> witnesses = byDatacenter.getValue();
+            List<String> witnesses = witnessesByDatacenter.getOrDefault(datacenter, Collections.emptyList());
             List<String> replicas = replicaInfo.replicasByDatacenter().getOrDefault(datacenter, Collections.emptyList());
             for (String witness : witnesses)
             {
@@ -955,25 +959,55 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     + "range's replicas %s", witness, replicaInfo.start(), replicaInfo.end(), datacenter, replicas));
                 }
             }
-            if (replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy
-                && witnesses.size() > replicationFactor.getTransientReplicas(datacenter))
+            int numReplicas = (int) replicas.stream().distinct().count();
+            int numWitnesses = (int) witnesses.stream().distinct().count();
+            if (replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
             {
-                // Fewer is legitimate: Cassandra reduces the witness count when a datacenter has fewer nodes than
-                // its replication factor
-                throw new IllegalStateException(String.format(
-                "Sidecar reported %d witnesses for range (%s, %s] in datacenter %s, but the replication factor "
-                + "allows at most %d", witnesses.size(), replicaInfo.start(), replicaInfo.end(), datacenter,
-                replicationFactor.getTransientReplicas(datacenter)));
+                ReplicationFactor.ReplicaCounts counts = replicationFactor.getReplication().get(datacenter);
+                int expected = counts == null ? 0 : expectedWitnesses(counts.allReplicas(), counts.transientReplicas(), numReplicas);
+                checkWitnessCount(replicaInfo, "datacenter " + datacenter, numWitnesses, expected);
             }
-            totalWitnesses += witnesses.size();
+            totalReplicas += numReplicas;
+            totalWitnesses += numWitnesses;
         }
-        if (totalWitnesses > replicationFactor.getTransientReplicationFactor())
+        if (replicationFactor.getReplicationStrategy() != ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
         {
-            throw new IllegalStateException(String.format(
-            "Sidecar reported %d witnesses for range (%s, %s], but the replication factor allows at most %d",
-            totalWitnesses, replicaInfo.start(), replicaInfo.end(), replicationFactor.getTransientReplicationFactor()));
+            checkWitnessCount(replicaInfo, "the cluster", totalWitnesses,
+                              expectedWitnesses(replicationFactor.getTotalReplicationFactor(),
+                                                replicationFactor.getTransientReplicationFactor(),
+                                                totalReplicas));
         }
         return witnessesByDatacenter;
+    }
+
+    /**
+     * Mirrors how Cassandra assigns witnesses ({@code NetworkTopologyStrategy.DatacenterEndpoints}): the configured
+     * count, reduced by however many replicas the datacenter could not provide because it has fewer nodes than its
+     * replication factor.
+     *
+     * @param allReplicas       the configured number of replicas, witnesses included
+     * @param transientReplicas the configured number of witnesses
+     * @param actualReplicas    the number of replicas Cassandra reported for the range
+     * @return the number of those replicas that must be witnesses
+     */
+    @VisibleForTesting
+    static int expectedWitnesses(int allReplicas, int transientReplicas, int actualReplicas)
+    {
+        int missingReplicas = Math.max(allReplicas - actualReplicas, 0);
+        return Math.max(transientReplicas - missingReplicas, 0);
+    }
+
+    private static void checkWitnessCount(TokenRangeReplicasResponse.ReplicaInfo replicaInfo,
+                                          String scope,
+                                          int reported,
+                                          int expected)
+    {
+        if (reported != expected)
+        {
+            throw new IllegalStateException(String.format(
+            "Sidecar reported %d witnesses for range (%s, %s] in %s, but the replication factor requires %d",
+            reported, replicaInfo.start(), replicaInfo.end(), scope, expected));
+        }
     }
 
     /**
