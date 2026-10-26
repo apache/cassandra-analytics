@@ -175,29 +175,34 @@ public class CassandraRing implements Serializable
 
     /**
      * Inverts the reported range to replicas mapping into the instance to ranges form held by
-     * {@link #tokenRangeMap}, adding ranges in token order so that equal rings compare equal however the mapping
-     * was supplied.
+     * {@link #tokenRangeMap}, with each instance's ranges in token order so that a ring and its deserialized copy
+     * compare equal. Ranges are normalised to open-closed.
      */
     private static Multimap<CassandraInstance, Range<BigInteger>> reportedTokenRanges(
     Map<Range<BigInteger>, ? extends Collection<CassandraInstance>> rangeReplicas,
-    Collection<CassandraInstance> instances)
+    List<CassandraInstance> sortedInstances)
     {
-        Set<CassandraInstance> ringInstances = new HashSet<>(instances);
-        List<Range<BigInteger>> ranges = new ArrayList<>(rangeReplicas.keySet());
-        ranges.sort((left, right) -> left.lowerEndpoint().compareTo(right.lowerEndpoint()));
-
-        Multimap<CassandraInstance, Range<BigInteger>> result = ArrayListMultimap.create();
-        for (Range<BigInteger> range : ranges)
-        {
+        Set<CassandraInstance> ringInstances = new HashSet<>(sortedInstances);
+        Map<CassandraInstance, List<Range<BigInteger>>> rangesByInstance = new HashMap<>();
+        rangeReplicas.forEach((range, replicas) -> {
             Preconditions.checkArgument(range.lowerEndpoint().compareTo(range.upperEndpoint()) <= 0,
                                         "Supplied ranges must not wrap, found %s", range);
-            for (CassandraInstance replica : rangeReplicas.get(range))
+            Range<BigInteger> openClosed = Range.openClosed(range.lowerEndpoint(), range.upperEndpoint());
+            for (CassandraInstance replica : replicas)
             {
                 Preconditions.checkArgument(ringInstances.contains(replica),
                                             "Replica %s for range %s is not present in the ring instances",
                                             replica, range);
-                result.put(replica, range);
+                rangesByInstance.computeIfAbsent(replica, key -> new ArrayList<>()).add(openClosed);
             }
+        });
+
+        Multimap<CassandraInstance, Range<BigInteger>> result = ArrayListMultimap.create();
+        for (CassandraInstance instance : new LinkedHashSet<>(sortedInstances))
+        {
+            List<Range<BigInteger>> ranges = rangesByInstance.getOrDefault(instance, Collections.emptyList());
+            ranges.sort((left, right) -> left.lowerEndpoint().compareTo(right.lowerEndpoint()));
+            result.putAll(instance, ranges);
         }
         return result;
     }
@@ -247,9 +252,13 @@ public class CassandraRing implements Serializable
             }
         }
 
-        // Calculate token range to replica mapping
+        // Calculate token range to replica mapping. Replicas are added in instance (token) order rather than the
+        // multimap's hash order, so each range lists its replicas in the same order however the ring was built.
         replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
-        tokenRangeMap.asMap().forEach((instance, ranges) -> ranges.forEach(range -> addReplica(instance, range, replicas)));
+        for (CassandraInstance instance : new LinkedHashSet<>(instances))
+        {
+            tokenRangeMap.get(instance).forEach(range -> addReplica(instance, range, replicas));
+        }
     }
 
     public Partitioner partitioner()

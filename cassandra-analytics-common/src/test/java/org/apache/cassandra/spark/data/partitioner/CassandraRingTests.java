@@ -25,8 +25,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -711,5 +713,83 @@ public class CassandraRingTests
                                                    instances, reported))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not present in the ring instances");
+    }
+
+    private static CassandraRing reportedRing(Map<Range<BigInteger>, List<CassandraInstance>> reported,
+                                              List<CassandraInstance> instances)
+    {
+        return new CassandraRing(Partitioner.Murmur3Partitioner, "test",
+                                 new ReplicationFactor(ImmutableMap.of(
+                                 "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                 "dc1", "3")),
+                                 instances, reported);
+    }
+
+    @Test
+    public void testReportedRingDoesNotDependOnReplicaOrder()
+    {
+        // Sidecar lists replicas in ring-walk order, while a deserialized ring lists them in instance order, so the
+        // ring must not depend on the order replicas were supplied in
+        List<CassandraInstance> instances = new ArrayList<>();
+        for (int node = 0; node < 32; node++)
+        {
+            instances.add(new CassandraInstance(String.valueOf(node * 100), "n" + node, "dc1"));
+        }
+        Map<Range<BigInteger>, List<CassandraInstance>> forward = new LinkedHashMap<>();
+        Map<Range<BigInteger>, List<CassandraInstance>> backward = new LinkedHashMap<>();
+        for (int node = 0; node < instances.size(); node++)
+        {
+            BigInteger lower = node == 0 ? Partitioner.Murmur3Partitioner.minToken() : BigInteger.valueOf((node - 1) * 100L + 1);
+            BigInteger upper = node == instances.size() - 1 ? Partitioner.Murmur3Partitioner.maxToken() : BigInteger.valueOf(node * 100L);
+            List<CassandraInstance> replicas = Arrays.asList(instances.get(node),
+                                                             instances.get((node + 1) % instances.size()),
+                                                             instances.get((node + 2) % instances.size()));
+            List<CassandraInstance> reversed = new ArrayList<>(replicas);
+            Collections.reverse(reversed);
+            forward.put(Range.openClosed(lower, upper), replicas);
+            backward.put(Range.openClosed(lower, upper), reversed);
+        }
+
+        CassandraRing ring = reportedRing(forward, instances);
+        CassandraRing reversedRing = reportedRing(backward, instances);
+        assertThat(reversedRing).isEqualTo(ring);
+        // whatever order they were supplied in, each range lists its replicas in token order
+        reversedRing.rangeMap().asMapOfRanges().values().forEach(replicas -> {
+            List<CassandraInstance> sorted = new ArrayList<>(replicas);
+            sorted.sort((left, right) -> new BigInteger(left.token()).compareTo(new BigInteger(right.token())));
+            assertThat(replicas).containsExactlyElementsOf(sorted);
+        });
+
+        Kryo kryo = new Kryo();
+        kryo.register(CassandraRing.class, new CassandraRing.Serializer());
+        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
+        kryo.register(CassandraInstance.class, new CassandraInstance.Serializer());
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (Output out = new Output(bytes))
+        {
+            kryo.writeObject(out, ring);
+        }
+        try (Input in = new Input(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            assertThat(kryo.readObject(in, CassandraRing.class)).isEqualTo(ring);
+        }
+    }
+
+    @Test
+    public void testReportedRangesAreNormalisedToOpenClosed()
+    {
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "n1", "dc1"),
+                                                         new CassandraInstance("100", "n2", "dc1"));
+        Map<Range<BigInteger>, List<CassandraInstance>> reported = new LinkedHashMap<>();
+        reported.put(Range.closed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.ZERO),
+                     Arrays.asList(instances.get(0), instances.get(1)));
+        reported.put(Range.openClosed(BigInteger.ZERO, Partitioner.Murmur3Partitioner.maxToken()),
+                     Arrays.asList(instances.get(0), instances.get(1)));
+
+        CassandraRing ring = reportedRing(reported, instances);
+
+        assertThat(ring.tokenRanges().get(instances.get(0)))
+        .containsExactly(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(), BigInteger.ZERO),
+                         Range.openClosed(BigInteger.ZERO, Partitioner.Murmur3Partitioner.maxToken()));
     }
 }
