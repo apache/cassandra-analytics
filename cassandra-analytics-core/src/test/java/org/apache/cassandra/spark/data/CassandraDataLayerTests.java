@@ -401,10 +401,10 @@ class CassandraDataLayerTests
     }
 
     @Test
-    void testRingFromTokenRangeReplicasAcceptsRangeWithNoWitness()
+    void testRingFromTokenRangeReplicasAcceptsNoWitnessWhenDatacenterIsShortOfNodes()
     {
-        // Cassandra reduces the witness count when a datacenter has fewer nodes than its replication factor,
-        // so an empty witness list is legitimate for a keyspace with witnesses
+        // Cassandra reduces the witness count when a datacenter has fewer nodes than its replication factor:
+        // '3/1' with only 2 replicas for the range has no witness
         CassandraDataLayer layer = dataLayer(null);
         List<ReplicaInfo> readReplicas = Collections.singletonList(
         new ReplicaInfo("-9223372036854775808", "9223372036854775807",
@@ -416,6 +416,50 @@ class CassandraDataLayerTests
 
         assertThat(result.hasWitnesses()).isFalse();
         assertThat(fullReplicaNames(result, 10L)).containsExactly("n1", "n2");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasRejectsUnderReportedWitnesses()
+    {
+        // '3/1' with all 3 replicas must report its witness; otherwise it would be read as a full replica
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042")),
+                        ImmutableMap.of("dc1", Collections.emptyList())));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("reported 0 witnesses")
+        .hasMessageContaining("requires 1");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasRejectsDatacenterMissingFromWitnesses()
+    {
+        // A datacenter absent from witnessesByDatacenter is under-reported too
+        CassandraDataLayer layer = dataLayer(null);
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042", "1.1.1.3:9042")),
+                        Collections.emptyMap()));
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("datacenter dc1")
+        .hasMessageContaining("requires 1");
+    }
+
+    @Test
+    void testExpectedWitnessesMirrorsCassandra()
+    {
+        assertThat(CassandraDataLayer.expectedWitnesses(3, 1, 3)).isEqualTo(1);
+        assertThat(CassandraDataLayer.expectedWitnesses(3, 1, 2)).isEqualTo(0);
+        assertThat(CassandraDataLayer.expectedWitnesses(5, 2, 4)).isEqualTo(1);
+        assertThat(CassandraDataLayer.expectedWitnesses(5, 2, 5)).isEqualTo(2);
+        assertThat(CassandraDataLayer.expectedWitnesses(3, 0, 3)).isEqualTo(0);
     }
 
     @Test
@@ -446,7 +490,7 @@ class CassandraDataLayerTests
         Partitioner.Murmur3Partitioner, WITNESS_RF, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("reported 2 witnesses")
-        .hasMessageContaining("allows at most 1");
+        .hasMessageContaining("requires 1");
     }
 
     @Test
@@ -463,7 +507,7 @@ class CassandraDataLayerTests
         assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
         Partitioner.Murmur3Partitioner, rf, threeNodeRing(), topologyOf(readReplicas, THREE_NODE_ADDRESSES)))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("allows at most 0");
+        .hasMessageContaining("requires 0");
     }
 
     @Test
