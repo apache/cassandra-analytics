@@ -663,6 +663,7 @@ public class CassandraRingTests
         }
         assertThat(deserialized.hasReportedRanges()).isTrue();
         assertThat(replicaNamesAt(deserialized, 10L)).containsExactly("n1", "n2");
+        assertThat(deserialized).isEqualTo(original);
     }
 
     @Test
