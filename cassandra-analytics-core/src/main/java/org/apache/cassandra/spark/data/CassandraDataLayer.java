@@ -864,8 +864,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     if (instance == null)
                     {
                         // The ring response is the source of truth for which nodes the reader can talk to, so a
-                        // replica absent from it is skipped rather than failing the job
-                        LOGGER.warn("Skipping replica reported by Cassandra that is absent from the ring "
+                        // replica absent from it is skipped rather than failing the job. It should only happen while
+                        // a cluster operation is in progress.
+                        LOGGER.error("Skipping replica reported by Cassandra that is absent from the ring "
                                     + "replica={} fqdn={} range=({}, {}]",
                                     replicaKey, nodeName, replicaInfo.start(), replicaInfo.end());
                         continue;

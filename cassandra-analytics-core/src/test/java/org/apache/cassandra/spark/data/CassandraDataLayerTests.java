@@ -130,7 +130,8 @@ class CassandraDataLayerTests
             String fqdn = addressToFqdn[i + 1];
             metadata.put(key, new ReplicaMetadata("NORMAL", "UP", fqdn, key.split(":")[0], 9042, "dc1"));
         }
-        return new TokenRangeReplicasResponse(readReplicas, readReplicas, metadata);
+        // only the read replicas are used
+        return new TokenRangeReplicasResponse(Collections.emptyList(), readReplicas, metadata);
     }
 
     @Test
