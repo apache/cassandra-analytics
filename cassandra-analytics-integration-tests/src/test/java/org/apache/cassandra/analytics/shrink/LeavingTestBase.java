@@ -23,25 +23,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.provider.Arguments;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestConsistencyLevel;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.testing.utils.ClusterUtils;
-import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.NodeToolResult;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -56,8 +53,8 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 abstract class LeavingTestBase extends ResiliencyTestBase
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LeavingTestBase.class);
-    List<? extends IInstance> leavingNodes;
+    private final List<FutureTask<NodeToolResult>> decommissions = new ArrayList<>();
+    List<IInstance> leavingNodes;
     Dataset<Row> df;
     private Map<? extends IInstance, Set<String>> expectedInstanceData;
 
@@ -83,17 +80,35 @@ abstract class LeavingTestBase extends ResiliencyTestBase
     }
 
     @Override
-    protected void beforeClusterProvisioning()
+    protected void afterClusterProvisioned()
     {
-        assumeTopologyChangeHooksSupported();
+        if (requiresConcurrentTopologyChanges())
+        {
+            startTopologyChange();
+        }
     }
 
     @Override
-    protected void afterClusterProvisioned()
+    protected void afterSchemaInitialized()
     {
-        ClusterBuilderConfiguration configuration = testClusterConfiguration();
+        if (!requiresConcurrentTopologyChanges())
+        {
+            startTopologyChange();
+        }
+    }
+
+    private void startTopologyChange()
+    {
+        prepareTopologyChange();
         IInstance seed = cluster.getFirstRunningInstance();
-        leavingNodes = decommissionNodes(cluster, leavingNodesPerDc(), configuration.dcCount);
+        leavingNodes = new ArrayList<>();
+        int count = leavingNodeCount();
+        for (int i = 0; i < count; i++)
+        {
+            IInstance node = cluster.get(cluster.size() - i);
+            decommissionNode(node);
+            leavingNodes.add(node);
+        }
 
         // Wait until nodes have reached expected state
         TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 4, TimeUnit.MINUTES);
@@ -102,10 +117,29 @@ abstract class LeavingTestBase extends ResiliencyTestBase
 
     protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd, Stream<Arguments> testInputs)
     {
-        for (int i = 0; i < leavingNodesPerDc(); i++)
+        completeTransitionsAndValidateWrites(transitionalStateEnd, testInputs, false);
+    }
+
+    protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd,
+                                                        Stream<Arguments> testInputs,
+                                                        boolean failureExpected)
+    {
+        while (transitionalStateEnd.getCount() > 0)
         {
             transitionalStateEnd.countDown();
         }
+
+        decommissions.forEach(task -> {
+            NodeToolResult result = awaitTopologyChange(task, false);
+            if (failureExpected)
+            {
+                result.asserts().failure().errorContains("Simulated leave failure");
+            }
+            else
+            {
+                result.asserts().success();
+            }
+        });
 
         testInputs.forEach(arguments -> {
             TestConsistencyLevel cl = (TestConsistencyLevel) arguments.get()[0];
@@ -121,10 +155,15 @@ abstract class LeavingTestBase extends ResiliencyTestBase
      */
     protected abstract CountDownLatch transitioningStateStart();
 
-    /**
-     * @return the number of nodes per datacenter that are expected to leave the cluster
-     */
-    protected abstract int leavingNodesPerDc();
+    protected int leavingNodesPerDc()
+    {
+        return 1;
+    }
+
+    protected int leavingNodeCount()
+    {
+        return requiresConcurrentTopologyChanges() ? leavingNodesPerDc() * testClusterConfiguration().dcCount : 1;
+    }
 
     protected static Stream<Arguments> singleDCTestInputs()
     {
@@ -145,27 +184,11 @@ abstract class LeavingTestBase extends ResiliencyTestBase
         );
     }
 
-    protected List<IInstance> decommissionNodes(ICluster<? extends IInstance> cluster,
-                                                int leavingNodesPerDC,
-                                                int numDcs)
+    private void decommissionNode(IInstance node)
     {
-        List<IInstance> leavingNodes = new ArrayList<>();
-        for (int i = 0; i < leavingNodesPerDC * numDcs; i++)
-        {
-            IInstance node = cluster.get(cluster.size() - i);
-            new Thread(() -> {
-                NodeToolResult decommission = node.nodetoolResult("decommission");
-                if (decommission.getRc() != 0 || decommission.getError() != null)
-                {
-                    LOGGER.error("Failed to decommission instance={}",
-                                 node.config().num(), decommission.getError());
-                }
-                decommission.asserts().success();
-            }).start();
-            leavingNodes.add(node);
-        }
-
-        return leavingNodes;
+        FutureTask<NodeToolResult> decommission = new FutureTask<>(() -> node.nodetoolResult("decommission"));
+        decommissions.add(decommission);
+        new Thread(decommission, "decommission-node").start();
     }
 
     protected boolean areLeavingNodesPartOfCluster(IInstance seed, List<? extends IInstance> leavingNodes)

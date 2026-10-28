@@ -25,6 +25,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -165,8 +167,10 @@ public class CqlToAvroSchemaConverterTest
 
             final Schema innerUdt = type.getElementType();
             assertThat(innerUdt.getType()).as("Inner UDT type should be RECORD").isEqualTo(RECORD);
-            assertThat(AvroSchemas.isFrozen(innerUdt)).as("Inner UDT should be frozen").isTrue();
-            assertThat(AvroSchemas.cqlType(AvroSchemas.unwrapNullable(innerUdt))).as("Inner UDT CQL type").isEqualTo("frozen<udt_2>");
+            // UDT records only carry properties that do not depend on the use; frozen is part of the list's CQL type
+            assertThat(innerUdt.getFullName()).as("Inner UDT full name").isEqualTo("a.udt_2");
+            assertThat(AvroSchemas.isFrozen(innerUdt)).as("Inner UDT should not carry the frozen flag").isFalse();
+            assertThat(AvroSchemas.cqlType(AvroSchemas.unwrapNullable(innerUdt))).as("Inner UDT CQL type").isEqualTo("udt_2");
 
             Schema id = innerUdt.getField("id").schema();
             assertThat(id).as("Inner UDT id field should not be null").isNotNull();
@@ -180,6 +184,98 @@ public class CqlToAvroSchemaConverterTest
         assertThat(readCqlType(schema, "pk")).as("CQL type for 'pk' field").isEqualTo("int");
         assertThat(readCqlType(schema, "c1")).as("CQL type for 'c1' field").isEqualTo("udt_1");
         assertThat(readCqlType(schema, "c2")).as("CQL type for 'c2' field").isEqualTo("frozen<list<frozen<udt_2>>>");
+    }
+
+    @Test
+    public void testRecordNamesAreValidAndUnique()
+    {
+        String address = "CREATE TYPE address (city text);";
+        String phone = "CREATE TYPE phone (number int);";
+        String person = "CREATE TYPE person (home frozen<address>, mobile frozen<phone>);";
+        String tagged = "CREATE TYPE tagged (tags frozen<map<text, int>>);";
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, u frozen<address>, l list<frozen<address>>, " +
+                                          "s set<frozen<address>>, p frozen<person>, m map<frozen<address>, frozen<phone>>, " +
+                                          "v map<int, frozen<address>>, t map<text, text>, n map<int, frozen<map<int, int>>>, " +
+                                          "k map<frozen<map<int, text>>, frozen<map<int, int>>>, g frozen<tagged>, w address, " +
+                                          "c list<frozen<map<text, text>>>, cs set<frozen<map<text, text>>>);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(address, phone, person, tagged));
+        String ns = schema.getNamespace();
+
+        // UDT records are named <keyspace>.<udt> wherever the UDT is used
+        assertThat(columnType(schema, "u").getFullName()).isEqualTo("a.address");
+        assertThat(columnType(schema, "w").getFullName()).isEqualTo("a.address");
+        assertThat(columnType(schema, "l").getElementType().getFullName()).isEqualTo("a.address");
+        assertThat(columnType(schema, "s").getElementType().getFullName()).isEqualTo("a.address");
+        Schema personRecord = columnType(schema, "p");
+        assertThat(personRecord.getFullName()).isEqualTo("a.person");
+        assertThat(personRecord.getField("home").schema().getFullName()).isEqualTo("a.address");
+        assertThat(personRecord.getField("mobile").schema().getFullName()).isEqualTo("a.phone");
+        Schema mapEntry = columnType(schema, "m").getElementType();
+        assertThat(mapEntry.getField("key").schema().getFullName()).isEqualTo("a.address");
+        assertThat(mapEntry.getField("value").schema().getFullName()).isEqualTo("a.phone");
+        assertThat(columnType(schema, "v").getElementType().getField("value").schema().getFullName()).isEqualTo("a.address");
+        // each UDT is defined once and referenced by name elsewhere
+        String json = schema.toString();
+        assertThat(countOccurrences(json, "\"name\":\"address\"")).isEqualTo(1);
+        assertThat(countOccurrences(json, "\"name\":\"phone\"")).isEqualTo(1);
+        assertThat(countOccurrences(json, "\"name\":\"person\"")).isEqualTo(1);
+
+        // map entry records are named by their position; key and value are added when both contain map entry records
+        assertThat(mapEntry.getFullName()).isEqualTo(ns + ".m.array_map.array_map");
+        assertThat(columnType(schema, "t").getElementType().getFullName()).isEqualTo(ns + ".t.array_map.array_map");
+        assertThat(columnType(schema, "n").getElementType().getField("value").schema().getElementType().getFullName())
+        .isEqualTo(ns + ".n.array_map.array_map.array_map");
+        Schema mapsEntry = columnType(schema, "k").getElementType();
+        assertThat(mapsEntry.getField("key").schema().getElementType().getFullName()).isEqualTo(ns + ".k.array_map.key.array_map.array_map");
+        assertThat(mapsEntry.getField("value").schema().getElementType().getFullName()).isEqualTo(ns + ".k.array_map.value.array_map.array_map");
+        // list and set elements use the collection's namespace
+        assertThat(columnType(schema, "c").getElementType().getElementType().getFullName()).isEqualTo(ns + ".c.array_map.array_map");
+        assertThat(columnType(schema, "cs").getElementType().getElementType().getFullName()).isEqualTo(ns + ".cs.array_map.array_map");
+        // records nested in UDT fields are named by the UDT
+        assertThat(columnType(schema, "g").getField("tags").schema().getElementType().getFullName())
+        .isEqualTo("a.tagged.record_udt.tags.array_map.array_map");
+
+        // all names are valid, and the schema is unchanged after a JSON round trip, which fails if two different
+        // records share a full name
+        List<Schema> records = new ArrayList<>();
+        collectRecords(schema, records);
+        assertThat(records).extracting(Schema::getFullName)
+                           .allMatch(name -> name.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*"));
+        assertThat(new Schema.Parser().parse(schema.toString())).isEqualTo(schema);
+    }
+
+    private static int countOccurrences(String text, String token)
+    {
+        int count = 0;
+        for (int index = text.indexOf(token); index >= 0; index = text.indexOf(token, index + token.length()))
+        {
+            count++;
+        }
+        return count;
+    }
+
+    private static Schema columnType(Schema schema, String column)
+    {
+        return AvroSchemas.unwrapNullable(schema.getField(column).schema());
+    }
+
+    private static void collectRecords(Schema schema, List<Schema> records)
+    {
+        switch (schema.getType())
+        {
+            case RECORD:
+                records.add(schema);
+                schema.getFields().forEach(field -> collectRecords(field.schema(), records));
+                break;
+            case ARRAY:
+                collectRecords(schema.getElementType(), records);
+                break;
+            case UNION:
+                schema.getTypes().forEach(type -> collectRecords(type, records));
+                break;
+            default:
+                break;
+        }
     }
 
     @Test

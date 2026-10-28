@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.ImmutableMap;
@@ -41,6 +42,10 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.SSTableId;
 import org.apache.cassandra.io.sstable.SequenceBasedSSTableId;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
+import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.schema.KeyspaceMetadata;
+import org.apache.cassandra.schema.KeyspaceParams;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.util.ReflectionUtils;
 
@@ -77,6 +82,28 @@ class SSTableWriterImplementationTest
 
         assertThat(peekSorted(builder)).isTrue();
         assertThat(peekBufferSizeInMB(builder)).isEqualTo(250);
+    }
+
+    @Test
+    void testWriterPreservesKeyspaceInstances() throws IOException
+    {
+        String keyspaceName = "existing_" + UUID.randomUUID().toString().replace("-", "");
+        SchemaUpdater.load(Schema.instance, KeyspaceMetadata.create(keyspaceName, KeyspaceParams.simple(1)));
+        Keyspace keyspace = Schema.instance.getKeyspaceInstance(keyspaceName);
+        assertThat(keyspace).isNotNull();
+        String tableName = "table_" + UUID.randomUUID().toString().replace("-", "");
+
+        try (SSTableWriterImplementation writer = new SSTableWriterImplementation(writeDirectory.getAbsolutePath(),
+                                                                                   Murmur3Partitioner.instance,
+                                                                                   CREATE_STATEMENT.replace("test_table", tableName),
+                                                                                   INSERT_STATEMENT.replace("test_table", tableName),
+                                                                                   Collections.emptySet(),
+                                                                                   1))
+        {
+            writer.setSSTablesProducedListener(sstables -> {});
+            assertThat(Schema.instance.getKeyspaceInstance(keyspaceName)).isSameAs(keyspace);
+            assertThat(Schema.instance.getKeyspaceInstance("test_keyspace")).isNotNull();
+        }
     }
 
     @Test

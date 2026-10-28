@@ -190,6 +190,7 @@ public abstract class SharedClusterIntegrationTestBase
         assertThat(cluster).isNotNull();
         afterClusterProvisioned();
         initializeSchemaForTest();
+        afterSchemaInitialized();
         mtlsTestHelper = new MtlsTestHelper(secretsPath);
         startSidecar(cluster);
         beforeTestStart();
@@ -308,6 +309,13 @@ public abstract class SharedClusterIntegrationTestBase
      * Initialize required schemas for the tests upfront before the test starts
      */
     protected abstract void initializeSchemaForTest();
+
+    /**
+     * Runs after schema creation, before Sidecar starts.
+     */
+    protected void afterSchemaInitialized()
+    {
+    }
 
     /**
      * Override to perform an action before the tests start

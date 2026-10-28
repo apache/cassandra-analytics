@@ -134,7 +134,7 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         {
             instanceConfigUpdater = instanceConfigUpdater.andThen(config -> configuration.additionalInstanceConfig.forEach(config::set));
         }
-        clusterBuilder.withTokenSupplier(tokenSupplier)
+        clusterBuilder.withTokenSupplier(configuration.tokenSupplier == null ? tokenSupplier : configuration.tokenSupplier)
                       .withConfig(instanceConfigUpdater);
 
         if (dcCount > 1)

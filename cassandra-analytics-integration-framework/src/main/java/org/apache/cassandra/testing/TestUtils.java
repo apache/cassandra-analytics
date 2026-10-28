@@ -107,8 +107,6 @@ public final class TestUtils
     {
         // Settings to reduce the test setup delay incurred if gossip is enabled
         System.setProperty("cassandra.ring_delay_ms", "5000"); // down from 30s default
-        System.setProperty("cassandra.consistent.rangemovement", "false");
-        System.setProperty("cassandra.consistent.simultaneousmoves.allow", "true");
         // End gossip delay settings
         // Set the location of dtest jars
         System.setProperty("cassandra.test.dtest_jar_path", System.getProperty("cassandra.test.dtest_jar_path", "dependencies"));
@@ -125,11 +123,6 @@ public final class TestUtils
         System.setProperty("cassandra.require_native_file_hints", "true");
         // Disable all native stuff in Netty as streaming isn't functional with native enabled
         System.setProperty("shaded.io.netty.transport.noNative", "true");
-        // Lifted from the Simulation runner (we're running into similar errors):
-        // this property is used to allow non-members of the ring to exist in gossip without breaking RF changes
-        // it would be nice not to rely on this, but hopefully we'll have consistent range movements before it matters
-        System.setProperty("cassandra.allow_alter_rf_during_range_movement", "true");
-
         System.setProperty("cassandra.minimum_replication_factor", "1");
     }
 
