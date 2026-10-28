@@ -356,7 +356,11 @@ public class CassandraRing implements Serializable
     Multimap<CassandraInstance, Range<BigInteger>> witnessRanges)
     {
         Map<Range<BigInteger>, Set<CassandraInstance>> witnessesByRange = new HashMap<>();
-        witnessRanges.forEach((witness, range) -> witnessesByRange.computeIfAbsent(range, key -> new HashSet<>()).add(witness));
+        // entries() rather than Multimap.forEach, which needs Guava 21; this module builds against Guava 16
+        for (Map.Entry<CassandraInstance, Range<BigInteger>> entry : witnessRanges.entries())
+        {
+            witnessesByRange.computeIfAbsent(entry.getValue(), key -> new HashSet<>()).add(entry.getKey());
+        }
         RangeMap<BigInteger, Set<CassandraInstance>> witnesses = TreeRangeMap.create();
         witnessesByRange.forEach(witnesses::put);
 
