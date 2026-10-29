@@ -100,6 +100,6 @@ public final class SaiFilter implements Serializable
     @Override
     public String toString()
     {
-        return "SaiFilter{index=" + index + ", operator=" + operator + ", value=" + value + "}";
+        return "SaiFilter{index=" + index + ", operator=" + operator + ", value=" + Arrays.toString(value) + "}";
     }
 }
