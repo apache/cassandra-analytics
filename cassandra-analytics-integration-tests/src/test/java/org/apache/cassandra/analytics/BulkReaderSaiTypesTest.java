@@ -89,6 +89,43 @@ public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
         .isLessThan(fullScanBytes / 2);
     }
 
+    static Stream<Arguments> rangeSaiQueries()
+    {
+        return Stream.of(
+        Arguments.of("int_gte", "int_col >= 777"),
+        Arguments.of("bigint_lt", "bigint_col < 200"),
+        Arguments.of("decimal_lte", "decimal_col <= -55.78"),
+        Arguments.of("smallint_lt", "smallint_col < 7"),
+        Arguments.of("tinyint_gt", "tinyint_col > 1"),
+        Arguments.of("varint_gt", "varint_col > 0"),
+        Arguments.of("float_gt", "float_col > CAST(77.24 AS FLOAT)"),
+        Arguments.of("decimal_lt", "decimal_col < -1"),
+        Arguments.of("double_lt", "double_col < 0.41"),
+        Arguments.of("date_gte", "date_col >= DATE '2024-02-29'"),
+        Arguments.of("inet_lt", "inet_col < X'09090909'"),
+        Arguments.of("time_lt", "time_col < (14 * 3600L + 15 * 60L + 56) * 1000000000L"),
+        Arguments.of("timestamp_lt", "timestamp_col < '2011-03-01T00:00:00+0000'")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("rangeSaiQueries")
+    void testRangeQueries(String name, String predicate)
+    {
+        List<Row> actual = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "true"))
+                           .load()
+                           .filter(predicate)
+                           .collectAsList();
+
+        assertThat(actual).extracting(row -> row.getInt(0)).containsExactly(MATCH_ID);
+
+        long saiReadBytes = bytesRead();
+        assertThat(saiReadBytes)
+        .as("SAI range query was not effective for %s; fullScanBytes=%s, saiReadBytes=%s", name, fullScanBytes, saiReadBytes)
+        .isGreaterThan(0)
+        .isLessThan(fullScanBytes / 2);
+    }
+
     @Override
     protected void initializeSchemaForTest()
     {
