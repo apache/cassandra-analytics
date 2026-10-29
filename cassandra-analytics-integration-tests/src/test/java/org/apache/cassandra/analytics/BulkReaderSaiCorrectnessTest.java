@@ -54,6 +54,9 @@ public class BulkReaderSaiCorrectnessTest extends BulkReaderSaiTestBase
         return Stream.of(
         Arguments.of("eq", TABLE, "score = " + MATCHING_SCORE, 2, 0.18),
         Arguments.of("gt", TABLE, "score > 250", 8, 0.2),
+        Arguments.of("gte", TABLE, "score >= 250", 9, 0.2),
+        Arguments.of("lt", TABLE, "score < 3", 3, 0.2),
+        Arguments.of("lte", TABLE, "score <= 3", 4, 0.2),
         Arguments.of("between", TABLE, "score > 250 AND score < 300", 5, 0.1),
         Arguments.of("or", TABLE, "score <= 2 OR score > 300", 3 + 3, 1), // OR expressions do not use SAI index
         Arguments.of("multi_column", TABLE, "score = 778 AND state = 'changed'", 1, 0.05),

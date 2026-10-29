@@ -25,7 +25,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.db.ClusteringComparator;
 import org.apache.cassandra.db.ColumnFamilyStore;
-import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.PartitionPosition;
 import org.apache.cassandra.db.PartitionRangeReadCommand;
@@ -149,6 +147,7 @@ public final class SaiIndexReader
                 return collectCandidateTokens(finalMatches,
                                               sparkRangeFilter,
                                               metadata.partitioner,
+                                              metadata.comparator,
                                               maxCandidateTokens);
             }
         }
@@ -166,22 +165,22 @@ public final class SaiIndexReader
      * used by the Data.db read-planning phase.
      */
     @NotNull
-    static Optional<CandidateTokens> collectCandidateTokens(@NotNull Iterator<PrimaryKey> matches,
+    static Optional<CandidateTokens> collectCandidateTokens(@NotNull KeyRangeIterator matches,
                                                             @Nullable SparkRangeFilter sparkRangeFilter,
                                                             @NotNull IPartitioner partitioner,
+                                                            @NotNull ClusteringComparator comparator,
                                                             int maxCandidateTokens)
     {
         Preconditions.checkArgument(maxCandidateTokens >= 0, "maxCandidateTokens must be non-negative");
         BigInteger upperToken = sparkRangeFilter == null
                                 ? null
                                 : sparkRangeFilter.tokenRange().upperEndpoint();
+        PrimaryKey.Factory primaryKeyFactory = new PrimaryKey.Factory(partitioner, comparator);
         CandidateTokens.Builder candidates = CandidateTokens.builder(partitioner);
         while (matches.hasNext())
         {
-            DecoratedKey partitionKey = matches.next().partitionKey();
-            BigInteger token = TokenUtils.tokenToBigInteger(partitionKey.getToken());
-            // SAI iterators are sorted by primary key/token. Once the worker's upper
-            // token is crossed there cannot be another candidate belonging to this task.
+            Token partitionToken = matches.next().partitionKey().getToken();
+            BigInteger token = TokenUtils.tokenToBigInteger(partitionToken);
             if (upperToken != null && token.compareTo(upperToken) > 0)
             {
                 break;
@@ -196,6 +195,12 @@ public final class SaiIndexReader
                                 "option to change the limit", maxCandidateTokens);
                     return Optional.empty();
                 }
+            }
+            if (matches.hasNext())
+            {
+                // skip ahead not to read all rows that would result in the same token
+                // that was already recorded
+                matches.skipTo(primaryKeyFactory.create(partitionToken.nextValidToken()));
             }
         }
         return Optional.of(candidates.build());

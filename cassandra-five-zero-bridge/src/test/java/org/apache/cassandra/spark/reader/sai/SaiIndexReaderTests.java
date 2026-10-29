@@ -21,29 +21,44 @@ package org.apache.cassandra.spark.reader.sai;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.db.ClusteringComparator;
 import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.marshal.Int32Type;
 import org.apache.cassandra.dht.Murmur3Partitioner;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.index.sai.iterators.KeyRangeIterator;
 import org.apache.cassandra.index.sai.utils.PrimaryKey;
+import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.data.SaiIndex;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.utils.TokenUtils;
 
+import static org.apache.cassandra.spark.TestUtils.BIG_FORMAT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -74,6 +89,95 @@ class SaiIndexReaderTests
     }
 
     @Test
+    void testFindCandidateTokensWithRealSaiSSTable(@TempDir Path directory) throws Exception
+    {
+        // initialization of static fields
+        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder();
+        Keyspace.setInitialized();
+
+        String keyspace = "sai_reader_" + UUID.randomUUID().toString().replace("-", "");
+        String table = keyspace + ".indexed_rows";
+        String indexName = "value_idx";
+
+        String createTable = "CREATE TABLE " + table + " (id int PRIMARY KEY, value int)";
+        String insert = "INSERT INTO " + table + " (id, value) VALUES (?, ?)";
+        String createIndex = "CREATE INDEX " + indexName + " ON " + table + " (value) USING 'sai'";
+
+        try (CQLSSTableWriter writer = CQLSSTableWriter.builder()
+                                                       .inDirectory(directory.toString())
+                                                       .forTable(createTable)
+                                                       .using(insert)
+                                                       .withIndexes(createIndex)
+                                                       .withFormat(BIG_FORMAT)
+                                                       .withPartitioner(Murmur3Partitioner.instance)
+                                                       .build())
+        {
+            writer.addRow(1, 7);
+            writer.addRow(2, 9); // indexed, but does not satisfy the filter
+            writer.addRow(3, 7);
+            writer.addRow(4, 7);
+            writer.addRow(5, 9); // indexed, but does not satisfy the filter
+        }
+
+        TableMetadata metadata = Schema.instance.getTableMetadata(keyspace, "indexed_rows");
+        assertThat(metadata).isNotNull();
+        SaiFilter filter = new SaiFilter(new SaiIndex(indexName, "value", false, Collections.emptyMap()),
+                                         SaiFilter.Operator.EQ,
+                                         Int32Type.instance.decompose(7).array());
+
+        Set<SSTable> sstables;
+        try (Stream<Path> paths = Files.list(directory))
+        {
+            sstables = paths.filter(path -> path.getFileName().toString().endsWith("-Data.db"))
+                            .map(path -> (SSTable) new FileSystemSSTable(path, false, () -> BufferingInputStreamStats.doNothingStats()))
+                            .collect(Collectors.toSet());
+        }
+        assertThat(sstables).hasSize(1);
+        assertThat(sstables.iterator().next().saiComponentNames()).isNotEmpty();
+
+        List<BigInteger> matchingTokens = new ArrayList<>();
+        for (int id : Arrays.asList(1, 3, 4))
+        {
+            Token token = Murmur3Partitioner.instance.decorateKey(Int32Type.instance.decompose(id)).getToken();
+            matchingTokens.add(TokenUtils.tokenToBigInteger(token));
+        }
+        Collections.sort(matchingTokens);
+
+        // No Spark range: verify real index hits, not an error-driven fallback.
+        CandidateTokens all = SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                                 Collections.singletonList(filter), null, 100)
+                                            .orElseThrow();
+        assertThat(all.size()).isEqualTo(3);
+        for (BigInteger token : matchingTokens)
+        {
+            assertThat(all.contains(token)).isTrue();
+        }
+
+        // Seeking must skip the first matching partition (open lower bound),
+        // while the other two matching partitions remain visible.
+        SparkRangeFilter range = SparkRangeFilter.create(TokenRange.openClosed(matchingTokens.get(0),
+                                                                               matchingTokens.get(2)));
+        CandidateTokens restricted = SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                                        Collections.singletonList(filter), range, 100)
+                                                   .orElseThrow();
+        assertThat(restricted.size()).isEqualTo(2);
+        assertThat(restricted.contains(matchingTokens.get(0))).isFalse();
+        assertThat(restricted.contains(matchingTokens.get(1))).isTrue();
+        assertThat(restricted.contains(matchingTokens.get(2))).isTrue();
+
+        // Test query producing more unique tokens than the limit fails open.
+        assertThat(SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                      Collections.singletonList(filter), null, 2)).isEmpty();
+
+        // Test missing SAI component must also fail to open.
+        SSTable withoutSai = mock(SSTable.class);
+        when(withoutSai.saiComponentNames()).thenReturn(Collections.emptySet());
+        when(withoutSai.getDataFileName()).thenReturn("oa-1-big-Data.db");
+        assertThat(SaiIndexReader.findCandidateTokens(metadata, Collections.singleton(withoutSai),
+                                                      Collections.singletonList(filter), null, 100)).isEmpty();
+    }
+
+    @Test
     void testCollectCandidatesConsumesAllMatchesAndDeduplicatesTokens()
     {
         List<Candidate> candidates = sortedCandidates("alpha", "bravo", "charlie");
@@ -86,9 +190,10 @@ class SaiIndexReaderTests
                                                  primaryKey(candidates.get(1).partitionKey),
                                                  primaryKey(candidates.get(2).partitionKey));
 
-        CandidateTokens result = SaiIndexReader.collectCandidateTokens(matches.iterator(),
+        CandidateTokens result = SaiIndexReader.collectCandidateTokens(new TrackingKeyRangeIterator(matches),
                                                                        null,
                                                                        Murmur3Partitioner.instance,
+                                                                       new ClusteringComparator(),
                                                                        Integer.MAX_VALUE)
                                                .orElse(null);
 
@@ -106,9 +211,10 @@ class SaiIndexReaderTests
     {
         List<Candidate> candidates = sortedCandidates("one", "two", "three");
 
-        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(primaryKeys(candidates).iterator(),
+        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(new TrackingKeyRangeIterator(realPrimaryKeys(candidates)),
                                                                                  null,
                                                                                  Murmur3Partitioner.instance,
+                                                                                 new ClusteringComparator(),
                                                                                  2);
 
         assertThat(result).isEmpty();
@@ -123,9 +229,10 @@ class SaiIndexReaderTests
                                                  primaryKey(candidates.get(1).partitionKey),
                                                  primaryKey(candidates.get(1).partitionKey));
 
-        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(matches.iterator(),
+        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(new TrackingKeyRangeIterator(matches),
                                                                                  null,
                                                                                  Murmur3Partitioner.instance,
+                                                                                 new ClusteringComparator(),
                                                                                  2);
 
         assertThat(result).isPresent();
@@ -140,18 +247,83 @@ class SaiIndexReaderTests
         Candidate firstIncluded = candidates.get(1);
         Candidate lastIncluded = candidates.get(2);
         SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(TokenRange.closed(firstIncluded.token, lastIncluded.token));
-        CountingIterator matches = new CountingIterator(primaryKeys(candidates));
+        TrackingKeyRangeIterator matches = new TrackingKeyRangeIterator(realPrimaryKeys(candidates));
 
         Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(matches,
                                                                                  sparkRangeFilter,
                                                                                  Murmur3Partitioner.instance,
+                                                                                 new ClusteringComparator(),
                                                                                  Integer.MAX_VALUE);
 
         assertThat(result).isPresent();
         assertThat(result.orElseThrow().size()).isEqualTo(2);
         // The iterator consumes the first key above the upper bound to discover that the
         // range has ended, but must not scan the remaining SAI matches.
-        assertThat(matches.consumed()).isEqualTo(4);
+        assertThat(matches.computed()).isEqualTo(4);
+    }
+
+    @Test
+    void testCollectCandidatesSkipsRepeatedMatchesWithinSamePartition()
+    {
+        List<Candidate> distinctCandidates = sortedCandidates("one", "two", "three");
+        Candidate widePartition = distinctCandidates.get(0);
+        Candidate nextPartition = distinctCandidates.get(1);
+
+        PrimaryKey.Factory factory = new PrimaryKey.Factory(Murmur3Partitioner.instance, new ClusteringComparator());
+        List<PrimaryKey> keys = new ArrayList<>();
+        for (int i = 0; i < 20; i++)
+        {
+            keys.add(factory.create(widePartition.partitionKey));
+        }
+        keys.add(factory.create(nextPartition.partitionKey));
+
+        TrackingKeyRangeIterator matches = new TrackingKeyRangeIterator(keys);
+
+        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(matches, null,
+                                                                                 Murmur3Partitioner.instance,
+                                                                                 new ClusteringComparator(),
+                                                                                 100);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().size()).isEqualTo(2);
+        assertThat(result.get().contains(widePartition.token)).isTrue();
+        assertThat(result.get().contains(nextPartition.token)).isTrue();
+        assertThat(matches.skipCalls()).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void testCollectCandidatesDoesNotSkipPastFollowingPartition()
+    {
+        List<Candidate> distinctCandidates = sortedCandidates("one", "two", "three");
+        Candidate first = distinctCandidates.get(0);
+        Candidate second = distinctCandidates.get(1);
+        Candidate third = distinctCandidates.get(2);
+
+        PrimaryKey.Factory factory = new PrimaryKey.Factory(Murmur3Partitioner.instance, new ClusteringComparator());
+        List<PrimaryKey> keys = new ArrayList<>();
+        for (int i = 0; i < 5; i++)
+        {
+            keys.add(factory.create(first.partitionKey));
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            keys.add(factory.create(second.partitionKey));
+        }
+        keys.add(factory.create(third.partitionKey));
+
+        TrackingKeyRangeIterator matches = new TrackingKeyRangeIterator(keys);
+
+        Optional<CandidateTokens> result = SaiIndexReader.collectCandidateTokens(matches, null,
+                                                                                 Murmur3Partitioner.instance,
+                                                                                 new ClusteringComparator(),
+                                                                                 100);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().size()).isEqualTo(3);
+        assertThat(result.get().contains(first.token)).isTrue();
+        assertThat(result.get().contains(second.token)).isTrue();
+        assertThat(result.get().contains(third.token)).isTrue();
+        assertThat(matches.skipCalls()).isLessThanOrEqualTo(3);
     }
 
     @Test
@@ -201,9 +373,9 @@ class SaiIndexReaderTests
         Candidate lastIncluded = candidates.get(3);
         SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(TokenRange.closed(firstIncluded.token, lastIncluded.token));
 
-        CandidateTokens result = SaiIndexReader.collectCandidateTokens(primaryKeys(candidates).iterator(),
+        CandidateTokens result = SaiIndexReader.collectCandidateTokens(new TrackingKeyRangeIterator(realPrimaryKeys(candidates)),
                                                                        sparkRangeFilter, Murmur3Partitioner.instance,
-                                                                       Integer.MAX_VALUE)
+                                                                       new ClusteringComparator(), Integer.MAX_VALUE)
                                                .orElseThrow();
 
         assertThat(result.contains(candidates.get(0).token)).isFalse();
@@ -221,27 +393,15 @@ class SaiIndexReaderTests
         BigInteger upper = candidates.get(0).token.subtract(BigInteger.ONE);
         SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(TokenRange.singleton(upper));
 
-        CandidateTokens result = SaiIndexReader.collectCandidateTokens(primaryKeys(candidates).iterator(), sparkRangeFilter,
-                                                                       Murmur3Partitioner.instance, Integer.MAX_VALUE)
+        CandidateTokens result = SaiIndexReader.collectCandidateTokens(new TrackingKeyRangeIterator(realPrimaryKeys(candidates)),
+                                                                       sparkRangeFilter, Murmur3Partitioner.instance,
+                                                                       new ClusteringComparator(), Integer.MAX_VALUE)
                                                .orElseThrow();
 
         assertThat(result.isEmpty()).isTrue();
     }
 
-    @Test
-    void testCollectCandidateTokensRejectsOutOfOrderNativeResults()
-    {
-        List<Candidate> candidates = sortedCandidates("left", "middle", "right");
-        List<PrimaryKey> outOfOrder = Arrays.asList(primaryKey(candidates.get(1).partitionKey),
-                                                    primaryKey(candidates.get(0).partitionKey));
-
-        assertThatThrownBy(() -> SaiIndexReader.collectCandidateTokens(outOfOrder.iterator(), null,
-                                                                       Murmur3Partitioner.instance, Integer.MAX_VALUE))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("sorted order");
-    }
-
-    private static List<Candidate> sortedCandidates(String... keys)
+    static List<Candidate> sortedCandidates(String... keys)
     {
         List<Candidate> candidates = new ArrayList<>(keys.length);
         for (String key : keys)
@@ -253,16 +413,6 @@ class SaiIndexReaderTests
         }
         candidates.sort(Comparator.comparing(candidate -> candidate.token));
         return candidates;
-    }
-
-    private static List<PrimaryKey> primaryKeys(List<Candidate> candidates)
-    {
-        List<PrimaryKey> keys = new ArrayList<>(candidates.size());
-        for (Candidate candidate : candidates)
-        {
-            keys.add(primaryKey(candidate.partitionKey));
-        }
-        return keys;
     }
 
     private static PrimaryKey primaryKey(DecoratedKey partitionKey)
@@ -283,40 +433,12 @@ class SaiIndexReaderTests
         return keys;
     }
 
-    private static final class CountingIterator implements Iterator<PrimaryKey>
-    {
-        private final Iterator<PrimaryKey> delegate;
-        private int consumed;
-
-        private CountingIterator(List<PrimaryKey> keys)
-        {
-            delegate = keys.iterator();
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-            return delegate.hasNext();
-        }
-
-        @Override
-        public PrimaryKey next()
-        {
-            consumed++;
-            return delegate.next();
-        }
-
-        private int consumed()
-        {
-            return consumed;
-        }
-    }
-
     private static final class TrackingKeyRangeIterator extends KeyRangeIterator
     {
         private final List<PrimaryKey> keys;
         private int index;
         private int skipCalls;
+        private int computed;
 
         private TrackingKeyRangeIterator(List<PrimaryKey> keys)
         {
@@ -327,7 +449,12 @@ class SaiIndexReaderTests
         @Override
         protected PrimaryKey computeNext()
         {
-            return index < keys.size() ? keys.get(index++) : endOfData();
+            if (index >= keys.size())
+            {
+                return endOfData();
+            }
+            computed++;
+            return keys.get(index++);
         }
 
         @Override
@@ -345,16 +472,21 @@ class SaiIndexReaderTests
         {
         }
 
+        private int computed()
+        {
+            return computed;
+        }
+
         private int skipCalls()
         {
             return skipCalls;
         }
     }
 
-    private static final class Candidate
+    static final class Candidate
     {
-        private final DecoratedKey partitionKey;
-        private final BigInteger token;
+        final DecoratedKey partitionKey;
+        final BigInteger token;
 
         private Candidate(DecoratedKey partitionKey, BigInteger token)
         {

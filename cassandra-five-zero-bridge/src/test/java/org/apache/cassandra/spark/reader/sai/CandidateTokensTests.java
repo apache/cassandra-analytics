@@ -19,6 +19,7 @@
 package org.apache.cassandra.spark.reader.sai;
 
 import java.math.BigInteger;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +28,7 @@ import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.spark.reader.DataDbRange;
 import org.assertj.core.groups.Tuple;
 
+import static org.apache.cassandra.spark.reader.sai.SaiIndexReaderTests.sortedCandidates;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -103,5 +105,19 @@ class CandidateTokensTests
         .extracting(DataDbRange::start, DataDbRange::end)
         .containsExactly(Tuple.tuple(10L, 40L),
                          Tuple.tuple(60L, 70L));
+    }
+
+    @Test
+    void testCandidateTokensBuilderRejectsOutOfOrderTokens()
+    {
+        List<SaiIndexReaderTests.Candidate> candidates = sortedCandidates("left", "middle", "right");
+
+        CandidateTokens.Builder builder = CandidateTokens.builder(Murmur3Partitioner.instance);
+
+        builder.add(candidates.get(1).token);
+
+        assertThatThrownBy(() -> builder.add(candidates.get(0).token))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("sorted order");
     }
 }
