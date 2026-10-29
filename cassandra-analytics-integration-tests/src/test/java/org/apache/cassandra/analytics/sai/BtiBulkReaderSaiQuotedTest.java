@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.cassandra.analytics;
+package org.apache.cassandra.analytics.sai;
 
-public class BtiBulkReaderSaiCorrectnessTest extends BulkReaderSaiCorrectnessTest
+public class BtiBulkReaderSaiQuotedTest extends BulkReaderSaiQuotedTest
 {
     @Override
     protected String sstableFormat()

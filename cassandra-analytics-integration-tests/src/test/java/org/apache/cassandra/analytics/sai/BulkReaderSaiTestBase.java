@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.cassandra.analytics;
+package org.apache.cassandra.analytics.sai;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,6 +33,7 @@ import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
 import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
