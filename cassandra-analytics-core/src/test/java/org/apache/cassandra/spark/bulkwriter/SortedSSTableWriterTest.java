@@ -47,6 +47,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -503,6 +504,53 @@ public class SortedSSTableWriterTest
         .as("fileDigestMap size should not change when prepareSStablesToSend is called after close")
         .isEqualTo(fileDigestCountAfterClose);
     }
+
+
+    @Test
+    public void testSaiComponentsDiscovery() throws IOException
+    {
+        MockBulkWriterContext context = new MockBulkWriterContext(tokenRangeMapping,
+                                                                  MockBulkWriterContext.DEFAULT_CASSANDRA_VERSION,
+                                                                  ConsistencyLevel.CL.LOCAL_QUORUM);
+
+        SortedSSTableWriter writer = new SortedSSTableWriter(context, tmpDir, new XXHash32DigestAlgorithm(), 1);
+        writer.setSSTablesProducedListener(x -> {});
+
+        writer.addRow(BigInteger.ONE, ImmutableMap.of("id", 1,
+                                                      "date", 1,
+                                                      "course", "foo",
+                                                      "marks", 1));
+        writer.close(context);
+
+        Path dataFile = null;
+        try (DirectoryStream<Path> files =
+             Files.newDirectoryStream(writer.getOutDir(), "*-Data.db"))
+        {
+            dataFile = files.iterator().next();
+        }
+
+        String filename = dataFile.getFileName().toString();
+        String base = filename.substring(0, filename.length() - "-Data.db".length());
+
+        // construct dummy another valid sstable
+        String[] parts = base.split("-");
+        String otherBase = parts[0] + "-" + (Integer.parseInt(parts[1]) + 1) + "-" + parts[2];
+
+        String suffix = "SAI+aa+idx+TermsData.db";
+        String ownComponent = base + "-" + suffix;
+        String otherComponent = otherBase + "-" + suffix;
+
+        Files.write(dataFile.resolveSibling(ownComponent), new byte[]{42});
+        Files.write(dataFile.resolveSibling(otherComponent), new byte[]{99});
+
+        FileSystemSSTable sstable = new FileSystemSSTable(dataFile,
+                                                          false,
+                                                          BufferingInputStreamStats::doNothingStats);
+
+        // must discover only components belonging to this SSTable
+        assertThat(sstable.saiComponentNames()).containsExactly(ownComponent);
+    }
+
 
     /**
      * Helper method to create initial SSTables for testing.

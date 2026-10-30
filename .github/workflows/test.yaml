@@ -28,7 +28,7 @@ on:
 jobs:
   build-jdk11:
     name: Compile and build (JDK 11)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK
@@ -89,7 +89,7 @@ jobs:
   # Test jobs download the dtest jars built with their selected JDK.
   build-jdk17:
     name: Compile and build (JDK 17)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK
@@ -153,7 +153,7 @@ jobs:
     # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
@@ -229,7 +229,7 @@ jobs:
     # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # GitHub Actions generate a cross-product of 'config' × 'job_index' (6 × 5 = 30 jobs).
       # The 'include' entries don't add new combinations — they augment existing ones

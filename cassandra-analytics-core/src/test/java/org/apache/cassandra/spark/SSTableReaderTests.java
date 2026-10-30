@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -110,7 +111,10 @@ public class SSTableReaderTests
                                                                               navigatableTimeProvider,
                                                                               false,
                                                                               false,
-                                                                              Stats.DoNothingStats.INSTANCE))
+                                                                              Stats.DoNothingStats.INSTANCE,
+                                                                              Collections.emptyList(),
+                                                                              Integer.MAX_VALUE,
+                                                                              Executors.newSingleThreadExecutor()))
             {
                 // iterate through CompactionStreamScanner verifying it correctly compacts data together
                 RowData rowData = scanner.data();
@@ -216,10 +220,13 @@ public class SSTableReaderTests
             BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
 
             int rowCount = 0;
-            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
-            table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-            filter, null, TimeProvider.DEFAULT,
-            false, false, Stats.DoNothingStats.INSTANCE))
+            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(table, partitioner, ssTableSupplier,
+                                                                                    null, Collections.emptyList(), filter,
+                                                                                    null, TimeProvider.DEFAULT,
+                                                                                    false, false,
+                                                                                    Stats.DoNothingStats.INSTANCE,
+                                                                                    Collections.emptyList(), Integer.MAX_VALUE,
+                                                                                    Executors.newSingleThreadExecutor()))
             {
                 RowData rowData = scanner.data();
                 while (scanner.next())

@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -45,19 +46,21 @@ public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRo
     @VisibleForTesting
     public SparkRowIterator(int partitionId, @NotNull DataLayer dataLayer)
     {
-        this(partitionId, dataLayer, null, new ArrayList<>());
+        this(partitionId, dataLayer, null, new ArrayList<>(), new ArrayList<>());
     }
 
     public SparkRowIterator(int partitionId,
                             @NotNull DataLayer dataLayer,
                             @Nullable StructType requiredSchema,
-                            @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                            @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                            @NotNull List<SaiFilter> saiFilters)
     {
         super(
         partitionId,
         dataLayer,
         requiredSchema,
         partitionKeyFilters,
+        saiFilters,
         (builder) -> decorate(requiredSchema, builder, dataLayer.requestedFeatures())
         );
     }

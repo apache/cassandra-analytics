@@ -117,9 +117,17 @@ public final class SummaryDbUtils
              DataInputPlus.DataInputStreamPlus dis = new RebufferingChannelInputStream(is, bufferSize))
         {
             IndexSummary indexSummary = IndexSummary.serializer.deserialize(dis, partitioner, minIndexInterval, maxIndexInterval);
-            DecoratedKey firstKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(dis));
-            DecoratedKey lastKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(dis));
-            return new Summary(indexSummary, firstKey, lastKey);
+            try
+            {
+                DecoratedKey firstKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(dis));
+                DecoratedKey lastKey = partitioner.decorateKey(ByteBufferUtil.readWithLength(dis));
+                return new Summary(indexSummary, firstKey, lastKey);
+            }
+            catch (Exception e)
+            {
+                indexSummary.close();
+                throw e;
+            }
         }
     }
 
