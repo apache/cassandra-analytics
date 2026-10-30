@@ -113,8 +113,7 @@ public final class SaiIndexReader
             return Optional.of(CandidateTokens.empty());
         }
 
-        ResourceGroup resources = new ResourceGroup();
-        try
+        try (ResourceGroup resources = new ResourceGroup())
         {
             SaiQueryPlanner.Plan plan = SaiQueryPlanner.plan(metadata, filters);
             if (plan == null)
@@ -139,7 +138,6 @@ public final class SaiIndexReader
                                                              queryContext,
                                                              sparkRangeFilter))
             {
-                finalMatches.setOnClose(resources::close);
                 seekToSparkRangeStart(finalMatches,
                                       sparkRangeFilter,
                                       metadata.partitioner,
@@ -153,7 +151,6 @@ public final class SaiIndexReader
         }
         catch (Exception exception)
         {
-            resources.close();
             // No Data.db rows have been emitted yet, so every SAI failure can safely fail open to a normal scan.
             LOGGER.warn("Unable to use SAI for SSTable pruning, falling back to normal SSTable scan", exception);
             return Optional.empty();
@@ -294,6 +291,14 @@ public final class SaiIndexReader
         @Override
         public boolean usesStrictFiltering()
         {
+            // Analytics opens all (multiple, including required number replicas to satisfy
+            // consistency level) sstables containing records from Spark assigned token range.
+            // We should not experience issues of diverged replicas when evaluating "a AND b"
+            // expression (CASSANDRA-19018).
+            // INTERSECT(
+            //    UNION(all SSTable matches for condition "a"),
+            //    UNION(all SSTable matches for condition "b")
+            //)
             return true;
         }
 

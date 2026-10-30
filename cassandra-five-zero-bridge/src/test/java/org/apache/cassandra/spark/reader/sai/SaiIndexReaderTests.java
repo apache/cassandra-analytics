@@ -249,14 +249,10 @@ class SaiIndexReaderTests
         SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(
         TokenRange.closed(candidates.get(1).token, candidates.get(3).token));
 
-        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(0), keys.get(0), sparkRangeFilter))
-                   .isFalse();
-        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(1), keys.get(2), sparkRangeFilter))
-                   .isTrue();
-        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(4), keys.get(4), sparkRangeFilter))
-                   .isFalse();
-        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(0), keys.get(4), sparkRangeFilter))
-                   .isTrue();
+        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(0), keys.get(0), sparkRangeFilter)).isFalse();
+        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(1), keys.get(2), sparkRangeFilter)).isTrue();
+        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(4), keys.get(4), sparkRangeFilter)).isFalse();
+        assertThat(SaiIndexReader.overlapsSparkRange(keys.get(0), keys.get(4), sparkRangeFilter)).isTrue();
     }
 
     @Test
