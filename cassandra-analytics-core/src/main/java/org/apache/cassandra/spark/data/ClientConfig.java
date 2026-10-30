@@ -55,8 +55,8 @@ public class ClientConfig
     public static final String SNAPSHOT_NAME_KEY = "snapshotName";
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
-    // Sources token ranges from Cassandra for any keyspace, not only those with transient replicas
-    public static final String FORCE_CASSANDRA_TOKEN_RANGES_KEY = "forceCassandraTokenRanges";
+    // Derives token ranges locally instead of taking them from Cassandra. Ignored for keyspaces with transient replicas
+    public static final String DERIVE_TOKEN_RANGES_KEY = "deriveTokenRanges";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
     /**
      * Format of clearSnapshotStrategy is {strategy [snapshotTTLvalue]}, clearSnapshotStrategy holds both the strategy
@@ -103,7 +103,7 @@ public class ClientConfig
     protected String snapshotName;
     protected String datacenter;
     protected boolean createSnapshot;
-    protected boolean forceCassandraTokenRanges;
+    protected boolean deriveTokenRanges;
     protected boolean clearSnapshot;
     protected ClearSnapshotStrategy clearSnapshotStrategy;
     protected int defaultParallelism;
@@ -130,7 +130,7 @@ public class ClientConfig
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
-        this.forceCassandraTokenRanges = MapUtils.getBoolean(options, FORCE_CASSANDRA_TOKEN_RANGES_KEY, false);
+        this.deriveTokenRanges = MapUtils.getBoolean(options, DERIVE_TOKEN_RANGES_KEY, false);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
         String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
 
@@ -209,11 +209,13 @@ public class ClientConfig
     }
 
     /**
-     * @return {@code true} to source token ranges from Cassandra regardless of whether the keyspace has witnesses
+     * @return {@code true} to derive token ranges locally from node tokens and the replication factor, rather than
+     * taking them from Cassandra. The derivation assumes racks are not in use. Ignored for keyspaces with transient
+     * replicas, which always take their ranges from Cassandra.
      */
-    public boolean forceCassandraTokenRanges()
+    public boolean deriveTokenRanges()
     {
-        return forceCassandraTokenRanges;
+        return deriveTokenRanges;
     }
 
     public boolean createSnapshot()

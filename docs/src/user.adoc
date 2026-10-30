@@ -150,6 +150,13 @@ TTL value has to match pattern: `\d+(d\|h\|m\|s)`
 
 Example configurations: `OnCompletionOrTTL 2d`, `TTL 2d`, `NoOp`, `OnCompletion`.
 
+|_deriveTokenRanges_
+|no
+|`false`
+|By default, token ranges and their replicas are taken from Cassandra through Cassandra Sidecar, so reads follow
+Cassandra's rack-aware replica placement. When `true`, they are derived locally from node tokens and the replication
+factor instead, which assumes racks are not in use. Ignored for keyspaces with transient replicas
+
 |_bigNumberConfig_
 |no
 |

@@ -166,4 +166,22 @@ public interface SidecarCdcOptions extends KafkaOptions
     {
         return Duration.ofMillis(1000);
     }
+
+    /**
+     * @return true to derive which instances replicate a token range locally, from node tokens and the maximal
+     * replication factor, rather than taking it from Cassandra. The derivation assumes racks are not in use.
+     */
+    default boolean deriveTokenRanges()
+    {
+        return false;
+    }
+
+    /**
+     * @return how long the token range replicas taken from Cassandra are reused before they are fetched again.
+     * They are also fetched again whenever the cluster changes.
+     */
+    default Duration tokenRangeReplicasRefreshInterval()
+    {
+        return Duration.ofMinutes(5);
+    }
 }

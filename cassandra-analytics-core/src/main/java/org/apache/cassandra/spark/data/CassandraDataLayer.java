@@ -331,19 +331,25 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
-        // Keyspaces with transient replicas take their ranges from Cassandra; see createCassandraRingFromTokenRangeReplicas
+        // Token ranges come from Cassandra unless the caller opts out; see createCassandraRingFromTokenRangeReplicas.
+        // Keyspaces with transient replicas cannot opt out, as only Cassandra can say which replica is a witness.
         boolean hasWitnesses = replicationFactor.hasTransientReplicas();
-        CassandraRing ring;
-        if (hasWitnesses || options.forceCassandraTokenRanges())
+        if (hasWitnesses && options.deriveTokenRanges())
         {
-            LOGGER.info("Sourcing token ranges from Cassandra keyspace={} transientReplicas={} forced={}",
-                        keyspace, hasWitnesses, options.forceCassandraTokenRanges());
+            LOGGER.warn("Ignoring {} for keyspace={}, which has transient replicas",
+                        ClientConfig.DERIVE_TOKEN_RANGES_KEY, keyspace);
+        }
+        CassandraRing ring;
+        if (hasWitnesses || !options.deriveTokenRanges())
+        {
+            LOGGER.info("Sourcing token ranges from Cassandra keyspace={} transientReplicas={}", keyspace, hasWitnesses);
             TokenRangeReplicasResponse topology = sidecar.tokenRangeReplicas(new ArrayList<>(clusterConfig),
                                                                              maybeQuotedKeyspace).get();
             ring = createCassandraRingFromTokenRangeReplicas(partitioner, replicationFactor, ringFuture.get(), topology);
         }
         else
         {
+            LOGGER.info("Deriving token ranges locally keyspace={}", keyspace);
             ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
         }
 
@@ -804,9 +810,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * Builds the ring using the token ranges and replicas Cassandra reports, rather than deriving them from tokens and
      * the replication factor. There are two independent reasons to prefer Cassandra's: the local derivation assumes
      * racks are not in use, whereas Cassandra's replica assignment is rack aware, and for keyspaces with transient
-     * replicas the reader needs Cassandra's exact placement to tell which replica of a range is a witness. Only
-     * keyspaces with transient replicas use it by default, as they are guaranteed single-token, which this path
-     * requires.
+     * replicas the reader needs Cassandra's exact placement to tell which replica of a range is a witness.
+     * <p>
+     * A node owning several tokens (vnodes) is represented by a single {@link CassandraInstance}, carrying its lowest
+     * token: the reported ranges say which ranges it replicates, so the instance's token is only used to order
+     * instances.
      * <p>
      * Node discovery still comes from the ring response, so snapshot creation, sizing and the Sidecar client pool
      * are unaffected. Only the range to replica mapping is taken from Cassandra.
@@ -822,25 +830,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                                    RingResponse ring,
                                                                    TokenRangeReplicasResponse topology)
     {
-        List<CassandraInstance> instances = ring
-                                            .stream()
-                                            .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
-                                            .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
-                                            .collect(Collectors.toList());
+        validateTokenRangeReplicas(topology);
 
-        Map<String, CassandraInstance> instanceByNodeName = new HashMap<>(instances.size());
-        for (CassandraInstance instance : instances)
-        {
-            CassandraInstance previous = instanceByNodeName.put(instance.nodeName(), instance);
-            if (previous != null && !previous.equals(instance))
-            {
-                // A node owning several tokens cannot be represented as a single CassandraInstance. Cassandra
-                // rejects transient replicas when num_tokens > 1, so this is only reachable when the path is forced
-                throw new IllegalStateException(String.format(
-                "Node %s owns multiple tokens (%s and %s). Sourcing token ranges from Cassandra requires "
-                + "single-token nodes.", instance.nodeName(), previous.token(), instance.token()));
-            }
-        }
+        // The ring lists a node once per token; keep one instance per node, with its lowest token
+        Map<String, CassandraInstance> instanceByNodeName = new HashMap<>();
+        ring.stream()
+            .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
+            .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
+            .forEach(instance -> instanceByNodeName.merge(instance.nodeName(), instance, CassandraDataLayer::lowerToken));
+        List<CassandraInstance> instances = new ArrayList<>(instanceByNodeName.values());
 
         Map<Range<BigInteger>, List<CassandraInstance>> rangeReplicas = new HashMap<>();
         for (TokenRangeReplicasResponse.ReplicaInfo replicaInfo : topology.readReplicas())
@@ -893,6 +891,39 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Using token ranges reported by Cassandra keyspace={} numRanges={} numInstances={}",
                     keyspace, rangeReplicas.size(), instances.size());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances, rangeReplicas);
+    }
+
+    /**
+     * Fails with a clear message if the Sidecar's token range replicas response is missing what the reader needs,
+     * rather than with a NullPointerException part way through building the ring
+     */
+    @VisibleForTesting
+    static void validateTokenRangeReplicas(@Nullable TokenRangeReplicasResponse topology)
+    {
+        if (topology == null)
+        {
+            throw new IllegalStateException("Sidecar returned no token range replicas response");
+        }
+        if (topology.readReplicas() == null)
+        {
+            throw new IllegalStateException("Sidecar token range replicas response has no read replicas");
+        }
+        if (topology.replicaMetadata() == null)
+        {
+            throw new IllegalStateException("Sidecar token range replicas response has no replica metadata");
+        }
+        topology.replicaMetadata().forEach((replica, metadata) -> {
+            if (metadata == null || StringUtils.isBlank(metadata.fqdn()))
+            {
+                throw new IllegalStateException(String.format(
+                "Sidecar token range replicas response has no fqdn for replica %s", replica));
+            }
+        });
+    }
+
+    private static CassandraInstance lowerToken(CassandraInstance left, CassandraInstance right)
+    {
+        return new BigInteger(left.token()).compareTo(new BigInteger(right.token())) <= 0 ? left : right;
     }
 
     /**
