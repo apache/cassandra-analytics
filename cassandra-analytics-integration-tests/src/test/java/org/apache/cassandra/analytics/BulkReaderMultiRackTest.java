@@ -23,25 +23,17 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.IInstance;
-import org.apache.cassandra.distributed.api.NodeToolResult;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.spark.data.CassandraDataLayer;
-import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
@@ -73,7 +65,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
 {
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
-    private static final Pattern DESCRIBE_RING_RANGE = Pattern.compile("end_token:(-?\\d+), endpoints:\\[([^\\]]*)\\]");
 
     QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE);
 
@@ -111,15 +102,13 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testReadWithDerivedRangesOnMultiRackCluster()
     {
-        assertCompleteDataset(bulkReaderDataFrame(table).load());
+        assertCompleteDataset(bulkReaderDataFrame(table, Collections.singletonMap("derivetokenranges", "true")).load());
     }
 
     @Test
     void testReadWithCassandraSuppliedRangesOnMultiRackCluster()
     {
-        Dataset<Row> data = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
-                            .load();
-        assertCompleteDataset(data);
+        assertCompleteDataset(bulkReaderDataFrame(table).load());
     }
 
     /**
@@ -129,10 +118,9 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testBothTopologySourcesAgreeOnMultiRackCluster()
     {
-        List<String> derived = sortedNames(bulkReaderDataFrame(table).load());
-        List<String> supplied = sortedNames(bulkReaderDataFrame(table,
-                                                                Collections.singletonMap("forcecassandratokenranges", "true"))
-                                            .load());
+        List<String> derived = sortedNames(bulkReaderDataFrame(table, Collections.singletonMap("derivetokenranges", "true"))
+                                           .load());
+        List<String> supplied = sortedNames(bulkReaderDataFrame(table).load());
         assertThat(supplied)
         .describedAs("derived and Cassandra-supplied ranges must return the same rows on a rack-aware cluster")
         .isEqualTo(derived);
@@ -142,7 +130,7 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testReadAtLocalQuorumOnMultiRackCluster()
     {
-        Dataset<Row> data = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
+        Dataset<Row> data = bulkReaderDataFrame(table)
                             .option("consistencyLevel", "LOCAL_QUORUM")
                             .load();
         assertCompleteDataset(data);
@@ -156,10 +144,10 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testCassandraSuppliedReplicasMatchCassandra() throws UnknownHostException
     {
-        Map<BigInteger, Set<String>> cassandraPlacement = cassandraReplicasByRangeEnd();
+        Map<BigInteger, Set<String>> cassandraPlacement = cassandraReplicasByRangeEnd(table.keyspace());
         assertThat(cassandraPlacement).isNotEmpty();
-        CassandraRing supplied = readerRing(true);
-        CassandraRing derived = readerRing(false);
+        CassandraRing supplied = bulkReaderRing(table, false);
+        CassandraRing derived = bulkReaderRing(table, true);
 
         boolean derivedDiverges = false;
         for (Map.Entry<BigInteger, Set<String>> range : cassandraPlacement.entrySet())
@@ -175,53 +163,9 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
         .isTrue();
     }
 
-    /**
-     * Builds the ring a bulk read would use, without taking a snapshot
-     */
-    private CassandraRing readerRing(boolean forceCassandraTokenRanges)
-    {
-        getOrCreateSparkSession();
-        Map<String, String> options = new HashMap<>(mtlsTestHelper.mtlOptionMap());
-        options.put("sidecar_contact_points", SparkTestUtils.sidecarInstancesOptionStream(cluster, dnsResolver)
-                                                            .collect(Collectors.joining(",")));
-        options.put("sidecar_port", String.valueOf(server.actualPort()));
-        options.put("keyspace", table.keyspace());
-        options.put("table", table.table());
-        options.put("DC", "datacenter1");
-        options.put("snapshotName", UUID.randomUUID().toString());
-        options.put("createSnapshot", "false");
-        options.put("clearSnapshotStrategy", "noop");
-        options.put("forcecassandratokenranges", String.valueOf(forceCassandraTokenRanges));
-        CassandraDataLayer dataLayer = (CassandraDataLayer) CassandraDataSourceHelper.getDataLayer(options, CassandraDataLayer::initialize);
-        assertThat(dataLayer.ring().hasReportedRanges()).isEqualTo(forceCassandraTokenRanges);
-        return dataLayer.ring();
-    }
-
     private static Set<String> replicaNames(CassandraRing ring, BigInteger token)
     {
         return ring.getReplicas(token).stream().map(CassandraInstance::nodeName).collect(Collectors.toCollection(TreeSet::new));
-    }
-
-    /**
-     * Cassandra's own placement, from {@code nodetool describering}, keyed by the inclusive end of each range
-     */
-    private Map<BigInteger, Set<String>> cassandraReplicasByRangeEnd() throws UnknownHostException
-    {
-        NodeToolResult result = cluster.getFirstRunningInstance().nodetoolResult("describering", table.keyspace());
-        result.asserts().success();
-        Map<BigInteger, Set<String>> placement = new LinkedHashMap<>();
-        Matcher matcher = DESCRIBE_RING_RANGE.matcher(result.getStdout());
-        while (matcher.find())
-        {
-            Set<String> names = new TreeSet<>();
-            for (String endpoint : matcher.group(2).split(","))
-            {
-                String address = endpoint.trim().replaceFirst("^/", "").replaceFirst(":\\d+$", "");
-                names.add(dnsResolver.reverseResolve(address));
-            }
-            placement.put(new BigInteger(matcher.group(1)), names);
-        }
-        return placement;
     }
 
     private void assertCompleteDataset(Dataset<Row> data)
