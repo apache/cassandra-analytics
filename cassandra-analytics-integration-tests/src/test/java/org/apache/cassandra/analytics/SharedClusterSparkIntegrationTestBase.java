@@ -20,15 +20,23 @@
 package org.apache.cassandra.analytics;
 
 import java.io.IOException;
+import java.math.BigInteger;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -42,8 +50,12 @@ import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.distributed.api.IInstance;
+import org.apache.cassandra.distributed.api.NodeToolResult;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
+import org.apache.cassandra.spark.data.CassandraDataLayer;
+import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
+import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.DataFrameWriter;
@@ -359,5 +371,60 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     protected String maybeQuoteFieldName(StructField fields)
     {
         return getOrCreateBridge().maybeQuoteIdentifier(fields.name());
+    }
+
+    private static final Pattern DESCRIBE_RING_RANGE = Pattern.compile("end_token:(-?\\d+), endpoints:\\[([^\\]]*)\\]");
+
+    /**
+     * Builds the ring a bulk read of {@code table} would use, without taking a snapshot
+     *
+     * @param table             the table to read
+     * @param deriveTokenRanges whether to derive token ranges locally rather than take them from Cassandra
+     * @return the reader's ring for datacenter1
+     */
+    protected CassandraRing bulkReaderRing(QualifiedName table, boolean deriveTokenRanges)
+    {
+        getOrCreateSparkSession();
+        Map<String, String> options = new HashMap<>(mtlsTestHelper.mtlOptionMap());
+        options.put("sidecar_contact_points", SparkTestUtils.sidecarInstancesOptionStream(cluster, dnsResolver)
+                                                            .collect(Collectors.joining(",")));
+        options.put("sidecar_port", String.valueOf(server.actualPort()));
+        options.put("keyspace", table.keyspace());
+        options.put("table", table.table());
+        options.put("DC", "datacenter1");
+        options.put("snapshotName", UUID.randomUUID().toString());
+        options.put("createSnapshot", "false");
+        options.put("clearSnapshotStrategy", "noop");
+        options.put("derivetokenranges", String.valueOf(deriveTokenRanges));
+        CassandraDataLayer dataLayer = (CassandraDataLayer) CassandraDataSourceHelper.getDataLayer(options, CassandraDataLayer::initialize);
+        assertThat(dataLayer.ring().hasReportedRanges()).isEqualTo(!deriveTokenRanges);
+        return dataLayer.ring();
+    }
+
+    /**
+     * Cassandra's own placement for {@code keyspace}, from {@code nodetool describering}, keyed by the inclusive end
+     * of each range. Replicas are named as the reader names instances.
+     *
+     * @param keyspace the keyspace
+     * @return range end to the names of the range's replicas, in every datacenter
+     * @throws UnknownHostException if a replica address cannot be resolved
+     */
+    protected Map<BigInteger, Set<String>> cassandraReplicasByRangeEnd(String keyspace) throws UnknownHostException
+    {
+        NodeToolResult result = cluster.getFirstRunningInstance().nodetoolResult("describering", keyspace);
+        result.asserts().success();
+        Map<BigInteger, Set<String>> placement = new LinkedHashMap<>();
+        Matcher matcher = DESCRIBE_RING_RANGE.matcher(result.getStdout());
+        while (matcher.find())
+        {
+            Set<String> names = new TreeSet<>();
+            for (String endpoint : matcher.group(2).split(","))
+            {
+                String address = endpoint.trim().replaceFirst("^/", "").replaceFirst(":\\d+$", "");
+                names.add(dnsResolver.reverseResolve(address));
+            }
+            placement.put(new BigInteger(matcher.group(1)), names);
+        }
+        return placement;
     }
 }
