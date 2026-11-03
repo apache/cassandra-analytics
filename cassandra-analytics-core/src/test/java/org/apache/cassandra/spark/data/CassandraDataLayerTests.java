@@ -200,21 +200,31 @@ class CassandraDataLayerTests
     }
 
     @Test
-    void testRingFromTokenRangeReplicasRejectsMultiTokenNode()
+    void testRingFromTokenRangeReplicasSupportsMultiTokenNodes()
     {
         CassandraDataLayer layer = dataLayer(null);
-        // same fqdn twice with different tokens, i.e. vnodes
-        RingResponse ring = ringOf("n1", "0", "dc1", "n1", "100", "dc1");
+        // vnodes: each node appears in the ring once per token
+        RingResponse ring = ringOf("n1", "-100", "dc1", "n2", "0", "dc1", "n1", "100", "dc1", "n2", "200", "dc1");
 
-        List<ReplicaInfo> readReplicas = Collections.singletonList(
-        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
-                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.1:9042"))));
-        TokenRangeReplicasResponse topology = topologyOf(readReplicas, "1.1.1.1:9042", "n1");
+        List<ReplicaInfo> readReplicas = Arrays.asList(
+        new ReplicaInfo("-9223372036854775808", "-100", ImmutableMap.of("dc1", Collections.singletonList("1.1.1.1:9042"))),
+        new ReplicaInfo("-100", "0", ImmutableMap.of("dc1", Collections.singletonList("1.1.1.2:9042"))),
+        new ReplicaInfo("0", "100", ImmutableMap.of("dc1", Collections.singletonList("1.1.1.1:9042"))),
+        new ReplicaInfo("100", "9223372036854775807", ImmutableMap.of("dc1", Collections.singletonList("1.1.1.2:9042"))));
+        TokenRangeReplicasResponse topology = topologyOf(readReplicas, "1.1.1.1:9042", "n1", "1.1.1.2:9042", "n2");
 
-        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
-        Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(1), ring, topology))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("owns multiple tokens");
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(1), ring, topology);
+
+        // one instance per node, carrying its lowest token
+        assertThat(result.instances()).extracting(CassandraInstance::nodeName).containsExactly("n1", "n2");
+        assertThat(result.instances()).extracting(CassandraInstance::token).containsExactly("-100", "0");
+        // and each node replicates every range Cassandra reported for it
+        assertThat(replicaNames(result, -500L)).containsExactly("n1");
+        assertThat(replicaNames(result, -50L)).containsExactly("n2");
+        assertThat(replicaNames(result, 50L)).containsExactly("n1");
+        assertThat(replicaNames(result, 500L)).containsExactly("n2");
+        assertThat(result.tokenRanges().get(result.instances().iterator().next())).hasSize(2);
     }
 
     @Test
@@ -231,15 +241,40 @@ class CassandraDataLayerTests
     }
 
     @Test
-    void testForceCassandraTokenRangesDefaultsToFalse()
+    void testIncompleteTokenRangeReplicasResponsesAreRejected()
+    {
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.1:9042"))));
+
+        assertThatThrownBy(() -> CassandraDataLayer.validateTokenRangeReplicas(null))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no token range replicas response");
+        assertThatThrownBy(() -> CassandraDataLayer.validateTokenRangeReplicas(
+        new TokenRangeReplicasResponse(Collections.emptyList(), null, Collections.emptyMap())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no read replicas");
+        assertThatThrownBy(() -> CassandraDataLayer.validateTokenRangeReplicas(
+        new TokenRangeReplicasResponse(Collections.emptyList(), readReplicas, null)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no replica metadata");
+        assertThatThrownBy(() -> CassandraDataLayer.validateTokenRangeReplicas(
+        new TokenRangeReplicasResponse(Collections.emptyList(), readReplicas,
+                                       ImmutableMap.of("1.1.1.1:9042", new ReplicaMetadata("NORMAL", "UP", " ", "1.1.1.1", 9042, "dc1")))))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no fqdn for replica 1.1.1.1:9042");
+    }
+
+    @Test
+    void testDeriveTokenRangesDefaultsToFalse()
     {
         assertThat(ClientConfig.create(new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS))
-                               .forceCassandraTokenRanges()).isFalse();
+                               .deriveTokenRanges()).isFalse();
 
         // Spark lowercases option keys, and MapUtils looks them up lowercased, so this is how a user sets it
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
-        options.put("forcecassandratokenranges", "true");
-        assertThat(ClientConfig.create(options).forceCassandraTokenRanges()).isTrue();
+        options.put("derivetokenranges", "true");
+        assertThat(ClientConfig.create(options).deriveTokenRanges()).isTrue();
     }
 
     private static List<String> replicaNames(CassandraRing ring, long token)

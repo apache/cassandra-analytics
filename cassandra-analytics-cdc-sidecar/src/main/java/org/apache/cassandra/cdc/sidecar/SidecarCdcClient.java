@@ -21,6 +21,7 @@ package org.apache.cassandra.cdc.sidecar;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
@@ -143,6 +145,15 @@ public class SidecarCdcClient implements AutoCloseable
             }
             throw new RuntimeException(cause);
         });
+    }
+
+    public CompletableFuture<TokenRangeReplicasResponse> tokenRangeReplicas(Collection<CassandraInstance> instances,
+                                                                            String keyspace)
+    {
+        List<SidecarInstance> sidecarInstances = instances.stream()
+                                                          .map(this::toSidecarInstance)
+                                                          .collect(Collectors.toList());
+        return sidecarClient.tokenRangeReplicas(sidecarInstances, keyspace);
     }
 
     public void streamCdcCommitLogSegment(CassandraInstance instance, String segment, HttpRange httpRange, StreamConsumer streamConsumer)

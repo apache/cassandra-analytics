@@ -39,13 +39,9 @@ import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests bulk reads that source token ranges from Cassandra via the token-range-replicas endpoint, rather than
- * deriving them locally from tokens and the replication factor.
- * <p>
- * Keyspaces with transient replicas take that path automatically, because a range may be replicated to a witness
- * holding no data and the local derivation cannot say which instance replicates which range. Witness keyspaces
- * cannot yet be created in these tests, so they use the
- * {@code forcecassandratokenranges} option to exercise the same path against an ordinary keyspace.
+ * Tests bulk reads that source token ranges from Cassandra via the token-range-replicas endpoint, which is the
+ * default, and compares them with ranges derived locally from tokens and the replication factor, which the
+ * {@code derivetokenranges} option falls back to.
  * <p>
  * Reads must return exactly the same data either way, so each test asserts the full dataset rather than only a row
  * count - an incomplete read is the failure mode this path exists to prevent.
@@ -66,8 +62,7 @@ class BulkReaderCassandraTokenRangesTest extends SharedClusterSparkIntegrationTe
     @Test
     void testReadWithCassandraSuppliedTokenRanges()
     {
-        Dataset<Row> data = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
-                            .load();
+        Dataset<Row> data = bulkReaderDataFrame(table).load();
         assertCompleteDataset(data);
     }
 
@@ -78,9 +73,8 @@ class BulkReaderCassandraTokenRangesTest extends SharedClusterSparkIntegrationTe
     @Test
     void testCassandraSuppliedRangesMatchDerivedRanges()
     {
-        Dataset<Row> derived = bulkReaderDataFrame(table).load();
-        Dataset<Row> supplied = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
-                                .load();
+        Dataset<Row> derived = bulkReaderDataFrame(table, Collections.singletonMap("derivetokenranges", "true")).load();
+        Dataset<Row> supplied = bulkReaderDataFrame(table).load();
 
         assertCompleteDataset(derived);
         assertCompleteDataset(supplied);
@@ -92,7 +86,7 @@ class BulkReaderCassandraTokenRangesTest extends SharedClusterSparkIntegrationTe
     @Test
     void testReadWithCassandraSuppliedTokenRangesAtQuorum()
     {
-        Dataset<Row> data = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
+        Dataset<Row> data = bulkReaderDataFrame(table)
                             .option("consistencyLevel", "LOCAL_QUORUM")
                             .load();
         assertCompleteDataset(data);
@@ -105,7 +99,7 @@ class BulkReaderCassandraTokenRangesTest extends SharedClusterSparkIntegrationTe
     @Test
     void testPushDownFilterWithCassandraSuppliedTokenRanges()
     {
-        Dataset<Row> data = bulkReaderDataFrame(table, Collections.singletonMap("forcecassandratokenranges", "true"))
+        Dataset<Row> data = bulkReaderDataFrame(table)
                             .load()
                             .filter("id = 3");
 

@@ -140,8 +140,10 @@ public class SparkTestUtils
         options.put("numCores", String.valueOf(numCores));
         options.put("sizing", "default");
         options.put("sidecar_port", String.valueOf(sidecarPort));
-        // merge in additionalOptions; note that for options with the same name, the entries in additionalOptions are kept
+        // merge in additionalOptions; note that for options with the same name, the entries in additionalOptions are kept,
+        // and a null value removes the option
         options.putAll(additionalOptions);
+        options.values().removeIf(Objects::isNull);
 
         return sql.read().format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
                   .options(options)

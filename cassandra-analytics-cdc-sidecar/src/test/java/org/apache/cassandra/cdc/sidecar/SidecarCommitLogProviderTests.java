@@ -21,12 +21,14 @@ package org.apache.cassandra.cdc.sidecar;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -34,8 +36,13 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.junit.jupiter.api.Test;
 
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaInfo;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.CommitLog;
+import org.apache.cassandra.cdc.api.SchemaSupplier;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -44,7 +51,11 @@ import org.mockito.stubbing.Answer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SidecarCommitLogProviderTests
@@ -132,10 +143,244 @@ public class SidecarCommitLogProviderTests
         assertThat(instanceListCount.get(instance6)).isEqualTo(1);
     }
 
+    // Cassandra's rack-aware placement for DC1, which differs from the replicas derived from tokens: the range ending
+    // at 0 is replicated by local1, local3 and local5 rather than by the next three nodes in ring order
+    private static final List<ReplicaInfo> CASSANDRA_REPLICAS = Arrays.asList(
+    new ReplicaInfo("-9223372036854775808", "0", ImmutableMap.of("DC1", replicaKeys(1, 3, 5), "DC2", replicaKeys(7))),
+    new ReplicaInfo("0", "100", ImmutableMap.of("DC1", replicaKeys(2, 4, 6))),
+    new ReplicaInfo("100", "9223372036854775807", ImmutableMap.of("DC1", replicaKeys(1, 2, 3))));
+
+    @Test
+    public void testReplicasAreTakenFromCassandra()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        when(client.tokenRangeReplicas(any(), eq("ks"))).thenReturn(CompletableFuture.completedFuture(cassandraReplicas()));
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, SidecarCdcOptions.DEFAULT, new AtomicLong());
+
+        // the instances in DC2 are not read, as CDC runs in DC1
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local3", "local5");
+        // a token range spanning several ranges is read from the replicas of each
+        assertThat(listedInstances(provider, listed, "-50", "50"))
+        .containsExactlyInAnyOrder("local1", "local2", "local3", "local4", "local5", "local6");
+    }
+
+    @Test
+    public void testReplicasAreDerivedWhenCassandraCannotSupplyThem()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        CompletableFuture<TokenRangeReplicasResponse> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("Sidecar unavailable"));
+        when(client.tokenRangeReplicas(any(), eq("ks"))).thenReturn(failed);
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, SidecarCdcOptions.DEFAULT, new AtomicLong());
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local2", "local3");
+    }
+
+    @Test
+    public void testReplicasAreDerivedWhenAReplicaIsNotInTheCluster()
+    {
+        // local5 replicates the range ending at 0, but the cluster does not list it, so reading only the other
+        // replicas Cassandra reports could miss its mutations
+        Set<CassandraInstance> cluster = new HashSet<>(INSTANCES);
+        cluster.remove(INSTANCES.get(4));
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        when(client.tokenRangeReplicas(any(), eq("ks"))).thenReturn(CompletableFuture.completedFuture(cassandraReplicas()));
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, cluster, SidecarCdcOptions.DEFAULT, new AtomicLong());
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local2", "local3");
+    }
+
+    @Test
+    public void testAFailedFetchIsRetriedSooner()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        CompletableFuture<TokenRangeReplicasResponse> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("Sidecar unavailable"));
+        when(client.tokenRangeReplicas(any(), eq("ks")))
+        .thenReturn(failed)
+        .thenReturn(CompletableFuture.completedFuture(cassandraReplicas()));
+        AtomicLong nanoTime = new AtomicLong();
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, SidecarCdcOptions.DEFAULT, nanoTime);
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local2", "local3");
+        listedInstances(provider, listed, "-50", "-10");
+        verify(client, times(1)).tokenRangeReplicas(any(), eq("ks"));
+
+        // well before the refresh interval
+        nanoTime.addAndGet(SidecarCommitLogProvider.RETRY_INTERVAL.toNanos());
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local3", "local5");
+        verify(client, times(2)).tokenRangeReplicas(any(), eq("ks"));
+    }
+
+    @Test
+    public void testEmptyWriteReplicasFallBackToReadReplicas()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        TokenRangeReplicasResponse response = cassandraReplicas();
+        TokenRangeReplicasResponse readOnly = new TokenRangeReplicasResponse(Collections.emptyList(), response.writeReplicas(),
+                                                                             response.replicaMetadata());
+        when(client.tokenRangeReplicas(any(), eq("ks"))).thenReturn(CompletableFuture.completedFuture(readOnly));
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, SidecarCdcOptions.DEFAULT, new AtomicLong());
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local3", "local5");
+    }
+
+    @Test
+    public void testDeriveTokenRanges()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        SidecarCdcOptions options = new SidecarCdcOptions()
+        {
+            @Override
+            public boolean deriveTokenRanges()
+            {
+                return true;
+            }
+        };
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, options, new AtomicLong());
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local2", "local3");
+        verify(client, never()).tokenRangeReplicas(any(), any());
+    }
+
+    @Test
+    public void testReplicasAreRefreshedAfterTheIntervalOrWhenTheClusterChanges()
+    {
+        Set<CassandraInstance> cluster = new HashSet<>(INSTANCES);
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        when(client.tokenRangeReplicas(any(), eq("ks"))).thenReturn(CompletableFuture.completedFuture(cassandraReplicas()));
+        AtomicLong nanoTime = new AtomicLong();
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, cluster, SidecarCdcOptions.DEFAULT, nanoTime);
+
+        listedInstances(provider, listed, "-50", "-10");
+        listedInstances(provider, listed, "-50", "-10");
+        verify(client, times(1)).tokenRangeReplicas(any(), eq("ks"));
+
+        nanoTime.addAndGet(SidecarCdcOptions.DEFAULT.tokenRangeReplicasRefreshInterval().toNanos());
+        listedInstances(provider, listed, "-50", "-10");
+        verify(client, times(2)).tokenRangeReplicas(any(), eq("ks"));
+
+        cluster.remove(INSTANCES.get(11));
+        listedInstances(provider, listed, "-50", "-10");
+        verify(client, times(3)).tokenRangeReplicas(any(), eq("ks"));
+    }
+
+    @Test
+    public void testPreviousReplicasAreReusedWhenARefreshFails()
+    {
+        Set<String> listed = new HashSet<>();
+        SidecarCdcClient client = recordingClient(listed);
+        CompletableFuture<TokenRangeReplicasResponse> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("Sidecar unavailable"));
+        when(client.tokenRangeReplicas(any(), eq("ks")))
+        .thenReturn(CompletableFuture.completedFuture(cassandraReplicas()))
+        .thenReturn(failed);
+        AtomicLong nanoTime = new AtomicLong();
+        SidecarCommitLogProvider provider = cassandraReplicasProvider(client, SidecarCdcOptions.DEFAULT, nanoTime);
+
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local3", "local5");
+        nanoTime.addAndGet(SidecarCdcOptions.DEFAULT.tokenRangeReplicasRefreshInterval().toNanos());
+        assertThat(listedInstances(provider, listed, "-50", "-10")).containsExactlyInAnyOrder("local1", "local3", "local5");
+        verify(client, times(2)).tokenRangeReplicas(any(), eq("ks"));
+    }
+
+    private static Set<String> listedInstances(SidecarCommitLogProvider provider,
+                                               Set<String> listed,
+                                               String start,
+                                               String end)
+    {
+        listed.clear();
+        provider.logs(TokenRange.openClosed(new BigInteger(start), new BigInteger(end))).collect(Collectors.toList());
+        return new HashSet<>(listed);
+    }
+
+    private static SidecarCdcClient recordingClient(Set<String> listed)
+    {
+        SidecarCdcClient client = mock(SidecarCdcClient.class);
+        when(client.listCdcCommitLogSegments(any(CassandraInstance.class))).thenAnswer(invocation -> {
+            listed.add(invocation.getArgument(0, CassandraInstance.class).nodeName());
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        });
+        return client;
+    }
+
+    private static SidecarCommitLogProvider cassandraReplicasProvider(SidecarCdcClient client,
+                                                                      SidecarCdcOptions options,
+                                                                      AtomicLong nanoTime)
+    {
+        return cassandraReplicasProvider(client, new HashSet<>(INSTANCES), options, nanoTime);
+    }
+
+    private static SidecarCommitLogProvider cassandraReplicasProvider(SidecarCdcClient client,
+                                                                      Set<CassandraInstance> cluster,
+                                                                      SidecarCdcOptions options,
+                                                                      AtomicLong nanoTime)
+    {
+        CqlTable table = mock(CqlTable.class);
+        when(table.keyspace()).thenReturn("ks");
+        when(table.cdc()).thenReturn(true);
+        SchemaSupplier schemaSupplier = () -> CompletableFuture.completedFuture(Collections.singleton(table));
+        ClusterConfigProvider clusterConfigProvider = new ClusterConfigProvider()
+        {
+            @Override
+            public String dc()
+            {
+                return "DC1";
+            }
+
+            @Override
+            public Set<CassandraInstance> getCluster()
+            {
+                return new HashSet<>(cluster);
+            }
+
+            @Override
+            public Partitioner partitioner()
+            {
+                return Partitioner.Murmur3Partitioner;
+            }
+        };
+        return new SidecarCommitLogProvider(clusterConfigProvider, client, SidecarDownMonitor.STUB, replicationFactorSupplier(),
+                                            schemaSupplier, options, nanoTime::get);
+    }
+
+    private static TokenRangeReplicasResponse cassandraReplicas()
+    {
+        Map<String, ReplicaMetadata> metadata = new HashMap<>();
+        for (int node = 1; node <= INSTANCES.size(); node++)
+        {
+            String dc = node <= 6 ? "DC1" : "DC2";
+            metadata.put("10.0.0." + node + ":9042", new ReplicaMetadata("NORMAL", "UP", "local" + node, "10.0.0." + node, 9042, dc));
+        }
+        return new TokenRangeReplicasResponse(CASSANDRA_REPLICAS, Collections.emptyList(), metadata);
+    }
+
+    private static List<String> replicaKeys(int... nodes)
+    {
+        return Arrays.stream(nodes).mapToObj(node -> "10.0.0." + node + ":9042").collect(Collectors.toList());
+    }
+
     @NotNull
     private static SidecarCommitLogProvider getSidecarCommitLogProvider(ClusterConfigProvider clusterConfigProvider, SidecarCdcClient sidecarCdcClient)
     {
-        ReplicationFactorSupplier replicationFactorSupplier = new ReplicationFactorSupplier()
+        return new SidecarCommitLogProvider(
+        clusterConfigProvider,
+        sidecarCdcClient,
+        SidecarDownMonitor.STUB,
+        replicationFactorSupplier()
+        );
+    }
+
+    private static ReplicationFactorSupplier replicationFactorSupplier()
+    {
+        return new ReplicationFactorSupplier()
         {
             @Override
             public ReplicationFactor getReplicationFactor(String keyspace)
@@ -152,12 +397,6 @@ public class SidecarCommitLogProviderTests
                 return getReplicationFactor("ks");
             }
         };
-        return new SidecarCommitLogProvider(
-        clusterConfigProvider,
-        sidecarCdcClient,
-        SidecarDownMonitor.STUB,
-        replicationFactorSupplier
-        );
     }
 
     private static CommitLog mockCommitLog(CassandraInstance instance, long segmentId)
