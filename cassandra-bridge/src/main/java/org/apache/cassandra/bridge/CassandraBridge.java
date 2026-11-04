@@ -521,6 +521,22 @@ public abstract class CassandraBridge
     public abstract Tokenizer tokenizer(@NotNull Partitioner partitioner);
 
     /**
+     * @param table       CQL table built by {@link #buildSchema}
+     * @param partitioner Cassandra partitioner
+     * @return a {@link PartitionKeyEncoder} that serializes the partition keys of {@code table} in the same way
+     * as the {@link SSTableWriter} returned by {@link #getSSTableWriter}
+     */
+    public abstract PartitionKeyEncoder partitionKeyEncoder(@NotNull CqlTable table, @NotNull Partitioner partitioner);
+
+    /**
+     * @param table       CQL table built by {@link #buildSchema}
+     * @param partitioner Cassandra partitioner
+     * @return a {@link CanonicalValueConverter} for the column values of {@code table} that the {@link SSTableWriter}
+     * returned by {@link #getSSTableWriter} writes
+     */
+    public abstract CanonicalValueConverter canonicalValueConverter(@NotNull CqlTable table, @NotNull Partitioner partitioner);
+
+    /**
      * @param partitioner     Cassandra partitioner
      * @param keyspace        keyspace name
      * @param createTableStmt CQL create table statement

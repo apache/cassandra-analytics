@@ -37,7 +37,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -178,7 +177,6 @@ public final class TableSchemaTestCommon
                                           org.apache.spark.sql.types.DataType[] sparkTypes,
                                           CqlField.CqlType[] driverTypes,
                                           String[] partitionKeyColumns,
-                                          ColumnType<?>[] partitionKeyColumnTypes,
                                           String[] primaryKeyColumnNames)
     {
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> pair = buildMatchedDataframeAndCqlColumns(fieldNames, sparkTypes, driverTypes);
@@ -190,7 +188,6 @@ public final class TableSchemaTestCommon
                 .withPartitionKeyColumns(partitionKeyColumns)
                 .withPrimaryKeyColumnNames(primaryKeyColumnNames)
                 .withCassandraVersion(cassandraVersion)
-                .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(dataFrameSchema)
                 .build();
@@ -203,7 +200,6 @@ public final class TableSchemaTestCommon
         private String[] partitionKeyColumns;
         private String[] primaryKeyColumnNames;
         private String cassandraVersion;
-        private ColumnType[] partitionKeyColumnTypes;
         private StructType dataFrameSchema;
         private WriteMode writeMode = null;
         private TTLOption ttlOption = TTLOption.forever();
@@ -246,14 +242,6 @@ public final class TableSchemaTestCommon
             Preconditions.checkNotNull(cassandraVersion, "cassandraVersion cannot be null");
             Preconditions.checkArgument(!cassandraVersion.isEmpty(), "cassandraVersion cannot be an empty string");
             this.cassandraVersion = cassandraVersion;
-            return this;
-        }
-
-        public MockTableSchemaBuilder withPartitionKeyColumnTypes(@NotNull ColumnType<?>... partitionKeyColumnTypes)
-        {
-            Preconditions.checkNotNull(partitionKeyColumnTypes, "partitionKeyColumnTypes cannot be null");
-            Preconditions.checkArgument(partitionKeyColumnTypes.length > 0, "partitionKeyColumnTypes cannot be empty");
-            this.partitionKeyColumnTypes = Arrays.copyOf(partitionKeyColumnTypes, partitionKeyColumnTypes.length);
             return this;
         }
 
@@ -322,8 +310,6 @@ public final class TableSchemaTestCommon
                                    "primaryKeyColumnNames cannot be null. Please provide a list of columns by calling #withPrimaryKeyColumnNames");
             Objects.requireNonNull(cassandraVersion,
                                    "cassandraVersion cannot be null. Please provide a list of columns by calling #withCassandraVersion");
-            Objects.requireNonNull(partitionKeyColumnTypes,
-                                   "partitionKeyColumnTypes cannot be null. Please provide a list of columns by calling #withPartitionKeyColumnTypes");
             Objects.requireNonNull(writeMode,
                                    "writeMode cannot be null. Please provide the write mode by calling #withWriteMode");
             Objects.requireNonNull(dataFrameSchema,
@@ -348,7 +334,6 @@ public final class TableSchemaTestCommon
             MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
                                                                                 updatedCqlColumns,
                                                                                 partitionKeyColumns,
-                                                                                partitionKeyColumnTypes,
                                                                                 primaryKeyColumnNames,
                                                                                 cassandraVersion,
                                                                                 quoteIdentifiers,
@@ -371,7 +356,6 @@ public final class TableSchemaTestCommon
         private final CassandraBridge bridge;
         private final ImmutableMap<String, CqlField.CqlType> cqlColumns;
         private final String[] partitionKeyColumns;
-        private final ColumnType[] partitionKeyColumnTypes;
         private final String[] primaryKeyColumnNames;
         private final String uniqueTableName;
         Map<String, CqlField.CqlType> columns;
@@ -382,18 +366,16 @@ public final class TableSchemaTestCommon
         public MockTableInfoProvider(CassandraBridge bridge,
                                      ImmutableMap<String, CqlField.CqlType> cqlColumns,
                                      String[] partitionKeyColumns,
-                                     ColumnType[] partitionKeyColumnTypes,
                                      String[] primaryKeyColumnNames,
                                      String cassandraVersion,
                                      boolean quoteIdentifiers)
         {
-            this(bridge, cqlColumns, partitionKeyColumns, partitionKeyColumnTypes, primaryKeyColumnNames, cassandraVersion, quoteIdentifiers, false);
+            this(bridge, cqlColumns, partitionKeyColumns, primaryKeyColumnNames, cassandraVersion, quoteIdentifiers, false);
         }
 
         public MockTableInfoProvider(CassandraBridge bridge,
                                      ImmutableMap<String, CqlField.CqlType> cqlColumns,
                                      String[] partitionKeyColumns,
-                                     ColumnType[] partitionKeyColumnTypes,
                                      String[] primaryKeyColumnNames,
                                      String cassandraVersion,
                                      boolean quoteIdentifiers,
@@ -402,7 +384,6 @@ public final class TableSchemaTestCommon
             this.bridge = bridge;
             this.cqlColumns = cqlColumns;
             this.partitionKeyColumns = partitionKeyColumns;
-            this.partitionKeyColumnTypes = partitionKeyColumnTypes;
             this.primaryKeyColumnNames = primaryKeyColumnNames;
             columns = cqlColumns;
             this.cassandraVersion = cassandraVersion.replaceAll("(\\w+-)*cassandra-", "");
@@ -415,12 +396,6 @@ public final class TableSchemaTestCommon
         public CqlField.CqlType getColumnType(String columnName)
         {
             return columns.get(columnName);
-        }
-
-        @Override
-        public List<ColumnType<?>> getPartitionKeyTypes()
-        {
-            return Lists.newArrayList(partitionKeyColumnTypes);
         }
 
         @Override

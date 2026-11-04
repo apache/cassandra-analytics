@@ -32,8 +32,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
@@ -73,7 +71,6 @@ public class TableSchemaTest
 
     private final String[] partitionKeyColumns = {"id"};
     private final String[] primaryKeyColumnNames = {"id", "date"};
-    private final ColumnType<?>[] partitionKeyColumnTypes = {ColumnTypes.INT};
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
@@ -168,15 +165,6 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
         assertThat(schema.partitionKeyColumns).isEqualTo(Arrays.asList("id"));
-    }
-
-    @ParameterizedTest
-    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
-    public void testPartitionKeyColumnTypes(String cassandraVersion)
-    {
-        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
-                .build();
-        assertThat(schema.partitionKeyColumnTypes).isEqualTo(Arrays.asList(ColumnTypes.INT));
     }
 
     @ParameterizedTest
@@ -336,7 +324,6 @@ public class TableSchemaTest
                 .withPartitionKeyColumns(partitionKeyColumns)
                 .withPrimaryKeyColumnNames(primaryKeyColumnNames)
                 .withCassandraVersion(cassandraVersion)
-                .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(validDataFrameSchema);
     }

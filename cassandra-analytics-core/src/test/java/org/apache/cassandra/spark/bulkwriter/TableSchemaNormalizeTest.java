@@ -39,11 +39,6 @@ import com.google.common.net.InetAddresses;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.common.schema.ColumnTypes;
-import org.apache.cassandra.spark.common.schema.ListType;
-import org.apache.cassandra.spark.common.schema.MapType;
-import org.apache.cassandra.spark.common.schema.SetType;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -91,21 +86,21 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testAsciiNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "ascii", mockCqlType(ASCII), ColumnTypes.STRING, "ascii", "ascii", DataTypes.StringType);
+        assertNormalized(cassandraVersion, "ascii", mockCqlType(ASCII), "ascii", "ascii", DataTypes.StringType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testBigIntNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "bigint", mockCqlType(BIGINT), ColumnTypes.INT, 1, 1L, DataTypes.IntegerType);
+        assertNormalized(cassandraVersion, "bigint", mockCqlType(BIGINT), 1, 1L, DataTypes.IntegerType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testBlobNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "blob", mockCqlType(BLOB), ColumnTypes.BYTES,
+        assertNormalized(cassandraVersion, "blob", mockCqlType(BLOB),
                          new byte[]{1, 1, 1, 1}, ByteBuffer.wrap(new byte[]{1, 1, 1, 1}), DataTypes.BinaryType);
     }
 
@@ -113,14 +108,14 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testBooleanNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "boolean", mockCqlType(BOOLEAN), ColumnTypes.BOOLEAN, false, false, DataTypes.BooleanType);
+        assertNormalized(cassandraVersion, "boolean", mockCqlType(BOOLEAN), false, false, DataTypes.BooleanType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testDecimalNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "decimal", mockCqlType(DECIMAL), ColumnTypes.DOUBLE,
+        assertNormalized(cassandraVersion, "decimal", mockCqlType(DECIMAL),
                          BigDecimal.valueOf(1.1), BigDecimal.valueOf(1.1), DataTypes.createDecimalType());
     }
 
@@ -128,21 +123,21 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testDoubleNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "double", mockCqlType(DOUBLE), ColumnTypes.DOUBLE, 1.1, 1.1, DataTypes.DoubleType);
+        assertNormalized(cassandraVersion, "double", mockCqlType(DOUBLE), 1.1, 1.1, DataTypes.DoubleType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testFloatNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "float", mockCqlType(FLOAT), ColumnTypes.DOUBLE, 1.1f, 1.1f, DataTypes.FloatType);
+        assertNormalized(cassandraVersion, "float", mockCqlType(FLOAT), 1.1f, 1.1f, DataTypes.FloatType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testInetNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "inet", mockCqlType(INET), ColumnTypes.STRING,
+        assertNormalized(cassandraVersion, "inet", mockCqlType(INET),
                          "192.168.1.1", InetAddresses.forString("192.168.1.1"), DataTypes.StringType);
     }
 
@@ -150,21 +145,21 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testIntNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "int", mockCqlType(INT), ColumnTypes.INT, 1, 1, DataTypes.IntegerType);
+        assertNormalized(cassandraVersion, "int", mockCqlType(INT), 1, 1, DataTypes.IntegerType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testTextNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "text", mockCqlType(TEXT), ColumnTypes.BYTES, "text", "text", DataTypes.StringType);
+        assertNormalized(cassandraVersion, "text", mockCqlType(TEXT), "text", "text", DataTypes.StringType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testTimestampNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "timestamp", mockCqlType(TIMESTAMP), ColumnTypes.LONG,
+        assertNormalized(cassandraVersion, "timestamp", mockCqlType(TIMESTAMP),
                          new Date(1), new Date(1), DataTypes.DateType);
     }
 
@@ -172,7 +167,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testUuidNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "uuid", mockCqlType(UUID), ColumnTypes.UUID,
+        assertNormalized(cassandraVersion, "uuid", mockCqlType(UUID),
                          "382d3b34-22af-4b2a-97a3-ae7dbf9e6abe",
                          java.util.UUID.fromString("382d3b34-22af-4b2a-97a3-ae7dbf9e6abe"), DataTypes.StringType);
     }
@@ -181,7 +176,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testVarcharNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "varchar", mockCqlType(VARCHAR), ColumnTypes.STRING,
+        assertNormalized(cassandraVersion, "varchar", mockCqlType(VARCHAR),
                          "varchar", "varchar", DataTypes.StringType);
     }
 
@@ -189,7 +184,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testVarIntNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "varint", mockCqlType(VARINT), ColumnTypes.INT,
+        assertNormalized(cassandraVersion, "varint", mockCqlType(VARINT),
                          "1", BigInteger.valueOf(1), DataTypes.createDecimalType(38, 0));
     }
 
@@ -197,7 +192,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testTimeUuidNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "timeuuid", mockCqlType(TIMEUUID), ColumnTypes.UUID,
+        assertNormalized(cassandraVersion, "timeuuid", mockCqlType(TIMEUUID),
                          java.util.UUID.fromString("0846b690-ce35-11e7-8871-79b4d1aa8ef2"),
                          java.util.UUID.fromString("0846b690-ce35-11e7-8871-79b4d1aa8ef2"), DataTypes.StringType);
     }
@@ -211,7 +206,7 @@ public class TableSchemaNormalizeTest
         set.add("B");
         set.add("C");
 
-        assertNormalized(cassandraVersion, "set", mockSetCqlType(TEXT), new SetType<>(ColumnTypes.STRING),
+        assertNormalized(cassandraVersion, "set", mockSetCqlType(TEXT),
                          set, set, DataTypes.createArrayType(DataTypes.StringType));
     }
 
@@ -219,7 +214,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testListNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "list", mockListCqlType(INT), new ListType<>(ColumnTypes.INT),
+        assertNormalized(cassandraVersion, "list", mockListCqlType(INT),
                          Arrays.asList(1, 2, 3), Arrays.asList(1, 2, 3),
                          DataTypes.createArrayType(DataTypes.IntegerType));
     }
@@ -230,7 +225,7 @@ public class TableSchemaNormalizeTest
     {
         Map<String, String> map = Stream.of(new SimpleEntry<>("Foo", "Bar"))
                                         .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
-        assertNormalized(cassandraVersion, "map", mockMapCqlType(TEXT, TEXT), new MapType<>(ColumnTypes.STRING, ColumnTypes.STRING),
+        assertNormalized(cassandraVersion, "map", mockMapCqlType(TEXT, TEXT),
                          map, map, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType));
     }
 
@@ -238,21 +233,21 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testSmallIntNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "smallint", mockCqlType(SMALLINT), ColumnTypes.INT, (short) 2, (short) 2, DataTypes.ShortType);
+        assertNormalized(cassandraVersion, "smallint", mockCqlType(SMALLINT), (short) 2, (short) 2, DataTypes.ShortType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testTinyIntNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "tiny", mockCqlType(TINYINT), ColumnTypes.INT, (byte) 3, (byte) 3, DataTypes.ByteType);
+        assertNormalized(cassandraVersion, "tiny", mockCqlType(TINYINT), (byte) 3, (byte) 3, DataTypes.ByteType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testDateNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "date", mockCqlType(DATE), ColumnTypes.LONG, new Date(2), -2147483648, DataTypes.DateType);
+        assertNormalized(cassandraVersion, "date", mockCqlType(DATE), new Date(2), -2147483648, DataTypes.DateType);
     }
 
     @ParameterizedTest
@@ -260,14 +255,14 @@ public class TableSchemaNormalizeTest
     public void testTimeNormalizationFromTimestamp(String cassandraVersion)
     {
         Timestamp timestamp = new Timestamp(0, 0, 0, 0, 0, 0, 3);
-        assertNormalized(cassandraVersion, "time", mockCqlType(TIME), ColumnTypes.LONG, timestamp, 3L, DataTypes.TimestampType);
+        assertNormalized(cassandraVersion, "time", mockCqlType(TIME), timestamp, 3L, DataTypes.TimestampType);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testTimeNormalizationFromLong(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "time", mockCqlType(TIME), ColumnTypes.LONG,
+        assertNormalized(cassandraVersion, "time", mockCqlType(TIME),
                          7L, 7L, DataTypes.LongType);
     }
 
@@ -275,7 +270,7 @@ public class TableSchemaNormalizeTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testByteArrayListNormalization(String cassandraVersion)
     {
-        assertNormalized(cassandraVersion, "byte_array_list", mockListCqlType(BLOB), new ListType<>(ColumnTypes.BYTES),
+        assertNormalized(cassandraVersion, "byte_array_list", mockListCqlType(BLOB),
                          Arrays.asList(new byte[]{1}, new byte[]{2}, new byte[]{3}),
                          Arrays.asList(ByteBuffer.wrap(new byte[]{1}), ByteBuffer.wrap(new byte[]{2}), ByteBuffer.wrap(new byte[]{3})),
                          DataTypes.createArrayType(DataTypes.BinaryType));
@@ -292,7 +287,6 @@ public class TableSchemaNormalizeTest
         Map<String, ByteBuffer> expected = Stream.of(new SimpleEntry<>("Foo", ByteBuffer.wrap(bytes)))
                                                  .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
         assertNormalized(cassandraVersion, "mapWithBytes", mockMapCqlType(TEXT, BLOB),
-                         new MapType<>(ColumnTypes.STRING, ColumnTypes.STRING),
                          source, expected, DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType));
     }
 
@@ -305,7 +299,6 @@ public class TableSchemaNormalizeTest
         Set<byte[]> source = new HashSet<>(Arrays.asList(new byte[][]{bytes}));
         Set<ByteBuffer> expected = new HashSet<>(Collections.singletonList(ByteBuffer.wrap(bytes)));
         assertNormalized(cassandraVersion, "setWithBytes", mockSetCqlType(BLOB),
-                         new SetType<>(ColumnTypes.BYTES),
                          source, expected, DataTypes.createArrayType(DataTypes.BinaryType));
     }
 
@@ -330,7 +323,6 @@ public class TableSchemaNormalizeTest
         CqlField.CqlMap cqlType = mockMapCqlType(mockCqlType(TEXT),
                                                  mockCollectionCqlType(LIST, mockCollectionCqlType(SET, mockCqlType(BLOB))));
         assertNormalized(cassandraVersion, "byte_array_list", cqlType,
-                         new MapType<>(ColumnTypes.STRING, new ListType<>(ColumnTypes.BYTES)),
                          source, expected, DataTypes.createMapType(DataTypes.StringType,
                                                                    DataTypes.createArrayType(DataTypes.createArrayType(DataTypes.BinaryType))));
     }
@@ -351,22 +343,19 @@ public class TableSchemaNormalizeTest
 
         CqlField.CqlUdt cqlType = mockUdtCqlType("udt_field", "f1", INT, "f2", TEXT);
         assertNormalized(cassandraVersion, "udt_field", cqlType,
-                         new MapType<>(ColumnTypes.STRING, new ListType<>(ColumnTypes.BYTES)),
                          source, udtValue, structType);
     }
 
     private void assertNormalized(String cassandraVersion,
                                   String field,
                                   CqlField.CqlType cqlType,
-                                  ColumnType<?> columnType,
                                   Object sourceVal,
                                   Object expectedVal,
                                   org.apache.spark.sql.types.DataType sparkType)
     {
         org.apache.spark.sql.types.DataType[] sparkTypes = new org.apache.spark.sql.types.DataType[]{sparkType};
         String[] fieldNames = {field};
-        ColumnType<?>[] cqlTypes = {columnType};
-        TableSchema schema = buildSchema(cassandraVersion, fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, cqlTypes, fieldNames);
+        TableSchema schema = buildSchema(cassandraVersion, fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, fieldNames);
         BroadcastableTableSchema broadcastable = BroadcastableTableSchema.from(schema);
         Object[] source = new Object[]{sourceVal};
         Object[] expected = new Object[]{expectedVal};

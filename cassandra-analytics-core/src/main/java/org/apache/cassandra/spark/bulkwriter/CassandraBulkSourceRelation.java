@@ -49,7 +49,6 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
@@ -133,9 +132,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.startTimeNanos = System.nanoTime();
         maybeScheduleTimeout();
         maybeEnableTransportExtension();
-        BroadcastableTableSchema broadcastableTableSchema = broadcastConfig.value().getBroadcastableSchemaInfo().getBroadcastableTableSchema();
-        boolean isMurmur3Partitioner = writerContext.cluster().getPartitioner() == Partitioner.Murmur3Partitioner;
-        Tokenizer tokenizer = new Tokenizer(broadcastableTableSchema, isMurmur3Partitioner);
+        BroadcastableSchemaInfo broadcastableSchemaInfo = broadcastConfig.value().getBroadcastableSchemaInfo();
+        BroadcastableTableSchema broadcastableTableSchema = broadcastableSchemaInfo.getBroadcastableTableSchema();
+        Tokenizer tokenizer = new Tokenizer(broadcastableSchemaInfo,
+                                            writerContext.job().qualifiedTableName().keyspace(),
+                                            writerContext.cluster().getPartitioner());
         JavaPairRDD<DecoratedKey, Object[]> sortedRDD = data.toJavaRDD()
                                                             .map(Row::toSeq)
                                                             .map(seq -> JavaConverters.seqAsJavaListConverter(seq).asJava().toArray())

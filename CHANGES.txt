@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Analytics Writer should support all valid partition/clustering key types (CASSANALYTICS-35)
  * Preserve empty (non-null) tuple and UDT field values on read (CASSANALYTICS-209)
  * CDC Avro schemas and records fail for quoted CQL names that are invalid in Avro or mixed case (CASSANALYTICS-216)
  * Enable TLS for sidecar connections when Truststore is configured (CASSANALYTICS-220)

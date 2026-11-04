@@ -21,14 +21,11 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.List;
 
-import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 
 public interface TableInfoProvider
 {
     CqlField.CqlType getColumnType(String columnName);
-
-    List<ColumnType<?>> getPartitionKeyTypes();
 
     boolean columnExists(String columnName);
 

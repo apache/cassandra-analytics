@@ -25,7 +25,6 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -53,7 +52,6 @@ public final class BroadcastableTableSchema implements Serializable
     private final String createStatement;
     private final String modificationStatement;
     private final List<String> partitionKeyColumns;
-    private final List<ColumnType<?>> partitionKeyColumnTypes;
     private final List<SqlToCqlTypeConverter.Converter<?>> converters;
     private final List<Integer> keyFieldPositions;
     private final WriteMode writeMode;
@@ -75,7 +73,6 @@ public final class BroadcastableTableSchema implements Serializable
             source.createStatement,
             source.modificationStatement,
             source.partitionKeyColumns,
-            source.partitionKeyColumnTypes,
             source.converters,
             source.keyFieldPositions,
             source.writeMode,
@@ -89,7 +86,6 @@ public final class BroadcastableTableSchema implements Serializable
     private BroadcastableTableSchema(String createStatement,
                                      String modificationStatement,
                                      List<String> partitionKeyColumns,
-                                     List<ColumnType<?>> partitionKeyColumnTypes,
                                      List<SqlToCqlTypeConverter.Converter<?>> converters,
                                      List<Integer> keyFieldPositions,
                                      WriteMode writeMode,
@@ -101,7 +97,6 @@ public final class BroadcastableTableSchema implements Serializable
         this.createStatement = createStatement;
         this.modificationStatement = modificationStatement;
         this.partitionKeyColumns = partitionKeyColumns;
-        this.partitionKeyColumnTypes = partitionKeyColumnTypes;
         this.converters = converters;
         this.keyFieldPositions = keyFieldPositions;
         this.writeMode = writeMode;
@@ -124,11 +119,6 @@ public final class BroadcastableTableSchema implements Serializable
     public List<String> getPartitionKeyColumns()
     {
         return partitionKeyColumns;
-    }
-
-    public List<ColumnType<?>> getPartitionKeyColumnTypes()
-    {
-        return partitionKeyColumnTypes;
     }
 
     public List<SqlToCqlTypeConverter.Converter<?>> getConverters()

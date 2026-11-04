@@ -23,9 +23,11 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -48,6 +50,7 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.cassandra.spark.utils.UUIDs;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.unsafe.types.CalendarInterval;
 import scala.Tuple2;
 
@@ -365,6 +368,18 @@ public final class SqlToCqlTypeConverter implements Serializable
             {
                 return InetAddresses.forString((String) object);
             }
+            else if (object instanceof byte[])
+            {
+                // The bulk reader returns inet values as the bytes of the address
+                try
+                {
+                    return InetAddress.getByAddress((byte[]) object);
+                }
+                catch (UnknownHostException exception)
+                {
+                    throw new RuntimeException("Unsupported conversion for INET from " + ((byte[]) object).length + " bytes", exception);
+                }
+            }
             else
             {
                 throw new RuntimeException("Unsupported conversion for INET from " + object.getClass().getTypeName());
@@ -427,16 +442,37 @@ public final class SqlToCqlTypeConverter implements Serializable
             {
                 return BigInteger.valueOf((Integer) object);
             }
+            // The bulk reader returns varint values as Spark decimals with a scale of zero
+            else if (object instanceof BigDecimal)
+            {
+                return toBigIntegerExact((BigDecimal) object);
+            }
+            else if (object instanceof scala.math.BigDecimal)
+            {
+                return toBigIntegerExact(((scala.math.BigDecimal) object).bigDecimal());
+            }
             else
             {
-                throw new RuntimeException("Unsupported conversion for VARCHAR from " + object.getClass().getTypeName());
+                throw new RuntimeException("Unsupported conversion for VARINT from " + object.getClass().getTypeName());
+            }
+        }
+
+        private static BigInteger toBigIntegerExact(BigDecimal decimal)
+        {
+            try
+            {
+                return decimal.toBigIntegerExact();
+            }
+            catch (ArithmeticException exception)
+            {
+                throw new RuntimeException("Unsupported conversion for VARINT from decimal with a fractional part " + decimal, exception);
             }
         }
 
         @Override
         public String toString()
         {
-            return "VarChar";
+            return "VarInt";
         }
     }
 
@@ -526,7 +562,19 @@ public final class SqlToCqlTypeConverter implements Serializable
         @Override
         public Integer convertInternal(Object object)
         {
-            if (object instanceof Date)
+            if (object instanceof java.sql.Date)
+            {
+                // Spark passes dates as a java.sql.Date at midnight in the time zone of the JVM, in the hybrid
+                // Julian and Gregorian calendar. Spark's inverse conversion gives back the proleptic Gregorian day,
+                // which is the day Cassandra stores, for any time zone and for dates before the common era.
+                return fromDaysSinceEpoch(DateTimeUtils.fromJavaDate((java.sql.Date) object));
+            }
+            else if (object instanceof LocalDate)
+            {
+                // Spark passes dates as LocalDate when spark.sql.datetime.java8API.enabled is set
+                return fromDaysSinceEpoch(Math.toIntExact(((LocalDate) object).toEpochDay()));
+            }
+            else if (object instanceof Date)
             {
                 return fromDate((Date) object);
             }
@@ -544,6 +592,14 @@ public final class SqlToCqlTypeConverter implements Serializable
         {
             long millisSinceEpoch = value.getTime();
             return fromMillisSinceEpoch(millisSinceEpoch);
+        }
+
+        protected int fromDaysSinceEpoch(int daysSinceEpoch)
+        {
+            // Same encoding as fromMillisSinceEpoch
+            int result = daysSinceEpoch;
+            result -= Integer.MIN_VALUE;
+            return result;
         }
 
         protected int fromMillisSinceEpoch(long millisSinceEpoch)

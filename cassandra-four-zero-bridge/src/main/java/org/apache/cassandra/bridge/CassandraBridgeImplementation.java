@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import org.apache.cassandra.analytics.reader.common.IndexIterator;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.cql3.functions.UDHelper;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
@@ -324,6 +326,28 @@ public class CassandraBridgeImplementation extends CassandraBridge
             DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
             return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
         };
+    }
+
+    @Override
+    public PartitionKeyEncoder partitionKeyEncoder(@NotNull CqlTable table, @NotNull Partitioner partitioner)
+    {
+        // Take the metadata from the schema update that registers this definition of the table, rather than
+        // reading it back from the schema, where another thread may have registered a different definition since
+        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
+        return new PartitionKeyEncoderImplementation(metadata);
+    }
+
+    @Override
+    public CanonicalValueConverter canonicalValueConverter(@NotNull CqlTable table, @NotNull Partitioner partitioner)
+    {
+        // As for the partition key encoder, take the metadata from the schema update that registers this table
+        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
+        Map<String, AbstractType<?>> columnTypes = new HashMap<>();
+        metadata.columns().forEach(column -> columnTypes.put(column.name.toString(), column.type));
+        // The codecs that CQLSSTableWriter uses
+        return new CanonicalValueConverterImplementation(columnTypes,
+                                                         type -> UDHelper.codecFor(UDHelper.driverType(type)),
+                                                         CollectionElementSorter.INSTANCE);
     }
 
     @Override

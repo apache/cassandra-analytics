@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,7 @@ import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
 import org.apache.cassandra.utils.FilterDbUtils;
 import org.apache.cassandra.utils.IFilter;
+import org.apache.cassandra.utils.JavaDriverUtils;
 import org.apache.cassandra.utils.TimeUUID;
 import org.apache.cassandra.utils.TokenUtils;
 import org.jetbrains.annotations.NotNull;
@@ -327,6 +329,28 @@ public class CassandraBridgeImplementation extends CassandraBridge
             DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
             return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
         };
+    }
+
+    @Override
+    public PartitionKeyEncoder partitionKeyEncoder(@NotNull CqlTable table, @NotNull Partitioner partitioner)
+    {
+        // Take the metadata from the schema update that registers this definition of the table, rather than
+        // reading it back from the schema, where another thread may have registered a different definition since
+        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
+        return new PartitionKeyEncoderImplementation(metadata);
+    }
+
+    @Override
+    public CanonicalValueConverter canonicalValueConverter(@NotNull CqlTable table, @NotNull Partitioner partitioner)
+    {
+        // As for the partition key encoder, take the metadata from the schema update that registers this table
+        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
+        Map<String, AbstractType<?>> columnTypes = new HashMap<>();
+        metadata.columns().forEach(column -> columnTypes.put(column.name.toString(), column.type));
+        // The codecs that CQLSSTableWriter uses
+        return new CanonicalValueConverterImplementation(columnTypes,
+                                                         type -> JavaDriverUtils.codecFor(JavaDriverUtils.driverType(type)),
+                                                         VectorAwareCollectionElementSorter.VECTOR_AWARE_INSTANCE);
     }
 
     @Override

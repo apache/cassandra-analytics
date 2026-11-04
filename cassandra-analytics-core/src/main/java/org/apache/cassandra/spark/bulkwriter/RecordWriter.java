@@ -23,17 +23,14 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,8 +49,6 @@ import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailu
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
-import org.apache.cassandra.spark.data.BridgeUdtValue;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -76,12 +71,11 @@ public class RecordWriter
     private final BulkWriteValidator writeValidator;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
     private final Supplier<TaskContext> taskContextSupplier;
-    private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
     private final Map<String, Future<StreamResult>> streamFutures;
     private final ExecutorService executorService;
     private final Path baseDir;
 
-    private final CqlTable cqlTable;
+    private final CqlWriterValueConverter valueConverter;
     private StreamSession<?> streamSession = null;
 
     /**
@@ -116,12 +110,13 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-        cqlTable = writerContext.bridge()
-                                .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                             writerContext.job().qualifiedTableName().keyspace(),
-                                             IGNORED_REPLICATION_FACTOR,
-                                             writerContext.cluster().getPartitioner(),
-                                             writerContext.schema().getUserDefinedTypeStatements());
+        CqlTable cqlTable = writerContext.bridge()
+                                         .buildSchema(writerContext.schema().getTableSchema().createStatement,
+                                                      writerContext.job().qualifiedTableName().keyspace(),
+                                                      IGNORED_REPLICATION_FACTOR,
+                                                      writerContext.cluster().getPartitioner(),
+                                                      writerContext.schema().getUserDefinedTypeStatements());
+        valueConverter = new CqlWriterValueConverter(cqlTable, writerContext.bridge(), writerContext.cluster().getPartitioner());
     }
 
     /**
@@ -383,128 +378,10 @@ public class RecordWriter
 
         for (int i = 0; i < columnNames.length; i++)
         {
-            String columnName = columnNames[i];
-            Object columnValue = values[i];
-
-            // convert all BridgeUDTValue types in the column to UDTValue
-            if (cqlTable.containsUdt(columnName))
-            {
-                columnValue = maybeConvertUdt(columnValue);
-            }
-
-            // Convert tuples to TupleValue for CQLSSTableWriter
-            // - Direct tuple columns: Object[] -&gt; TupleValue
-            // - Collections with tuples: List<Object[]> -&gt; List<TupleValue> (via collection's convertForCqlWriter)
-            CqlField field = cqlTable.getField(columnName);
-            if (field != null && columnValue != null)
-            {
-                CqlField.CqlType fieldType = field.type();
-
-                // Check if this is a direct tuple
-                if (CqlTable.isTupleType(fieldType))
-                {
-                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) CqlTable.unwrapIfFrozen(fieldType);
-                    columnValue = cqlTuple.convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
-                }
-                // Check if this is a collection that contains tuples
-                else if (CqlTable.containsTuples(fieldType))
-                {
-                    CqlField.CqlType collectionType = CqlTable.unwrapIfFrozen(fieldType);
-                    if (collectionType instanceof CqlField.CqlCollection)
-                    {
-                        columnValue = ((CqlField.CqlCollection) collectionType).convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
-                    }
-                }
-            }
-
-            map.put(columnName, columnValue);
+            map.put(columnNames[i], valueConverter.convert(columnNames[i], values[i]));
         }
 
         return map;
-    }
-
-    /**
-     * A column can have UDTs somewhere nested inside collections/UDTs. All occurrences of BridgeUdtValue need to be
-     * recursively converted to UDTValue to be able to write to CQL.
-     * @param value column value
-     * @return column value after converting all occurrences of BridgeUdtValue to UDTValue
-     */
-    private Object maybeConvertUdt(Object value)
-    {
-        if (value instanceof List && !((List<?>) value).isEmpty())
-        {
-            List<Object> resultList = new ArrayList<>();
-            for (Object entry : (List<?>) value)
-            {
-                resultList.add(maybeConvertUdt(entry));
-            }
-
-            return resultList;
-        }
-
-        // Tuples come here as Object[]
-        if (value instanceof Object[])
-        {
-            Object[] valueArray = (Object[]) value;
-            Object[] resultArray = new Object[valueArray.length];
-            for (int i = 0; i < valueArray.length; i++)
-            {
-                resultArray[i] = maybeConvertUdt(valueArray[i]);
-            }
-
-            return resultArray;
-        }
-
-        if (value instanceof Set && !((Set<?>) value).isEmpty())
-        {
-            Set<Object> resultSet = new HashSet<>();
-            for (Object entry : (Set<?>) value)
-            {
-                resultSet.add(maybeConvertUdt(entry));
-            }
-
-            return resultSet;
-        }
-
-        if (value instanceof Map && !((Map<?, ?>) value).isEmpty())
-        {
-            Map<Object, Object> resultMap = new HashMap<>();
-            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
-            {
-                resultMap.put(maybeConvertUdt(entry.getKey()), maybeConvertUdt(entry.getValue()));
-            }
-
-            return resultMap;
-        }
-
-        if (value instanceof BridgeUdtValue)
-        {
-            BridgeUdtValue udtValue = (BridgeUdtValue) value;
-            // Depth-first replacement of BridgeUdtValue instances to their appropriate Cql types
-            for (Map.Entry<String, Object> entry : udtValue.udtMap.entrySet())
-            {
-                // udt can have complex types like nested udt, list, set or map with embedded UDTs in them
-                // convert each entry recursively until we see basic datatype
-                udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
-            }
-            return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion(), false);
-        }
-
-        return value;
-    }
-
-    private synchronized CqlField.CqlType getUdt(String udtName)
-    {
-        return udtCache.computeIfAbsent(udtName, name -> {
-            for (CqlField.CqlUdt udt1 : cqlTable.udts())
-            {
-                if (udt1.cqlName().equals(name))
-                {
-                    return udt1;
-                }
-            }
-            throw new IllegalArgumentException("Could not find udt with name " + name);
-        });
     }
 
     /**
