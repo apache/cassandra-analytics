@@ -28,11 +28,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.Range;
+
+import org.junit.jupiter.api.AfterAll;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -41,6 +47,7 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.api.Row;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
+import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.sidecar.common.server.JmxClient;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
@@ -48,11 +55,13 @@ import org.apache.cassandra.spark.bulkwriter.Tokenizer;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.TestTokenSupplier;
+import org.apache.cassandra.testing.utils.WithProperties;
 import scala.Tuple2;
 
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * Base class for resiliency tests. Contains helper methods for data generation and validation
@@ -61,35 +70,91 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
 {
     public static final String QUERY_ALL_ROWS = "SELECT * FROM %s";
 
+    private final WithProperties topologyChangeProperties = new WithProperties();
+
     /**
-     * Skips the test class when the version under test declares none of the internals that the ByteBuddy hooks of a
-     * topology-change test intercept: {@code StorageService.bootstrap(Collection, long)},
-     * {@code StorageService.unbootstrap()} and {@code RangeRelocator.stream()}. CEP-21 Transactional Cluster Metadata
-     * removed all three in Cassandra 6.0, in favour of {@code org.apache.cassandra.tcm.sequences}. A hook that fails
-     * to install is silent, so the test would instead wait on a latch that never counts down.
-     *
-     * <p>CASSANALYTICS-112 tracks the port of these hooks to {@code BootstrapAndJoin.bootstrap},
-     * {@code UnbootstrapStreams.execute} and {@code Move.executeNext}, and the decision on the tests that move
-     * several nodes at once, which Transactional Cluster Metadata no longer permits.</p>
-     *
-     * <p>Call this from {@link #beforeClusterProvisioning()}, which runs before the cluster starts.</p>
+     * Legacy scenarios that need multiple nodes to remain in transition at once.
      */
-    protected void assumeTopologyChangeHooksSupported()
+    protected boolean requiresConcurrentTopologyChanges()
     {
-        String version = testVersion.version();
-        CassandraVersion underTest = CassandraVersion.fromVersion(version)
-                                                     .orElseThrow(() -> new IllegalStateException(
-                                                     "Unsupported Cassandra version for topology-change tests: " + version));
-        boolean supported = underTest.versionNumber() < CassandraVersion.SIXZERO.versionNumber();
-        if (!supported)
+        return false;
+    }
+
+    @Override
+    protected void beforeClusterProvisioning()
+    {
+        super.beforeClusterProvisioning();
+        if (requiresConcurrentTopologyChanges())
         {
-            // An aborted @BeforeAll produces no test event, so Gradle reports nothing
-            logger.warn("Skipping {}: a topology-change test intercepts Cassandra internals that CEP-21 removed "
-                        + "in 6.0, and the test version is {}", getClass().getSimpleName(), version);
+            assumeFalse(usesTcm(), "Concurrent topology scenarios require Cassandra older than 6.0");
+            // Preserve the permissive configuration used by the legacy concurrent scenarios.
+            topologyChangeProperties.with("cassandra.consistent.rangemovement", "false",
+                                          "cassandra.consistent.simultaneousmoves.allow", "true",
+                                          "cassandra.allow_alter_rf_during_range_movement", "true");
         }
-        assumeTrue(supported,
-                   "A topology-change test intercepts Cassandra internals that CEP-21 removed in 6.0, "
-                   + "but the test version is " + version);
+    }
+
+    @Override
+    @AfterAll
+    protected void tearDown() throws Exception
+    {
+        try
+        {
+            super.tearDown();
+        }
+        finally
+        {
+            topologyChangeProperties.close();
+        }
+    }
+
+    protected boolean usesTcm()
+    {
+        return CassandraVersion.fromVersion(testVersion.version())
+                               .orElseThrow(() -> new IllegalStateException("Unsupported Cassandra version: " + testVersion))
+                               .versionNumber() >= CassandraVersion.SIXZERO.versionNumber();
+    }
+
+    protected void prepareTopologyChange()
+    {
+        if (usesTcm())
+        {
+            // Keep a metadata quorum when a test stops or replaces a node.
+            cluster.get(1).nodetoolResult("cms", "reconfigure", "3").asserts().success();
+        }
+    }
+
+    protected static TokenSupplier disjointMultiDcTokens()
+    {
+        TokenSupplier tokens = TestTokenSupplier.evenlyDistributedTokens(6, 0, 2, 1);
+        // Match Sidecar CASSSIDECAR-277's swap(5, 10), whose indices are zero-based.
+        // Nodes 11 and 12 can then join or leave concurrently without overlapping range locks.
+        return node -> tokens.tokens(node == 6 ? 11 : node == 11 ? 6 : node);
+    }
+
+    protected static <T> T awaitTopologyChange(Future<T> task, boolean failureExpected)
+    {
+        try
+        {
+            return task.get(2, TimeUnit.MINUTES);
+        }
+        catch (ExecutionException exception)
+        {
+            if (!failureExpected)
+            {
+                throw new AssertionError("Topology change failed", exception.getCause());
+            }
+            return null;
+        }
+        catch (InterruptedException exception)
+        {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted waiting for topology change", exception);
+        }
+        catch (TimeoutException exception)
+        {
+            throw new AssertionError("Topology change did not finish", exception);
+        }
     }
 
     public Set<String> getDataForRange(Range<BigInteger> range, int rowCount)

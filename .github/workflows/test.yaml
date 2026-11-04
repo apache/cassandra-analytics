@@ -76,11 +76,17 @@ jobs:
         with:
           path: ${{ github.workspace }}
           key: build-jdk11-${{ github.sha }}
+      - name: Upload dtest jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtest-jars-jdk11
+          path: dependencies/dtest-*.jar
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
-  # JDK17 dependency build for the Spark 4 / Scala 2.13 / Cassandra 5.0 matrix.
-  # Produces a distinct workspace cache (build-jdk17-...) so downstream test jobs
-  # must restore from exactly one of build-jdk11 / build-jdk17 — mixing them
-  # would clobber dependency jars.
+  # JDK17 dependency build for the Spark 4 / Scala 2.13 / Cassandra 5.0 and 6.0 matrix.
+  # Test jobs download the dtest jars built with their selected JDK.
   build-jdk17:
     name: Compile and build (JDK 17)
     runs-on: ubuntu-latest
@@ -117,7 +123,7 @@ jobs:
           export SCALA_VERSION="2.13"
           # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
           # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
-          export BRANCHES="cassandra-5.0"
+          export BRANCHES="cassandra-5.0 cassandra-6.0"
 
           ./scripts/build-dependencies.sh
 
@@ -133,10 +139,18 @@ jobs:
         with:
           path: ${{ github.workspace }}
           key: build-jdk17-${{ github.sha }}
+      - name: Upload dtest jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtest-jars-jdk17
+          path: dependencies/dtest-*.jar
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
 
   unit-test:
     name: Unit test - Scala ${{ matrix.scala }} ${{ matrix.sstable-format }} C${{ matrix.cassandra }} Spark${{ matrix.spark }} JDK${{ matrix.jdk }}
-    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
@@ -165,6 +179,7 @@ jobs:
             spark: '4'
       fail-fast: false
     steps:
+      - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -182,12 +197,11 @@ jobs:
         with:
           path: ~/.m2
           key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
-      - name: Cache workspace
-        id: cache-build-restore
-        uses: actions/cache/restore@v4
+      - name: Download dtest jars
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ github.workspace }}
-          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
+          name: dtest-jars-jdk${{ matrix.jdk }}
+          path: dependencies
       - run: |
           export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"
@@ -212,21 +226,26 @@ jobs:
 
   integration-test:
     name: Integration test - ${{ matrix.config }} (${{ matrix.job_index }})
-    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
     strategy:
-      # GitHub Actions generate a cross-product of 'config' × 'job_index' (4 × 5 = 20 jobs).
+      # GitHub Actions generate a cross-product of 'config' × 'job_index' (6 × 5 = 30 jobs).
       # The 'include' entries don't add new combinations — they augment existing ones
       # by matching on 'config' and injecting 'scala', 'cassandra', 'jdk', and 'spark'
       # into each match. To add a new version: add one entry to 'config' and one to
       # 'include'.
       matrix:
-        config: ['s2.13-c5.0.7', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c5.0.7-spark4']
+        config: ['s2.13-c6.0a2', 's2.13-c5.0.7', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c6.0a2-spark4', 's2.13-c5.0.7-spark4']
         job_index: [0, 1, 2, 3, 4]
         job_total: [5]
         include:
+          - config: 's2.13-c6.0a2'
+            scala: '2.13'
+            cassandra: '6.0-alpha2'
+            jdk: '11'
+            spark: '3'
           - config: 's2.13-c5.0.7'
             scala: '2.13'
             cassandra: '5.0.7'
@@ -242,6 +261,11 @@ jobs:
             cassandra: '4.0.17'
             jdk: '11'
             spark: '3'
+          - config: 's2.13-c6.0a2-spark4'
+            scala: '2.13'
+            cassandra: '6.0-alpha2'
+            jdk: '17'
+            spark: '4'
           - config: 's2.13-c5.0.7-spark4'
             scala: '2.13'
             cassandra: '5.0.7'
@@ -249,6 +273,7 @@ jobs:
             spark: '4'
       fail-fast: false
     steps:
+      - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -266,12 +291,11 @@ jobs:
         with:
           path: ~/.m2
           key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
-      - name: Cache workspace
-        id: cache-build-restore
-        uses: actions/cache/restore@v4
+      - name: Download dtest jars
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ github.workspace }}
-          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
+          name: dtest-jars-jdk${{ matrix.jdk }}
+          path: dependencies
       - run: |
           export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"

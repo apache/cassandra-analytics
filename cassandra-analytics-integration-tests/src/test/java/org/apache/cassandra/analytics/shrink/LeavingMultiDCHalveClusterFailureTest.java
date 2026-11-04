@@ -20,6 +20,7 @@ package org.apache.cassandra.analytics.shrink;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,6 +50,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LeavingMultiDCHalveClusterFailureTest extends LeavingTestBase
 {
+    @Override
+    protected boolean requiresConcurrentTopologyChanges()
+    {
+        return true;
+    }
+
     static final int LEAVING_NODES_PER_DC = 3;
 
     @ParameterizedTest(name = "{index} => {0}")
@@ -76,7 +83,7 @@ class LeavingMultiDCHalveClusterFailureTest extends LeavingTestBase
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperHalveClusterMultiDCFailure.transitionalStateEnd, multiDCTestInputs());
+        completeTransitionsAndValidateWrites(BBHelperHalveClusterMultiDCFailure.transitionalStateEnd, multiDCTestInputs(), true);
 
         // For tests that involve LEAVE failures, we validate that the leaving nodes are part of the cluster
         // check leave node are part of cluster when leave fails
@@ -136,7 +143,7 @@ class LeavingMultiDCHalveClusterFailureTest extends LeavingTestBase
             transitionalStateStart.countDown();
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateStart, 4, TimeUnit.MINUTES);
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 2, TimeUnit.MINUTES);
-            throw new UnsupportedOperationException("Simulated failure");
+            throw new ExecutionException(new UnsupportedOperationException("Simulated leave failure"));
         }
     }
 }

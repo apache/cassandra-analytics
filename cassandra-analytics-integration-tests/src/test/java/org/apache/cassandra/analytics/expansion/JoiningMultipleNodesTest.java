@@ -44,6 +44,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 class JoiningMultipleNodesTest extends JoiningSingleNodeTest
 {
     @Override
+    protected boolean requiresConcurrentTopologyChanges()
+    {
+        return true;
+    }
+
+    @Override
     protected void beforeClusterShutdown()
     {
         completeTransitionsAndValidateWrites(BBHelperMultipleJoiningNodes.transitioningStateEnd,

@@ -18,25 +18,15 @@
 
 package org.apache.cassandra.analytics.expansion;
 
-import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.util.concurrent.Uninterruptibles;
-
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.TypeResolutionStrategy;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
-import net.bytebuddy.pool.TypePool;
+import org.apache.cassandra.analytics.TestUninterruptibles;
+import org.apache.cassandra.analytics.TopologyChangeBBUtils;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 /**
  * Integration tests to validate bulk writes during a Cassandra instance join operation, where the
@@ -78,26 +68,16 @@ class JoiningSingleNodeFailureTest extends JoiningSingleNodeTest
             // We intercept the bootstrap of the leaving node (4) to validate token ranges
             if (nodeNumber == 4)
             {
-                TypePool typePool = TypePool.Default.of(cl);
-                TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
-                                                      .resolve();
-                new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
-                               .method(named("bootstrap").and(takesArguments(2)))
-                               .intercept(MethodDelegation.to(BBHelperSingleJoiningNodeFailure.class))
-                               // Defer class loading until all dependencies are loaded
-                               .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
-                               .load(cl, ClassLoadingStrategy.Default.INJECTION);
+                TopologyChangeBBUtils.installBootstrap(cl, BBHelperSingleJoiningNodeFailure.class);
             }
         }
 
-        public static boolean bootstrap(Collection<?> tokens,
-                                        long bootstrapTimeoutMillis,
-                                        @SuperCall Callable<Boolean> orig) throws Exception
+        public static boolean bootstrap(@SuperCall Callable<Boolean> orig) throws Exception
         {
-            boolean result = orig.call();
+            orig.call();
             // trigger bootstrap start and wait until bootstrap is ready from test
             transitioningStateStart.countDown();
-            Uninterruptibles.awaitUninterruptibly(transitioningStateEnd, 2, TimeUnit.MINUTES);
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
             throw new UnsupportedOperationException("Simulated failure");
         }
     }

@@ -185,36 +185,40 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         AbstractType<?> cqlType = columnCqlType.isReversed() ? ((ReversedType<?>) columnCqlType).baseType : columnCqlType;
 
         Schema result;
-        // If it's a collection
+        // If it's a collection. List and set elements use the collection's namespace: a collection has a single element
+        // type, and Avro names cannot contain the CQL type (which is kept in the cqlType property instead).
         if (cqlType instanceof ListType)
         {
-            String collectionNamespace = namespace + '.' + cqlType.asCQL3Type().toString();
             result = SchemaBuilder.array()
-                                  .items(schemaFrom(((ListType<?>) cqlType).getElementsType(), collectionNamespace));
+                                  .items(schemaFrom(((ListType<?>) cqlType).getElementsType(), namespace));
         }
         else if (cqlType instanceof SetType)
         {
-            String collectionNamespace = namespace + '.' + cqlType.asCQL3Type().toString();
             result = SchemaBuilder.array()
-                                  .items(schemaFrom(((SetType<?>) cqlType).getElementsType(), collectionNamespace));
+                                  .items(schemaFrom(((SetType<?>) cqlType).getElementsType(), namespace));
             AvroSchemas.flagArrayAsSet(result);
         }
         else if (cqlType instanceof MapType)
         {
             String arrayBasedMapName = AvroConstants.ARRAY_BASED_MAP_NAME;
             String childNamespace = namespace + '.' + arrayBasedMapName;
+            MapType<?, ?> cqlMap = (MapType<?, ?>) cqlType;
+            // Map entry records nested in both the key and the value are namespaced by key and value so they do not
+            // share a full name. Other maps keep their namespace, so their existing schemas do not change.
+            boolean bothContainMaps = containsMap(cqlMap.getKeysType()) && containsMap(cqlMap.getValuesType());
+            String keyNamespace = bothContainMaps ? childNamespace + '.' + ARRAY_BASED_MAP_KEY_NAME : childNamespace;
+            String valueNamespace = bothContainMaps ? childNamespace + '.' + ARRAY_BASED_MAP_VALUE_NAME : childNamespace;
             // create a new avro schema, array of records, to simulate a map.
             SchemaBuilder.FieldAssembler<Schema> keyValue = SchemaBuilder.builder()
                                                                          .record(arrayBasedMapName)
                                                                          .namespace(childNamespace)
                                                                          .fields();
-            MapType<?, ?> cqlMap = (MapType<?, ?>) cqlType;
             // map keys and values are not nullable
             keyValue.name(ARRAY_BASED_MAP_KEY_NAME)
-                    .type(schemaFrom(cqlMap.getKeysType(), childNamespace))
+                    .type(schemaFrom(cqlMap.getKeysType(), keyNamespace))
                     .noDefault();
             keyValue.name(ARRAY_BASED_MAP_VALUE_NAME)
-                    .type(schemaFrom(cqlMap.getValuesType(), childNamespace))
+                    .type(schemaFrom(cqlMap.getValuesType(), valueNamespace))
                     .noDefault();
             result = SchemaBuilder.builder()
                                   .array()
@@ -223,25 +227,28 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         }
         else if (cqlType instanceof UserType)
         {
+            // A UDT record is named <keyspace>.<udt> wherever the UDT is used, so Avro defines it once in the schema
+            // and references it by name elsewhere. Records nested in its fields are namespaced by the UDT, not by its
+            // position; the record_udt segment keeps them apart from the records of a table named like the UDT.
             UserType userType = (UserType) cqlType;
-            String recordBasedUdt = AvroConstants.RECORD_BASED_UDT_NAME;
-            String childNamespace = namespace + '.' + recordBasedUdt;
-            Schema[] ar = userType.fieldTypes().stream().map(udtType -> schemaFrom(udtType, childNamespace)).toArray(Schema[]::new);
-
-            // create a new avro schema, a single record, to represent the udt.
+            String udtName = userType.getNameAsString();
+            String fieldNamespace = userType.keyspace + '.' + udtName + '.' + AvroConstants.RECORD_BASED_UDT_NAME;
             SchemaBuilder.FieldAssembler<Schema> udtValue = SchemaBuilder.builder()
-                                                                         .record(recordBasedUdt)
-                                                                         .namespace(childNamespace)
+                                                                         .record(udtName)
+                                                                         .namespace(userType.keyspace)
                                                                          .fields();
-
-            for (int i = 0; i < ar.length; i++)
+            for (int i = 0; i < userType.size(); i++)
             {
-                udtValue.name(userType.fieldNameAsString(i))
-                        .type(ar[i])
+                String fieldName = userType.fieldNameAsString(i);
+                udtValue.name(fieldName)
+                        .type(schemaFrom(userType.fieldType(i), fieldNamespace + '.' + fieldName))
                         .noDefault();
             }
             result = udtValue.endRecord();
             AvroSchemas.flagAsUdt(result);
+            // the record is shared by all uses of the UDT, so properties that depend on the use (frozen, reversed) are not set
+            AvroSchemas.flagCqlType(result, udtName);
+            return result;
         }
         else
         {
@@ -259,6 +266,26 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         }
 
         return result;
+    }
+
+    /**
+     * @return whether the type is a map, or a list or set of maps (maps nested in UDTs are namespaced by the UDT)
+     */
+    private static boolean containsMap(AbstractType<?> cqlType)
+    {
+        if (cqlType instanceof MapType)
+        {
+            return true;
+        }
+        if (cqlType instanceof ListType)
+        {
+            return containsMap(((ListType<?>) cqlType).getElementsType());
+        }
+        if (cqlType instanceof SetType)
+        {
+            return containsMap(((SetType<?>) cqlType).getElementsType());
+        }
+        return false;
     }
 
     /**

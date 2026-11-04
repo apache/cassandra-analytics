@@ -21,22 +21,14 @@ package org.apache.cassandra.analytics.movement;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.util.concurrent.Uninterruptibles;
-
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.TypeResolutionStrategy;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
-import net.bytebuddy.pool.TypePool;
+import org.apache.cassandra.analytics.TestUninterruptibles;
+import org.apache.cassandra.analytics.TopologyChangeBBUtils;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 /**
  * Integration tests to verify bulk writes when a Cassandra's node range is moved in a multi-DC cluster, and the
@@ -77,24 +69,17 @@ class NodeMovementMultiDCFailureTest extends NodeMovementMultiDCTest
             // Moving the 5th node in the test case
             if (nodeNumber == MULTI_DC_MOVING_NODE_IDX)
             {
-                TypePool typePool = TypePool.Default.of(cl);
-                TypeDescription description = typePool.describe("org.apache.cassandra.service.RangeRelocator")
-                                                      .resolve();
-                new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
-                               .method(named("stream"))
-                               .intercept(MethodDelegation.to(BBHelperMultiDCMovingNodeFailure.class))
-                               // Defer class loading until all dependencies are loaded
-                               .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
-                               .load(cl, ClassLoadingStrategy.Default.INJECTION);
+                TopologyChangeBBUtils.installMoving(cl, BBHelperMultiDCMovingNodeFailure.class);
             }
         }
 
         @SuppressWarnings("unused")
-        public static Future<?> stream(@SuperCall Callable<Future<?>> orig) throws Exception
+        @RuntimeType
+        public static Object stream(@SuperCall Callable<?> orig) throws Exception
         {
-            Future<?> res = orig.call();
+            orig.call();
             transitioningStateStart.countDown();
-            Uninterruptibles.awaitUninterruptibly(transitioningStateEnd, 2, TimeUnit.MINUTES);
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
 
             throw new IOException("Simulated node movement failure"); // Throws exception to nodetool
         }

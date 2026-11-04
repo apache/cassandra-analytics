@@ -590,7 +590,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             builder.withType(statement);
         }
 
-        try (CQLSSTableWriter ssTable = builder.build())
+        try (CQLSSTableWriter ssTable = SchemaUpdater.withKeyspaceInstances(builder::build))
         {
             writer.accept(values -> {
                 try
@@ -695,13 +695,13 @@ public class CassandraBridgeImplementation extends CassandraBridge
         // Cassandra 6.0 CQLSSTableWriter takes any modification statement, a DELETE included, and writes the
         // range tombstones of a slice delete through the same DeleteStatement.createSlices path the earlier
         // bridges need SSTableTombstoneWriter for
-        try (CQLSSTableWriter writer = CQLSSTableWriter.builder()
-                                                       .inDirectory(directory.toFile().getAbsolutePath())
-                                                       .forTable(createStatement)
-                                                       .withPartitioner(getPartitioner(partitioner))
-                                                       .using(deleteStatement)
-                                                       .withBufferSizeInMB(128)
-                                                       .build())
+        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder()
+                                                         .inDirectory(directory.toFile().getAbsolutePath())
+                                                         .forTable(createStatement)
+                                                         .withPartitioner(getPartitioner(partitioner))
+                                                         .using(deleteStatement)
+                                                         .withBufferSizeInMB(128);
+        try (CQLSSTableWriter writer = SchemaUpdater.withKeyspaceInstances(builder::build))
         {
             consumer.accept(values -> {
                 try
