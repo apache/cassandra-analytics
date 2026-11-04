@@ -18,6 +18,11 @@
 
 package org.apache.cassandra.sidecar.client;
 
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 /**
  * Unit tests for the {@link SidecarInstanceImpl} class
  */
@@ -27,5 +32,40 @@ class SidecarInstanceImplTest extends SidecarInstanceTest
     protected SidecarInstance newInstance(String hostname, int port)
     {
         return new SidecarInstanceImpl(hostname, port);
+    }
+
+    @Test
+    void testInstanceIdDefaultsToNull()
+    {
+        assertThat(new SidecarInstanceImpl("localhost", 8080).instanceId()).isNull();
+    }
+
+    @Test
+    void testInstanceIdIsRetained()
+    {
+        assertThat(new SidecarInstanceImpl("localhost", 8080, 2).instanceId()).isEqualTo(2);
+        assertThat(new SidecarInstanceImpl("localhost", 8080, 0).instanceId()).isEqualTo(0);
+    }
+
+    @Test
+    void testNegativeInstanceIdRejected()
+    {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+        .isThrownBy(() -> new SidecarInstanceImpl("localhost", 8080, -1))
+        .withMessageContaining("Invalid instanceId for the Sidecar service: -1");
+    }
+
+    @Test
+    void testEqualityDistinguishesInstanceId()
+    {
+        SidecarInstance a = new SidecarInstanceImpl("localhost", 8080, 1);
+        SidecarInstance b = new SidecarInstanceImpl("localhost", 8080, 2);
+        SidecarInstance c = new SidecarInstanceImpl("localhost", 8080, 1);
+        SidecarInstance noId = new SidecarInstanceImpl("localhost", 8080);
+
+        assertThat(a).isEqualTo(c);
+        assertThat(a).hasSameHashCodeAs(c);
+        assertThat(a).isNotEqualTo(b);
+        assertThat(a).isNotEqualTo(noId);
     }
 }

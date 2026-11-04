@@ -159,4 +159,5 @@ class HttpClientConfigTest
         HttpClientConfig config = new HttpClientConfig.Builder<>().cassandraRole("custom_role").build();
         assertThat(config.cassandraRole()).isEqualTo("custom_role");
     }
+
 }
