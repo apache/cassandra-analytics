@@ -150,4 +150,89 @@ class SaiIndexReaderEndToEndTests
         assertThat(SaiIndexReader.findCandidateTokens(metadata, Collections.singleton(withoutSai),
                                                       Collections.singletonList(filter), null, 100)).isEmpty();
     }
+
+    @Test
+    void testIncompleteSaiBuildFallsBacToAllSSTables(@TempDir Path directory) throws Exception
+    {
+        String keyspace = "sai_reader_" + UUID.randomUUID().toString().replace("-", "");
+        String table = keyspace + ".indexed_rows";
+        String indexName = "value_idx";
+        String createTable = "CREATE TABLE " + table + " (id int PRIMARY KEY, value int)";
+        String insert = "INSERT INTO " + table + " (id, value) VALUES (?, ?)";
+        String createIndex = "CREATE INDEX " + indexName + " ON " + table + " (value) USING 'sai'";
+
+        // Create two real SSTables with matching rows. A partially built index on either SSTable
+        // must disable pruning for the entire read. Otherwise, one of the rows could be omitted.
+        for (int id : Arrays.asList(1, 2))
+        {
+            try (CQLSSTableWriter writer = CQLSSTableWriter.builder()
+                                                           .inDirectory(directory.toString())
+                                                           .forTable(createTable)
+                                                           .using(insert)
+                                                           .withIndexes(createIndex)
+                                                           .withFormat(BIG_FORMAT)
+                                                           .withPartitioner(Murmur3Partitioner.instance)
+                                                           .build())
+            {
+                writer.addRow(id, 7);
+            }
+        }
+        TableMetadata metadata = Schema.instance.getTableMetadata(keyspace, "indexed_rows");
+        assertThat(metadata).isNotNull();
+        assertThat(Keyspace.openWithoutSSTables(keyspace).getColumnFamilyStore("indexed_rows")).isNotNull();
+        SaiFilter filter = new SaiFilter(new SaiIndex(indexName, "value", false, Collections.emptyMap()),
+                                         SaiFilter.Operator.EQ,
+                                         Int32Type.instance.decompose(7).array());
+        Set<SSTable> sstables;
+        try (Stream<Path> paths = Files.list(directory))
+        {
+            sstables = paths.filter(path -> path.getFileName().toString().endsWith("-Data.db"))
+                            .map(path -> (SSTable) new FileSystemSSTable(path, false, () -> BufferingInputStreamStats.doNothingStats()))
+                            .collect(Collectors.toSet());
+        }
+        assertThat(sstables).hasSize(2);
+        assertThat(sstables).allSatisfy(sstable -> assertThat(sstable.saiComponentNames()).isNotEmpty());
+
+        CandidateTokens indexed = SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                                     Collections.singletonList(filter), null, 100)
+                                                 .orElseThrow();
+        assertThat(indexed.size()).isEqualTo(2);
+        for (int id : Arrays.asList(1, 2))
+        {
+            Token token = Murmur3Partitioner.instance.decorateKey(Int32Type.instance.decompose(id)).getToken();
+            assertThat(indexed.contains(TokenUtils.tokenToBigInteger(token))).isTrue();
+        }
+
+        // Hide one completion marker at a time to model an index build in progress. Components
+        // belonging to the other SSTable are still valid and should not be used partially.
+        for (String suffix : Arrays.asList("ColumnComplete.db", "GroupComplete.db"))
+        {
+            List<Path> markers;
+            try (Stream<Path> paths = Files.list(directory))
+            {
+                markers = paths.filter(path -> path.getFileName().toString().endsWith("+" + suffix))
+                               .collect(Collectors.toList());
+            }
+            assertThat(markers).hasSize(2);
+            Path marker = markers.get(0);
+            Path incomplete = marker.resolveSibling(marker.getFileName().toString() + ".incomplete");
+            Files.move(marker, incomplete);
+            try
+            {
+                // Optional.empty() tells the bulk reader to scan all SSTables rather than
+                // returning an incomplete set of candidates from the one indexed SSTable.
+                assertThat(SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                              Collections.singletonList(filter), null, 100)).isEmpty();
+            }
+            finally
+            {
+                Files.move(incomplete, marker);
+            }
+
+            // Once the marker is restored, filtering is available again.
+            assertThat(SaiIndexReader.findCandidateTokens(metadata, sstables,
+                                                          Collections.singletonList(filter), null, 100)
+                                     .orElseThrow().size()).isEqualTo(2);
+        }
+    }
 }
