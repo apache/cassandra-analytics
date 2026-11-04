@@ -138,6 +138,57 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         this.allNodeSettingFutures = null;
     }
 
+    /**
+     * Creates a {@link CassandraClusterInfo} for a single cluster, selecting the concrete type based on the
+     * {@link BulkSparkConf#sidecarBehindLoadBalancer} flag.
+     *
+     * @param conf bulk write conf
+     * @return {@link LoadBalancedCassandraClusterInfo} when Sidecar is behind a load balancer, otherwise a plain
+     *         {@link CassandraClusterInfo}
+     */
+    public static CassandraClusterInfo create(BulkSparkConf conf)
+    {
+        return create(conf, null);
+    }
+
+    /**
+     * Creates a {@link CassandraClusterInfo}, selecting the concrete type based on the
+     * {@link BulkSparkConf#sidecarBehindLoadBalancer} flag. Kept centralized so the driver-side factory and the
+     * executor-side broadcast reconstruction stay in lockstep, for both single-cluster and coordinated writes.
+     *
+     * @param conf bulk write conf
+     * @param clusterId cluster identifier, or {@code null} for a single (non-coordinated) cluster
+     * @return {@link LoadBalancedCassandraClusterInfo} when Sidecar is behind a load balancer, otherwise a plain
+     *         {@link CassandraClusterInfo}
+     */
+    public static CassandraClusterInfo create(BulkSparkConf conf, String clusterId)
+    {
+        if (conf.sidecarBehindLoadBalancer)
+        {
+            LOGGER.info("Using LoadBalancedCassandraClusterInfo for load-balanced Sidecar. clusterId={}", clusterId);
+            return new LoadBalancedCassandraClusterInfo(conf, clusterId);
+        }
+        return new CassandraClusterInfo(conf, clusterId);
+    }
+
+    /**
+     * Reconstructs a {@link CassandraClusterInfo} on an executor from broadcast, selecting the concrete type based on
+     * the {@link BulkSparkConf#sidecarBehindLoadBalancer} flag so it matches the driver-side selection in
+     * {@link #create(BulkSparkConf, String)}.
+     *
+     * @param broadcastable the broadcastable cluster info from broadcast
+     * @return {@link LoadBalancedCassandraClusterInfo} when Sidecar is behind a load balancer, otherwise a plain
+     *         {@link CassandraClusterInfo}
+     */
+    public static CassandraClusterInfo create(BroadcastableClusterInfo broadcastable)
+    {
+        if (broadcastable.getConf().sidecarBehindLoadBalancer)
+        {
+            return new LoadBalancedCassandraClusterInfo(broadcastable);
+        }
+        return new CassandraClusterInfo(broadcastable);
+    }
+
     @Override
     public void checkBulkWriterIsEnabledOrThrow()
     {
@@ -246,16 +297,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         TimeSkewResponse timeSkew;
         try
         {
-            TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
-            List<SidecarInstance> instances = topology.getSubRanges(range)
-                                                      .asMapOfRanges()
-                                                      .values()
-                                                      .stream()
-                                                      .flatMap(Collection::stream)
-                                                      .distinct() // remove duplications
-                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
-                                                      .collect(Collectors.toList());
-            timeSkew = getCassandraContext().getSidecarClient().timeSkew(instances).get();
+            timeSkew = fetchTimeSkew(range).get();
         }
         catch (InterruptedException | ExecutionException exception)
         {
@@ -268,6 +310,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             throw new TimeSkewTooLargeException(timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
         }
+    }
+
+    /**
+     * Fetches time-skew information from Sidecar. The default implementation queries the replicas
+     * that own {@code range}. Subclasses may override to target a different endpoint set — for
+     * example, coordinated writes route through shared contact points when replica FQDNs are not
+     * reachable from Spark executors.
+     */
+    protected CompletableFuture<TimeSkewResponse> fetchTimeSkew(Range<BigInteger> range)
+    {
+        TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
+        List<SidecarInstance> instances = topology.getSubRanges(range)
+                                                  .asMapOfRanges()
+                                                  .values()
+                                                  .stream()
+                                                  .flatMap(Collection::stream)
+                                                  .distinct() // remove duplications
+                                                  .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
+                                                  .collect(Collectors.toList());
+        return getCassandraContext().getSidecarClient().timeSkew(instances);
     }
 
     @Override

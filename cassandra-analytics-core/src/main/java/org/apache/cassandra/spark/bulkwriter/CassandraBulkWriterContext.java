@@ -59,7 +59,7 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     @Override
     protected ClusterInfo buildClusterInfo()
     {
-        return new CassandraClusterInfo(bulkSparkConf());
+        return CassandraClusterInfo.create(bulkSparkConf());
     }
 
     @Override
