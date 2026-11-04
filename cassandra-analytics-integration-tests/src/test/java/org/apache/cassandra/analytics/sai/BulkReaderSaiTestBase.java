@@ -39,6 +39,7 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestUtils;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
@@ -144,9 +145,7 @@ public abstract class BulkReaderSaiTestBase extends SharedClusterSparkIntegratio
     {
         if (fullScanBytes < 0)
         {
-            List<Row> allRows = bulkReaderDataFrame(testTable(), Map.of("saiFilteringEnabled", "false"))
-                                .load()
-                                .collectAsList();
+            List<Row> allRows = findMatches(testTable(), false, null);
             assertThat(allRows).hasSize(expectedRowCount());
 
             fullScanBytes = TEST_STATS.readBytes();
@@ -155,6 +154,17 @@ public abstract class BulkReaderSaiTestBase extends SharedClusterSparkIntegratio
 
             TEST_STATS.reset();
         }
+    }
+
+    protected List<Row> findMatches(QualifiedName table, boolean useSai, String filter)
+    {
+        Dataset<Row> rows = bulkReaderDataFrame(table, Map.of("saiFilteringEnabled", Boolean.toString(useSai)))
+                            .load();
+        if (filter != null)
+        {
+            rows = rows.filter(filter);
+        }
+        return rows.collectAsList();
     }
 
     private static final class CountingStats extends Stats

@@ -112,10 +112,7 @@ public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
     @MethodSource("rangeSaiQueries")
     void testRangeQueries(String name, String predicate)
     {
-        List<Row> actual = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "true"))
-                           .load()
-                           .filter(predicate)
-                           .collectAsList();
+        List<Row> actual = findMatches(TABLE, true, predicate);
 
         assertThat(actual).extracting(row -> row.getInt(0)).containsExactly(MATCH_ID);
 

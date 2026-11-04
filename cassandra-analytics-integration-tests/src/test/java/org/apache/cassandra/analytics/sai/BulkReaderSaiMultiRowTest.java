@@ -20,7 +20,6 @@ package org.apache.cassandra.analytics.sai;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
@@ -78,11 +77,7 @@ public class BulkReaderSaiMultiRowTest extends BulkReaderSaiTestBase
 
     private List<String> matchingRows(String predicate)
     {
-        List<Row> rows = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "true"))
-                         .load()
-                         .filter(predicate)
-                         .collectAsList();
-
+        List<Row> rows = findMatches(TABLE, true, predicate);
         return rows.stream()
                    .map(row -> row.getInt(0) + ":" + row.getInt(1))
                    .collect(Collectors.toList());

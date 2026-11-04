@@ -19,7 +19,6 @@
 package org.apache.cassandra.analytics.sai;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,10 +41,7 @@ public class BulkReaderSaiQuotedTest extends BulkReaderSaiTestBase
     @Test
     void testIndexOnQuotedColumn()
     {
-        List<Row> matches = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "true"))
-                            .load()
-                            .filter("Score > 250")
-                            .collectAsList();
+        List<Row> matches = findMatches(TABLE, true, "Score > 250");
         assertThat(matches).hasSize(5);
 
         long saiReadBytes = bytesRead();

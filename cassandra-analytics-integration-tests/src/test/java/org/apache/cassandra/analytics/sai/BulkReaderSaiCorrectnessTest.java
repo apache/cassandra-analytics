@@ -18,10 +18,15 @@
  */
 package org.apache.cassandra.analytics.sai;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -76,10 +81,7 @@ public class BulkReaderSaiCorrectnessTest extends BulkReaderSaiTestBase
         //                                                   + " WHERE " + whereClause)
         //                                              .collectAsList();
 
-        List<Row> matches = bulkReaderDataFrame(table, Map.of("saiFilteringEnabled", "true"))
-                            .load()
-                            .filter(whereClause)
-                            .collectAsList();
+        List<Row> matches = findMatches(table, true, whereClause);
         assertThat(matches).hasSize(expectedRows);
 
         long saiReadBytes = bytesRead();
@@ -88,6 +90,63 @@ public class BulkReaderSaiCorrectnessTest extends BulkReaderSaiTestBase
                                 .isGreaterThan(0)
                                 .isLessThanOrEqualTo((int) (fullScanBytes * maxDataFileReadPercentage));
     }
+
+    @Test
+    void testIncompleteIndexFallsBackToFullScan() throws IOException
+    {
+        // Both flushed SSTables have completed score SAI indexes. Make one index look
+        // like a build in progress by hiding only its per-column completion marker.
+        List<Path> completionMarkers = new ArrayList<>();
+        String[] dataDirectories = (String[]) cluster.get(1).config().getParams().get("data_file_directories");
+        for (String dataDirectory : dataDirectories)
+        {
+            Path keyspaceDirectory = Paths.get(dataDirectory, TABLE.keyspace());
+            if (!Files.isDirectory(keyspaceDirectory))
+            {
+                continue;
+            }
+
+            try (Stream<Path> paths = Files.walk(keyspaceDirectory, 2))
+            {
+                paths.filter(Files::isRegularFile)
+                     .filter(path -> path.getParent().getFileName().toString().startsWith(TABLE.table() + "-"))
+                     .filter(path -> path.getFileName().toString().endsWith("+score_sai+ColumnComplete.db"))
+                     .forEach(completionMarkers::add);
+            }
+        }
+        assertThat(completionMarkers).hasSize(2);
+
+        // Each sstable has one matching row: KEEP_ID is in the first and NEW_MATCH_ID is in the second.
+        // Simulate incomplete per-column index.
+        for (Path completionMarker : completionMarkers)
+        {
+            Path hiddenMarker = completionMarker.resolveSibling(completionMarker.getFileName() + ".building");
+            Files.move(completionMarker, hiddenMarker);
+            try
+            {
+                long bytesBefore = bytesRead();
+                List<Row> matches = findMatches(TABLE, true, "score = " + MATCHING_SCORE);
+
+                assertThat(matches).extracting(row -> row.getInt(0))
+                                   .containsExactlyInAnyOrder(KEEP_ID, NEW_MATCH_ID);
+
+                long readBytes = bytesRead() - bytesBefore;
+                assertThat(readBytes).isGreaterThan(fullScanBytes / 2);
+            }
+            finally
+            {
+                Files.move(hiddenMarker, completionMarker);
+            }
+        }
+
+        // restored completion markers should allow index filtering again
+        long bytesBefore = bytesRead();
+        List<Row> matches = findMatches(TABLE, true, "score = " + MATCHING_SCORE);
+        assertThat(matches).extracting(row -> row.getInt(0))
+                           .containsExactlyInAnyOrder(KEEP_ID, NEW_MATCH_ID);
+        assertThat(bytesRead() - bytesBefore).isLessThan(fullScanBytes / 2);
+    }
+
 
     @Override
     protected void initializeSchemaForTest()

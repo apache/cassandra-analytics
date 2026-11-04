@@ -65,10 +65,7 @@ public class BulkReaderSaiReplicaConsistencyTest extends BulkReaderSaiTestBase
     void testConjunctionOfPartialUpdatesOnDifferentReplicas()
     {
         // the full scan must return the reconciled row
-        List<Row> expected = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "false"))
-                             .load()
-                             .filter("a = 1 AND b = 2")
-                             .collectAsList();
+        List<Row> expected = findMatches(TABLE, false, "a = 1 AND b = 2");
 
         assertThat(expected).hasSize(1);
         assertThat(expected.get(0).getInt(0)).isEqualTo(MATCH_ID);
@@ -78,10 +75,7 @@ public class BulkReaderSaiReplicaConsistencyTest extends BulkReaderSaiTestBase
         long bytesBeforeIndexedRead = bytesRead();
 
         // repeat with SAI candidate pruning enabled
-        List<Row> matches = bulkReaderDataFrame(TABLE, Map.of("saiFilteringEnabled", "true"))
-                            .load()
-                            .filter("a = 1 AND b = 2")
-                            .collectAsList();
+        List<Row> matches = findMatches(TABLE, true, "a = 1 AND b = 2");
 
         assertThat(matches).hasSize(1);
         assertThat(matches.get(0).getInt(0)).isEqualTo(MATCH_ID);
