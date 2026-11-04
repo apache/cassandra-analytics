@@ -51,6 +51,12 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 class LeavingMultiDCHalveClusterTest extends LeavingTestBase
 {
+    @Override
+    protected boolean requiresConcurrentTopologyChanges()
+    {
+        return true;
+    }
+
     static final int LEAVING_NODES_PER_DC = 3;
 
     @ParameterizedTest(name = "{index} => {0}")

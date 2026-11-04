@@ -50,6 +50,12 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  */
 class LeavingHalfTest extends LeavingTestBase
 {
+    @Override
+    protected boolean requiresConcurrentTopologyChanges()
+    {
+        return true;
+    }
+
     @ParameterizedTest(name = "{index} => {0}")
     @MethodSource("singleDCTestInputs")
     void halveClusterSize(TestConsistencyLevel cl)

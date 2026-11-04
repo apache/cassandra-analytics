@@ -125,21 +125,21 @@ Without these entries an upstream DNS server can answer `localhost2` with a publ
 connects to that address and the test fails with `java.net.ConnectException: Operation timed out` in
 `CassandraDataLayer.initialize`.
 
-### Topology-change tests skip on Cassandra 6.0
+### Topology-change tests
 
-Twenty-eight test classes under `expansion`, `shrink`, `replacement` and `movement` pause a topology change with a
-ByteBuddy hook, then run the bulk writer while the node is in the transitional state.  The hooks target
-`StorageService.bootstrap(Collection, long)`, `StorageService.unbootstrap()` and `RangeRelocator.stream()`.
+The tests under `expansion`, `shrink`, `replacement` and `movement` pause a topology change with ByteBuddy, then run the bulk writer while the node is in the transitional state.  `TopologyChangeBBUtils` selects the hook from the classes available in the Cassandra instance classloader and fails immediately if the target method is absent.
 
-CEP-21 Transactional Cluster Metadata removed all three in Cassandra 6.0.  The work now belongs to
-`org.apache.cassandra.tcm.sequences`: `BootstrapAndJoin.bootstrap(...)` for a join, `BootstrapAndReplace` for a
-replacement, `UnbootstrapAndLeave.executeNext()` with `LeaveStreams` for a decommission, and `Move` for a token move.
-A hook that fails to install is silent, so each class waited two minutes for a latch that never counted down.
+| Operation | Cassandra 4.x / 5.0 | Cassandra 6.0 (Transactional Cluster Metadata) |
+| --- | --- | --- |
+| Join or replace | `StorageService.bootstrap(Collection, long)` | `BootstrapAndJoin.bootstrap(...)`, also called by replacement |
+| Decommission | `StorageService.unbootstrap()` | `UnbootstrapStreams.execute(...)` |
+| Move | `RangeRelocator.stream()` | `Move.executeNext()` |
 
-`ResiliencyTestBase.assumeTopologyChangeHooksSupported()` now skips these classes on 6.0 and later.  The four base
-classes call it from `beforeClusterProvisioning()`.  Bulk write during a topology change is therefore untested on
-6.0.  To close the gap, retarget each hook at the sequence types named above, and keep the 4.0 and 5.0 targets for
-the older runs.
+The shared single-node scenarios create their schema before starting a topology change.  On Cassandra 6.0 and later, they configure three Cluster Metadata Service members before a node can leave or stop.  These scenarios also cover multi-datacenter clusters.
+
+The `JoiningDisjointRangesTest` and `LeavingDisjointRangesTest` scenarios exercise two concurrent transitions on Cassandra 6.0 and later.  They use Sidecar's CASSSIDECAR-277 token placement: six tokens per datacenter with the tokens for nodes 6 and 11 exchanged.  The single-replicated variant also checks that the joining node in the unreplicated datacenter receives no rows.  Successful joins must reach `Normal`; decommission tests await the nodetool result and check success or the injected failure before validating data again.
+
+Cassandra versions older than 6.0 additionally run the concurrent join/leave and cluster-doubling/halving tests.  The `LegacyJoiningMultiDC*` and `LegacyLeavingMultiDC*` tests preserve the original concurrent multi-datacenter scenarios alongside the shared single-node tests.  These legacy scenarios retain schema creation during the transition and enable their required range-movement overrides only for the lifetime of the test class.  They skip before cluster provisioning on Cassandra 6.0 and later because their concurrent transitions can require overlapping range locks.
 
 ## IntelliJ
 

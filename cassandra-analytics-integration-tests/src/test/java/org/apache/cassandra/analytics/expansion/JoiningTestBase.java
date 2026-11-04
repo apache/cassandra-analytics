@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -53,6 +54,7 @@ abstract class JoiningTestBase extends ResiliencyTestBase
     Dataset<Row> df;
     Map<IInstance, Set<String>> expectedInstanceData;
     List<IInstance> newInstances;
+    private final List<FutureTask<Void>> joiningStartups = new ArrayList<>();
 
     protected void runJoiningTestScenario(TestConsistencyLevel cl)
     {
@@ -76,16 +78,37 @@ abstract class JoiningTestBase extends ResiliencyTestBase
     }
 
     @Override
-    protected void beforeClusterProvisioning()
+    protected void afterClusterProvisioned()
     {
-        assumeTopologyChangeHooksSupported();
+        if (requiresConcurrentTopologyChanges())
+        {
+            startTopologyChange();
+        }
     }
 
     @Override
-    protected void afterClusterProvisioned()
+    protected void afterSchemaInitialized()
     {
+        if (!requiresConcurrentTopologyChanges())
+        {
+            startTopologyChange();
+        }
+    }
+
+    private void startTopologyChange()
+    {
+        prepareTopologyChange();
+        newInstances = new ArrayList<>();
         ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        newInstances = addNewInstances(cluster, configuration.newNodesPerDc, configuration.dcCount);
+        int nodesPerDc = requiresConcurrentTopologyChanges() ? configuration.newNodesPerDc : 1;
+        int datacenters = joiningDatacenters();
+        for (int i = 0; i < nodesPerDc; i++)
+        {
+            for (int dc = 1; dc <= datacenters; dc++)
+            {
+                newInstances.add(addJoiningInstance(cluster, cluster.get(dc)));
+            }
+        }
         TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 2, TimeUnit.MINUTES);
         newInstances.forEach(instance -> cluster.awaitRingState(instance, instance, "Joining"));
     }
@@ -98,6 +121,12 @@ abstract class JoiningTestBase extends ResiliencyTestBase
         for (int i = 0; i < count; i++)
         {
             transitionalStateEnd.countDown();
+        }
+
+        joiningStartups.forEach(startup -> awaitTopologyChange(startup, failureExpected));
+        if (!failureExpected)
+        {
+            newInstances.forEach(instance -> cluster.awaitRingState(cluster.get(1), instance, "Normal"));
         }
 
         testInputs.forEach(arguments -> {
@@ -127,29 +156,24 @@ abstract class JoiningTestBase extends ResiliencyTestBase
      */
     protected abstract CountDownLatch transitioningStateStart();
 
-    private static List<IInstance> addNewInstances(IClusterExtension<? extends IInstance> cluster, int newNodesPerDc, int numDcs)
+    protected int joiningDatacenters()
     {
-        List<IInstance> newInstances = new ArrayList<>();
-        // Go over new nodes and add them once for each DC
-        for (int i = 0; i < newNodesPerDc; i++)
-        {
-            int dcNodeIdx = 1; // Use node 2's DC
-            for (int dc = 1; dc <= numDcs; dc++)
-            {
-                IInstance dcNode = cluster.get(dcNodeIdx++);
-                IInstance newInstance = cluster.addInstance(dcNode.config().localDatacenter(),
-                                                            dcNode.config().localRack(),
-                                                            inst -> {
-                                                                inst.set("auto_bootstrap", true);
-                                                                inst.with(Feature.GOSSIP,
-                                                                          Feature.JMX,
-                                                                          Feature.NATIVE_PROTOCOL);
-                                                            });
-                new Thread(() -> newInstance.startup(cluster.delegate())).start();
-                newInstances.add(newInstance);
-            }
-        }
-        return newInstances;
+        return requiresConcurrentTopologyChanges() ? testClusterConfiguration().dcCount : 1;
+    }
+
+    private IInstance addJoiningInstance(IClusterExtension<? extends IInstance> cluster, IInstance seed)
+    {
+        IInstance joining = cluster.addInstance(seed.config().localDatacenter(),
+                                               seed.config().localRack(),
+                                               config -> {
+                                                   config.set("auto_bootstrap", true);
+                                                   config.set("dtest.api.startup.failure_as_shutdown", false);
+                                                   config.with(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
+                                               });
+        FutureTask<Void> joiningStartup = new FutureTask<>(() -> joining.startup(cluster.delegate()), null);
+        joiningStartups.add(joiningStartup);
+        new Thread(joiningStartup, "joining-node-startup").start();
+        return joining;
     }
 
     Optional<ClusterUtils.RingInstanceDetails> getMatchingInstanceFromRing(IInstance seed,
