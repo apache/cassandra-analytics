@@ -92,9 +92,8 @@ public class CassandraRing implements Serializable
      * Incremented whenever the hand-rolled JDK serialization format below changes. Version 1 writes the
      * ReplicationFactor as an object rather than destructuring it. Version 2 added the optional
      * Cassandra-reported token ranges after the instances: each instance followed by the ranges it replicates.
-     * Version 3 added, after each instance's ranges, the ranges for which it is a witness.
      */
-    private static final byte SERIALIZATION_FORMAT_VERSION = 3;
+    private static final byte SERIALIZATION_FORMAT_VERSION = 2;
 
     private Partitioner partitioner;
     private String keyspace;
