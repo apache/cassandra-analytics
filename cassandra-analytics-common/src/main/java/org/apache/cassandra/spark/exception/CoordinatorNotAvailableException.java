@@ -20,11 +20,8 @@
 package org.apache.cassandra.spark.exception;
 
 /**
- * No replica is available to act as the coordinator of a bulk transfer for one or more token ranges.
- * <p>
- * This applies to tracked (mutation tracking) keyspaces, where the bulk write streams to a single coordinator per
- * range and Cassandra fans the mutations out to the remaining replicas. Such a write does not fail on the job's
- * consistency level up front, only on the absence of any usable coordinator, which is what this exception reports.
+ * No replica is available to act as the coordinator of a bulk transfer for one or more token ranges. Applies to
+ * analytics run against tracked keyspaces in Cassandra.
  */
 public class CoordinatorNotAvailableException extends AnalyticsException
 {

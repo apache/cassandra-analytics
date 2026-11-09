@@ -55,15 +55,11 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
 
         bulkWriterDataFrameWriter(dfWrite, TRACKED_TABLE).save();
 
-        // Read the data back using Bulk Reader and validate that written and read dataframes are the same
         Dataset<Row> read = bulkReaderDataFrame(TRACKED_TABLE).load();
         List<Row> rows = read.collectAsList().stream()
                              .sorted(Comparator.comparing(row -> row.getInt(0)))
                              .collect(Collectors.toList());
-        // TODO: uncomment this check once SSTable import for tracked tables is fixed in Cassandra.
-        //  Currently wrap around shards are silently skipped during SSTable import causing data loss
-//        assertThat(rows.size()).isEqualTo(ROW_COUNT);
-        assertThat(rows.size()).isGreaterThan(0);
+        assertThat(rows.size()).isEqualTo(ROW_COUNT);
     }
 
     @Override
