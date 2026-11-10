@@ -140,7 +140,7 @@ public class TrackedDirectStreamSessionTest
         failureHandler,
         executor);
 
-        RingInstance firstCoordinator = streamSession.getReplicas().get(0);
+        RingInstance firstCoordinator = streamSession.replicas.get(0);
         failureHandler.addFailure(range, firstCoordinator, "simulated failure");
 
         StreamSession<?> retrySession = new TrackedDirectStreamSession(
@@ -204,7 +204,7 @@ public class TrackedDirectStreamSessionTest
         writerContext.setCommitResultSupplier((uuids, dc) ->
         new DirectDataTransferApi.RemoteCommitResult(false, uuids, null, "commit rejected"));
 
-        StreamSession<?> ss = createNonValidatingStreamSession();
+        TrackedDirectStreamSession ss = createNonValidatingStreamSession();
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
 
         assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
@@ -217,7 +217,7 @@ public class TrackedDirectStreamSessionTest
     void testUploadFailureThrowsImportFailed() throws IOException
     {
         writerContext.setUploadSupplier(instance -> false);
-        StreamSession<?> ss = createNonValidatingStreamSession();
+        TrackedDirectStreamSession ss = createNonValidatingStreamSession();
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
 
         assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
@@ -262,8 +262,8 @@ public class TrackedDirectStreamSessionTest
     @Test
     void testScheduleStreamSendsFilesOnlyToCoordinator() throws IOException, ExecutionException, InterruptedException
     {
-        StreamSession<?> ss = createNonValidatingStreamSession();
-        RingInstance coordinator = ss.getReplicas().get(0);
+        TrackedDirectStreamSession ss = createNonValidatingStreamSession();
+        RingInstance coordinator = ss.replicas.get(0);
 
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         assertThat(ss.rowCount()).isEqualTo(1L);
