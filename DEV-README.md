@@ -52,10 +52,10 @@ variable for Cassandra dtest jars.
 
 ### Locally built `cassandra-all`
 
-For integration testing from a commit in Cassandra, a dtest jar built from the commit only replaces Cassandra on server 
-side, the tests run against; the read/write bridges are compiled against the `cassandra-all` artifacts named by 
-`cassandra40Version`/`cassandra50Version`/`cassandra60Version` in `gradle.properties`. When dtest jar is pinned to a commit 
-that changes for e.g. the SSTable format, the SSTables the bulk writer produces can no longer be imported into cluster under test. 
+For integration testing from a commit in Cassandra, a dtest jar built from the commit only replaces Cassandra on server
+side, the tests run against; the read/write bridges are compiled against the `cassandra-all` artifacts named by
+`cassandra40Version`/`cassandra50Version`/`cassandra60Version` in `gradle.properties`. When dtest jar is pinned to a commit
+that changes for e.g. the SSTable format, the SSTables the bulk writer produces can no longer be imported into cluster under test.
 
 `build-dtest-jars.sh` therefore also builds and installs `cassandra-all` for the branches listed in
 `CASSANDRA_ALL_BRANCHES` (`cassandra-6.0`), into the `dependencies` directory, using the version string
@@ -109,7 +109,7 @@ signs artifacts, matching the SNAPSHOT-only signing behavior already built into 
 
 ### Git hooks (optional)
 
-To enable git hooks, run the following command at project root. 
+To enable git hooks, run the following command at project root.
 
 ```shell
 git config core.hooksPath githooks
@@ -117,7 +117,7 @@ git config core.hooksPath githooks
 
 ## Running Integration Tests
 
-To run integration tests, build dependencies with instructions under Dependencies section and configure IP aliases 
+To run integration tests, build dependencies with instructions under Dependencies section and configure IP aliases
 needed for integration tests.
 
 ### macOS network aliases
