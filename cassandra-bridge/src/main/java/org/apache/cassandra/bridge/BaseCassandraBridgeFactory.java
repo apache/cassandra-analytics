@@ -147,11 +147,6 @@ public class BaseCassandraBridgeFactory
 
     public static File copyClassResourceToFile(String resource)
     {
-        // Every bridge jar is looked up by name on the classpath, and each name resolves independently, so a
-        // second jar carrying a bridges directory can serve one of them while the rest come from another one -
-        // cassandra-analytics-core, cassandra-analytics-cdc and cassandra-analytics-cdc-sidecar all embed one.
-        // A mixed pairing surfaces much later as a missing Cassandra class inside a bridge call, with nothing
-        // naming the jar it came from, so record where each one was read from.
         URL locator = BaseCassandraBridgeFactory.class.getResource(resource);
         if (locator == null)
         {
