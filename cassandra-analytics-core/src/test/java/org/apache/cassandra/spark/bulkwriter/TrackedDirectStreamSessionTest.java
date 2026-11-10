@@ -27,8 +27,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -41,7 +41,7 @@ import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailu
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
+import org.apache.cassandra.spark.exception.ImportFailedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
@@ -112,31 +112,13 @@ public class TrackedDirectStreamSessionTest
     @Test
     void testCoordinatorSelectionSpreadsAcrossRanges()
     {
-        // Build a larger ring so different sub-ranges are owned by different replica sets,
-        // giving the range-based coordinator pick room to land on more than one node.
         ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3);
         TokenRangeMapping<RingInstance> largeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, rfOptions, 12);
         MockBulkWriterContext largeContext = new MockBulkWriterContext(largeMapping);
         largeContext.setReplicationFactor(new ReplicationFactor(NetworkTopologyStrategy, rfOptions));
         largeContext.setTrackedKeyspace(true);
-        TransportContext.DirectDataBulkWriterContext largeTransportContext =
-        (TransportContext.DirectDataBulkWriterContext) largeContext.transportContext();
 
-        Set<String> coordinatorsPicked = new HashSet<>();
-        for (Range<BigInteger> subRange : largeMapping.getRangeMap().asMapOfRanges().keySet())
-        {
-            TrackedDirectStreamSession session = new TrackedDirectStreamSession(
-            largeContext,
-            new SortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
-            largeTransportContext,
-            "session-" + subRange,
-            subRange,
-            new MultiClusterReplicaAwareFailureHandler<>(largeContext.cluster().getPartitioner()),
-            executor);
-            coordinatorsPicked.add(session.getReplicas().get(0).nodeName());
-        }
-
-        assertThat(coordinatorsPicked)
+        assertThat(coordinatorsForEveryRange(largeContext, largeMapping))
         .describedAs("Coordinator pick should be spread across more than one candidate across different ranges")
         .hasSizeGreaterThan(1);
     }
@@ -172,6 +154,132 @@ public class TrackedDirectStreamSessionTest
     }
 
     @Test
+    void testGetReplicasExcludesPendingInstances()
+    {
+        ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3);
+        TokenRangeMapping<RingInstance> mappingWithJoiningNode =
+        TokenRangeMappingUtils.buildTokenRangeMappingWithPendingInstances(0, rfOptions, 3, "DC1-i1");
+        MockBulkWriterContext context = new MockBulkWriterContext(mappingWithJoiningNode);
+        context.setReplicationFactor(new ReplicationFactor(NetworkTopologyStrategy, rfOptions));
+        context.setTrackedKeyspace(true);
+
+        assertThat(coordinatorsForEveryRange(context, mappingWithJoiningNode))
+        .describedAs("A joining node may not own the range yet and must never be the sole coordinator")
+        .isNotEmpty()
+        .doesNotContain("DC1-i1");
+    }
+
+    @Test
+    void testGetReplicasMayCoordinateOutsideLocalDatacenter()
+    {
+        ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3, "DC2", 3);
+        TokenRangeMapping<RingInstance> multiDcMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, rfOptions, 3);
+        MockBulkWriterContext context = new MockBulkWriterContext(multiDcMapping);
+        context.setReplicationFactor(new ReplicationFactor(NetworkTopologyStrategy, rfOptions));
+        context.setTrackedKeyspace(true);
+        assertThat(context.job().getLocalDC()).isEqualTo("DC1");
+        ReplicaAwareFailureHandler<RingInstance> failureHandler =
+        new MultiClusterReplicaAwareFailureHandler<>(context.cluster().getPartitioner());
+        multiDcMapping.getTokenRanges().asMap().forEach((instance, ranges) -> {
+            if (instance.datacenter().equalsIgnoreCase("DC1"))
+            {
+                ranges.forEach(range -> failureHandler.addFailure(range, instance, "simulated failure"));
+            }
+        });
+
+        assertThat(coordinatorsForEveryRange(context, multiDcMapping, failureHandler))
+        .describedAs("Any replica of the range may coordinate; the local DC constrains consistency, which Cassandra "
+                     + "evaluates for a tracked keyspace, not the choice of coordinator")
+        .isNotEmpty()
+        .allMatch(nodeName -> nodeName.startsWith("DC2-"));
+    }
+
+    @Test
+    void testCoordinatorRotatesAcrossTaskAttempts()
+    {
+        // Stream session ids are "<partitionId>-<attemptNumber>-<uuid>"; a Spark retry of the same partition differs
+        // only in the attempt number
+        Set<String> coordinatorsPicked = new HashSet<>();
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            TrackedDirectStreamSession session = new TrackedDirectStreamSession(
+            writerContext,
+            new SortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
+            transportContext,
+            "7-" + attempt + "-" + UUID.randomUUID(),
+            range,
+            replicaAwareFailureHandler(),
+            executor);
+            coordinatorsPicked.add(session.getReplicas().get(0).nodeName());
+        }
+
+        assertThat(coordinatorsPicked)
+        .describedAs("Each task attempt must land on a different coordinator, otherwise a retry repeats the failure")
+        .hasSize(3);
+    }
+
+    @Test
+    void testCommitFailureThrowsImportFailed() throws IOException
+    {
+        writerContext.setCommitResultSupplier((uuids, dc) ->
+        new DirectDataTransferApi.RemoteCommitResult(false, uuids, null, "commit rejected"));
+
+        StreamSession<?> ss = createNonValidatingStreamSession();
+        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
+
+        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
+        .isInstanceOf(ExecutionException.class)
+        .hasCauseExactlyInstanceOf(ImportFailedException.class)
+        .hasMessageContaining("Failed to write tracked keyspace range " + range);
+    }
+
+    @Test
+    void testUploadFailureThrowsImportFailed() throws IOException
+    {
+        writerContext.setUploadSupplier(instance -> false);
+        StreamSession<?> ss = createNonValidatingStreamSession();
+        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
+
+        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
+        .isInstanceOf(ExecutionException.class)
+        .hasCauseInstanceOf(ImportFailedException.class);
+    }
+
+    private Set<String> coordinatorsForEveryRange(MockBulkWriterContext context, TokenRangeMapping<RingInstance> mapping)
+    {
+        return coordinatorsForEveryRange(context, mapping,
+                                         new MultiClusterReplicaAwareFailureHandler<>(context.cluster().getPartitioner()));
+    }
+
+    private Set<String> coordinatorsForEveryRange(MockBulkWriterContext context,
+                                                  TokenRangeMapping<RingInstance> mapping,
+                                                  ReplicaAwareFailureHandler<RingInstance> failureHandler)
+    {
+        TransportContext.DirectDataBulkWriterContext context0 =
+        (TransportContext.DirectDataBulkWriterContext) context.transportContext();
+        Set<String> coordinators = new HashSet<>();
+        for (Range<BigInteger> subRange : mapping.getRangeMap().asMapOfRanges().keySet())
+        {
+            TrackedDirectStreamSession session = new TrackedDirectStreamSession(
+            context,
+            new SortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
+            context0,
+            "session-" + subRange,
+            subRange,
+            failureHandler,
+            executor);
+            coordinators.add(session.getReplicas().get(0).nodeName());
+        }
+        return coordinators;
+    }
+
+    @NotNull
+    private ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler()
+    {
+        return new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
+    }
+
+    @Test
     void testScheduleStreamSendsFilesOnlyToCoordinator() throws IOException, ExecutionException, InterruptedException
     {
         StreamSession<?> ss = createNonValidatingStreamSession();
@@ -188,39 +296,6 @@ public class TrackedDirectStreamSessionTest
         .containsExactly(coordinator);
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum())
         .isEqualTo(FILES_PER_SSTABLE);
-    }
-
-    @Test
-    void testCommitFailureThrowsConsistencyNotSatisfied() throws IOException
-    {
-        writerContext.setCommitResultSupplier((uuids, dc) ->
-        new DirectDataTransferApi.RemoteCommitResult(false, uuids, null, "commit rejected"));
-
-        StreamSession<?> ss = createNonValidatingStreamSession();
-        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-
-        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
-        .isInstanceOf(ExecutionException.class)
-        .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-        .hasMessageContaining("Failed to write tracked keyspace range " + range);
-    }
-
-    @Test
-    void testUploadFailureThrowsConsistencyNotSatisfied() throws IOException
-    {
-        writerContext.setUploadSupplier(instance -> false);
-        StreamSession<?> ss = createNonValidatingStreamSession();
-        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-
-        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
-        .isInstanceOf(ExecutionException.class)
-        .hasCauseInstanceOf(ConsistencyNotSatisfiedException.class);
-    }
-
-    @NotNull
-    private ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler()
-    {
-        return new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
     }
 
     private TrackedDirectStreamSession createStreamSession()

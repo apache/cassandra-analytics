@@ -22,9 +22,11 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.exception.CoordinatorNotAvailableException;
+import org.apache.cassandra.spark.exception.ImportFailedException;
 
 /**
  * A validator for bulk write result against the target cluster(s).
@@ -110,7 +113,26 @@ public class BulkWriteValidator
         String message = String.format("Failed to write tracked keyspace range %s for job %s in phase %s. %s",
                                        tokenRange, job.getId(), phase, failureMessages);
         logger.error(message);
-        throw new ConsistencyNotSatisfiedException(message);
+        throw new ImportFailedException(message);
+    }
+
+    /**
+     * Selects the replicas of a token range that are eligible to coordinate a bulk transfer for a tracked keyspace.
+     * Pending (joining/leaving/moving) instances are excluded. Bulk writes for untracked keyspaces write to them,
+     * but for tracked keyspaces a pending coordinator may not own the range yet.
+     *
+     * @return eligible coordinators in a deterministic order
+     */
+    public static List<RingInstance> coordinatorCandidates(Collection<RingInstance> replicas,
+                                                           Set<RingInstance> failedInstances)
+    {
+        return replicas.stream()
+                       .distinct()
+                       .filter(instance -> !failedInstances.contains(instance))
+                       .filter(instance -> !instance.nodeState().isPending)
+                       // stable order so a range-based pick over the result is reproducible
+                       .sorted(Comparator.comparing(RingInstance::nodeName))
+                       .collect(Collectors.toList());
     }
 
     public String getPhase()
@@ -186,6 +208,9 @@ public class BulkWriteValidator
 
         if (isTrackedKeyspace)
         {
+            LOGGER.warn("Keyspace {} has mutation tracking enabled, so the configured consistency level {} is not "
+                        + "evaluated by the bulk writer. Cassandra handles it.",
+                        job.qualifiedTableName().keyspace(), job.getConsistencyLevel());
             validateCoordinatorAvailableOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job);
         }
         else
@@ -222,27 +247,42 @@ public class BulkWriteValidator
                                                           JobInfo job)
     {
         Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
+        List<Range<BigInteger>> rangesWithoutReplicas = new ArrayList<>();
         List<Range<BigInteger>> rangesWithoutCoordinator = new ArrayList<>();
         tokenRangeMapping.getRangeMap().asMapOfRanges().forEach((range, replicas) -> {
-            if (failedInstances.containsAll(replicas))
+            if (replicas.isEmpty())
+            {
+                rangesWithoutReplicas.add(range);
+            }
+            else if (coordinatorCandidates(replicas, failedInstances).isEmpty())
             {
                 rangesWithoutCoordinator.add(range);
             }
         });
 
-        if (rangesWithoutCoordinator.isEmpty())
+        if (rangesWithoutReplicas.isEmpty() && rangesWithoutCoordinator.isEmpty())
         {
             logger.info("Succeeded {} for tracked keyspace; every token range has an available coordinator candidate",
                         phase);
             return;
         }
 
-        String message = String.format("Failed to write %s ranges for job %s in phase %s. "
-                                       + "No available coordinator candidate for tracked ranges %s; "
-                                       + "all replicas of these ranges are unavailable.",
-                                       rangesWithoutCoordinator.size(), job.getId(), phase, rangesWithoutCoordinator);
-        logger.error(message);
-        throw new CoordinatorNotAvailableException(message);
+        StringBuilder message = new StringBuilder(
+        String.format("Failed to write %s ranges for job %s in phase %s. ",
+                      rangesWithoutReplicas.size() + rangesWithoutCoordinator.size(), job.getId(), phase));
+        if (!rangesWithoutReplicas.isEmpty())
+        {
+            message.append(String.format("No replica is assigned to tracked ranges %s; the token ring is incomplete. ",
+                                         rangesWithoutReplicas));
+        }
+        if (!rangesWithoutCoordinator.isEmpty())
+        {
+            message.append(String.format("No available coordinator candidate for tracked ranges %s; every replica of "
+                                         + "these ranges is either unavailable or pending. ",
+                                         rangesWithoutCoordinator));
+        }
+        logger.error(message.toString());
+        throw new CoordinatorNotAvailableException(message.toString());
     }
 
     private void updateInstanceAvailability()

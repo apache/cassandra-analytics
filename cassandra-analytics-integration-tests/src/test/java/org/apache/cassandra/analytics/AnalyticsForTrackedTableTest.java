@@ -21,13 +21,20 @@ package org.apache.cassandra.analytics;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.IInstance;
+import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
@@ -44,8 +51,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final String TRACKED_KEYSPACE = "spark_test_tracked";
-    static final QualifiedName TRACKED_TABLE = new QualifiedName(TRACKED_KEYSPACE, "tracked_bulk_write");
+    private static final String TRACKED_KEYSPACE = "spark_test_tracked";
+    private static final QualifiedName TRACKED_TABLE = new QualifiedName(TRACKED_KEYSPACE, "tracked_bulk_write");
+    private static final long REPLICATION_TIMEOUT_SECONDS = 30;
 
     @Test
     void bulkWriteReadFromTrackedTable()
@@ -54,6 +62,8 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
         Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
 
         bulkWriterDataFrameWriter(dfWrite, TRACKED_TABLE).save();
+
+        awaitEveryReplicaHoldsAllRows(dfWrite);
 
         Dataset<Row> read = bulkReaderDataFrame(TRACKED_TABLE).load();
         List<Row> rows = read.collectAsList().stream()
@@ -87,11 +97,48 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
         createTestTable(TRACKED_TABLE, CREATE_TEST_TABLE_STATEMENT);
     }
 
-    void createTrackedTestKeyspace(String keyspace, Map<String, Integer> rf)
+    private void createTrackedTestKeyspace(String keyspace, Map<String, Integer> rf)
     {
         cluster.schemaChangeIgnoringStoppedInstances("CREATE KEYSPACE IF NOT EXISTS " + keyspace
                                                      + " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', "
                                                      + generateRfString(rf) + " }"
                                                      + " AND replication_type = 'tracked';");
+    }
+
+    private void awaitEveryReplicaHoldsAllRows(Dataset<Row> dfWrite)
+    {
+        Set<String> expectedRows = dfWrite.collectAsList().stream()
+                                          .map(row -> row.getInt(0) + ":" + row.getString(1) + ":" + row.getInt(2))
+                                          .collect(Collectors.toSet());
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(REPLICATION_TIMEOUT_SECONDS);
+        Map<Integer, Set<String>> rowsByNode = new TreeMap<>();
+        while (true)
+        {
+            rowsByNode.clear();
+            cluster.stream().forEach(instance -> rowsByNode.put(instance.config().num(), localRows(instance)));
+            if (rowsByNode.values().stream().allMatch(expectedRows::equals) || System.nanoTime() > deadlineNanos)
+            {
+                break;
+            }
+            Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+        }
+
+        rowsByNode.forEach((nodeNumber, rows) ->
+                           assertThat(rows)
+                           .describedAs("node %s did not receive every row from the bulk write coordinator within"
+                                        + "%s seconds", nodeNumber, REPLICATION_TIMEOUT_SECONDS)
+                           .isEqualTo(expectedRows));
+    }
+
+    private Set<String> localRows(IInstance instance)
+    {
+        SimpleQueryResult result = instance.executeInternalWithResult("SELECT id, course, marks FROM " + TRACKED_TABLE);
+        Set<String> rows = new HashSet<>();
+        while (result.hasNext())
+        {
+            org.apache.cassandra.distributed.api.Row row = result.next();
+            rows.add(row.getInteger("id") + ":" + row.getString("course") + ":" + row.getInteger("marks"));
+        }
+        return rows;
     }
 }

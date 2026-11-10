@@ -22,10 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -35,18 +32,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
 
 /**
  * Stream session for bulk writes to keyspaces with mutation tracking enabled.
  *
  * <p>
- * Unlike bulk write to untracked keyspaces, for tracked keyspaces Cassandra's coordinates SSTable transfer between
- * nodes for bulk import. Import can be triggered on any one of the replica's of a token range and that replica acts as
- * a coordinator. {@link TrackedDirectStreamSession} spreads the coordinator pick across the eligible candidates of a
+ * For tracked keyspaces Cassandra's coordinates SSTable transfer between nodes for bulk import. Import can be triggered
+ * on any one of the replica's of a token range and that replica acts as a coordinator.
+ * {@link TrackedDirectStreamSession} spreads the coordinator pick across the eligible candidates of a
  * range so that outgoing connections are distributed across the nodes in Cassandra.
  * <p>
  * Write validation now moves to Cassandra in place of analytics checking consistency level. Resiliency to coordinator
- * failure mid-session is not handled here; it is handled at Spark's task-level retry.
+ * failure mid-session is not handled here; it is handled at Spark's task-level retry, which rotates onto a different
+ * coordinator for the range (see {@link #pickCoordinator}).
  */
 public class TrackedDirectStreamSession extends DirectStreamSession
 {
@@ -66,23 +65,22 @@ public class TrackedDirectStreamSession extends DirectStreamSession
 
     /**
      * Selects a single replica to act as the coordinator for this token range. The pick varies from range to range, so
-     * that coordinator load is spread across replicas.
+     * that coordinator load is spread across replicas, and from task attempt to task attempt, so that a retry does not
+     * land on the coordinator that just rejected the write.
      */
     @Override
     List<RingInstance> getReplicas()
     {
-        Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
-        List<RingInstance> candidates = tokenRangeMapping.getSubRanges(tokenRange)
-                                                          .asMapOfRanges().values().stream()
-                                                          .flatMap(Collection::stream)
-                                                          .distinct()
-                                                          .filter(instance -> !failedInstances.contains(instance))
-                                                          // stable order so the range-based pick below is reproducible
-                                                          .sorted(Comparator.comparing(RingInstance::nodeName))
-                                                          .collect(Collectors.toList());
+        List<RingInstance> rangeReplicas = tokenRangeMapping.getSubRanges(tokenRange)
+                                                             .asMapOfRanges().values().stream()
+                                                             .flatMap(Collection::stream)
+                                                             .collect(Collectors.toList());
+        List<RingInstance> candidates = BulkWriteValidator.coordinatorCandidates(rangeReplicas,
+                                                                                 failureHandler.getFailedInstances());
 
         Preconditions.checkState(!candidates.isEmpty(),
-                                 "No eligible coordinator candidates found for range %s", tokenRange);
+                                 "No eligible coordinator candidates found for range %s out of replicas %s",
+                                 tokenRange, rangeReplicas);
 
         RingInstance coordinator = pickCoordinator(candidates);
         LOGGER.info("[{}]: Selected {} as coordinator for tracked range {} out of {} candidates",
@@ -94,11 +92,16 @@ public class TrackedDirectStreamSession extends DirectStreamSession
 
     /**
      * Distributes the coordinator pick across candidates using the range's lower endpoint, so token ranges owned by
-     * the same replica set don't all pick the same coordinator.
+     * the same replica set don't all pick the same coordinator. Task attempt number allow for picking different
+     * coordinator in case of failures during bulk transfer
      */
     private RingInstance pickCoordinator(List<RingInstance> candidates)
     {
-        int index = tokenRange.lowerEndpoint().mod(BigInteger.valueOf(candidates.size())).intValue();
+        int attemptNumber = TaskContextUtils.attemptNumberFromStreamSessionId(sessionID);
+        int index = tokenRange.lowerEndpoint()
+                              .add(BigInteger.valueOf(attemptNumber))
+                              .mod(BigInteger.valueOf(candidates.size()))
+                              .intValue();
         return candidates.get(index);
     }
 
