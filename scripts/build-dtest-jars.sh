@@ -47,7 +47,7 @@ else
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
     "cassandra-5.0:cassandra-5.0.7"
     # switch to latest SHA from cep-45-mutation-tracking branch for MT/Witness testing
-    "cassandra-6.0:2af323f09d4ed324d36e6fcf20604d789fb5a99a"
+    "cassandra-6.0:6ec51ba3f624dfb793c72183302ea3e151864ff9"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0 cassandra-6.0} )
   # Branches whose cassandra-all artifact is also built from the pinned commit-ish and installed

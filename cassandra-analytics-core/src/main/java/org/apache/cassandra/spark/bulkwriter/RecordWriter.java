@@ -151,10 +151,6 @@ public class RecordWriter
                     initialTokenRangeMapping.pendingInstances().size());
 
         writeValidator.setPhase("Environment Validation");
-        // Tracked keyspaces only need one healthy replica per range to coordinate the transfer, so they are validated
-        // against coordinator availability rather than the job's consistency level. This call is also what records
-        // unavailable instances in the failure handler, which TrackedDirectStreamSession#getReplicas() relies on to
-        // avoid picking a down coordinator -- do not skip it for the tracked path.
         writeValidator.validateEnvironmentOrFail(initialTokenRangeMapping, isTrackedKeyspace);
         writeValidator.setPhase("UploadAndCommit");
         writerContext.cluster().validateTimeSkew(taskTokenRange);
