@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -32,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
-import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
 
 /**
  * Stream session for bulk writes to keyspaces with mutation tracking enabled.
@@ -44,7 +44,7 @@ import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
  * range so that outgoing connections are distributed across the nodes in Cassandra.
  * <p>
  * Write validation now moves to Cassandra in place of analytics checking consistency level. Resiliency to coordinator
- * failure mid-session is not handled here; it is handled at Spark's task-level retry, which rotates onto a different
+ * failure mid-session is not handled here; it is handled at Spark's task-level retry, which shuffles and picks a new
  * coordinator for the range (see {@link #pickCoordinator}).
  */
 public class TrackedDirectStreamSession extends DirectStreamSession
@@ -65,8 +65,7 @@ public class TrackedDirectStreamSession extends DirectStreamSession
 
     /**
      * Selects a single replica to act as the coordinator for this token range. The pick varies from range to range, so
-     * that coordinator load is spread across replicas, and from task attempt to task attempt, so that a retry does not
-     * land on the coordinator that just rejected the write.
+     * that coordinator load is spread across replicas.
      */
     @Override
     List<RingInstance> getReplicas()
@@ -91,18 +90,14 @@ public class TrackedDirectStreamSession extends DirectStreamSession
     }
 
     /**
-     * Distributes the coordinator pick across candidates using the range's lower endpoint, so token ranges owned by
-     * the same replica set don't all pick the same coordinator. Task attempt number allow for picking different
-     * coordinator in case of failures during bulk transfer
+     * Distributes the coordinator pick across candidates by shuffling them and taking the first, so token ranges owned
+     * by the same replica set don't all pick the same coordinator.
      */
     private RingInstance pickCoordinator(List<RingInstance> candidates)
     {
-        int attemptNumber = TaskContextUtils.attemptNumberFromStreamSessionId(sessionID);
-        int index = tokenRange.lowerEndpoint()
-                              .add(BigInteger.valueOf(attemptNumber))
-                              .mod(BigInteger.valueOf(candidates.size()))
-                              .intValue();
-        return candidates.get(index);
+        List<RingInstance> shuffled = new ArrayList<>(candidates);
+        Collections.shuffle(shuffled);
+        return shuffled.get(0);
     }
 
     @Override

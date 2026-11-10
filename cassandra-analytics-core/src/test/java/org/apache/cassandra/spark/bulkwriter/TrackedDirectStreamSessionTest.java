@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.collect.BoundType;
@@ -100,13 +99,18 @@ public class TrackedDirectStreamSessionTest
     }
 
     @Test
-    void testCoordinatorSelectionIsDeterministicForSameRange()
+    void testCoordinatorSelectionVariesAcrossSessions()
     {
-        RingInstance first = createStreamSession().getReplicas().get(0);
-        RingInstance second = createStreamSession().getReplicas().get(0);
-        assertThat(first)
-        .describedAs("Coordinator pick should be stable across sessions for the same range and failure state")
-        .isEqualTo(second);
+        Set<String> coordinatorsPicked = new HashSet<>();
+        for (int i = 0; i < 10; i++)
+        {
+            coordinatorsPicked.add(createStreamSession().getReplicas().get(0).nodeName());
+        }
+
+        assertThat(coordinatorsPicked)
+        .describedAs("Coordinator pick should vary across sessions for the same range, spreading load across the "
+                     + "range's candidates")
+        .containsExactlyInAnyOrder("DC1-i2", "DC1-i3", "DC1-i4");
     }
 
     @Test
@@ -192,30 +196,6 @@ public class TrackedDirectStreamSessionTest
                      + "evaluates for a tracked keyspace, not the choice of coordinator")
         .isNotEmpty()
         .allMatch(nodeName -> nodeName.startsWith("DC2-"));
-    }
-
-    @Test
-    void testCoordinatorRotatesAcrossTaskAttempts()
-    {
-        // Stream session ids are "<partitionId>-<attemptNumber>-<uuid>"; a Spark retry of the same partition differs
-        // only in the attempt number
-        Set<String> coordinatorsPicked = new HashSet<>();
-        for (int attempt = 0; attempt < 3; attempt++)
-        {
-            TrackedDirectStreamSession session = new TrackedDirectStreamSession(
-            writerContext,
-            new SortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
-            transportContext,
-            "7-" + attempt + "-" + UUID.randomUUID(),
-            range,
-            replicaAwareFailureHandler(),
-            executor);
-            coordinatorsPicked.add(session.getReplicas().get(0).nodeName());
-        }
-
-        assertThat(coordinatorsPicked)
-        .describedAs("Each task attempt must land on a different coordinator, otherwise a retry repeats the failure")
-        .hasSize(3);
     }
 
     @Test

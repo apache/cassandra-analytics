@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,7 +120,7 @@ public class BulkWriteValidator
      * Pending (joining/leaving/moving) instances are excluded. Bulk writes for untracked keyspaces write to them,
      * but for tracked keyspaces a pending coordinator may not own the range yet.
      *
-     * @return eligible coordinators in a deterministic order
+     * @return the eligible coordinators, in no particular order
      */
     public static List<RingInstance> coordinatorCandidates(Collection<RingInstance> replicas,
                                                            Set<RingInstance> failedInstances)
@@ -130,8 +129,6 @@ public class BulkWriteValidator
                        .distinct()
                        .filter(instance -> !failedInstances.contains(instance))
                        .filter(instance -> !instance.nodeState().isPending)
-                       // stable order so a range-based pick over the result is reproducible
-                       .sorted(Comparator.comparing(RingInstance::nodeName))
                        .collect(Collectors.toList());
     }
 
