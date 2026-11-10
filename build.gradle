@@ -231,6 +231,13 @@ subprojects {
 
   repositories {
     mavenCentral()
+    // for snapshot builds of Cassandra Sidecar
+    maven {
+      url 'https://repository.apache.org/content/repositories/snapshots'
+      mavenContent {
+        snapshotsOnly()
+      }
+    }
     // for dtest-jars
     mavenLocal {
       url Paths.get(dependencyLocation)
