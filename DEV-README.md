@@ -27,8 +27,7 @@ This project uses Gradle as the dependency management and build framework.
 ## Dependencies
 This library depends on both the [Cassandra Sidecar](https://github.com/apache/cassandra-sidecar) (test and production)
 and shaded in-jvm dtest jars from [Cassandra](https://github.com/apache/cassandra) (testing only).
-Because the dtest jars are not published by the Cassandra project, we have provided a script to build them locally.
-The Sidecar artifacts are resolved from a release, named by `sidecarVersion` in `gradle.properties`.
+Because these artifacts are not published by the Cassandra project, we have provided a script to build them locally.
 
 NOTE: If you are working on multiple projects that depend on the Cassandra Sidecar and in-jvm dtest dependencies,
 you can share those artifacts by setting the `CASSANDRA_DEP_DIR` environment variable to a shared directory
@@ -40,15 +39,16 @@ In order to build the necessary dependencies, please run the following:
 CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
 ```
 
-This will build the necessary dtest jars for build and test.
-You can skip the dtest jar build by setting the following environment variable to `true`:
+This will build both the necessary dtest jars and the sidecar libraries/package necessary for build and test.
+You can also skip either the dtest jar build or the sidecar build by setting the following
+environment variables to `true`:
 
 ```shell
-SKIP_DTEST_JAR_BUILD=true ./scripts/build-dependencies.sh
+SKIP_DTEST_JAR_BUILD=true SKIP_SIDECAR_BUILD=true ./scripts/build-dependencies.sh
 ```
 
 Note that `build-dependencies.sh` attempts to pull the latest from branches specified in the `BRANCHES` environment
-variable for Cassandra dtest jars.
+variable for Cassandra dtest jars, and trunk for the sidecar.
 
 ### Locally built `cassandra-all`
 
