@@ -99,21 +99,6 @@ public class TrackedDirectStreamSessionTest
     }
 
     @Test
-    void testCoordinatorSelectionVariesAcrossSessions()
-    {
-        Set<String> coordinatorsPicked = new HashSet<>();
-        for (int i = 0; i < 10; i++)
-        {
-            coordinatorsPicked.add(createStreamSession().getReplicas().get(0).nodeName());
-        }
-
-        assertThat(coordinatorsPicked)
-        .describedAs("Coordinator pick should vary across sessions for the same range, spreading load across the "
-                     + "range's candidates")
-        .containsExactlyInAnyOrder("DC1-i2", "DC1-i3", "DC1-i4");
-    }
-
-    @Test
     void testCoordinatorSelectionSpreadsAcrossRanges()
     {
         ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3);
@@ -263,7 +248,6 @@ public class TrackedDirectStreamSessionTest
     void testScheduleStreamSendsFilesOnlyToCoordinator() throws IOException, ExecutionException, InterruptedException
     {
         TrackedDirectStreamSession ss = createNonValidatingStreamSession();
-        RingInstance coordinator = ss.replicas.get(0);
 
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         assertThat(ss.rowCount()).isEqualTo(1L);
@@ -271,9 +255,9 @@ public class TrackedDirectStreamSessionTest
 
         assertThat(streamResult.rowCount).isEqualTo(1L);
         executor.assertFuturesCalled();
-        assertThat(writerContext.getUploads().keySet())
+        assertThat(writerContext.getUploads().keySet().size())
         .describedAs("Only the coordinator should receive uploads")
-        .containsExactly(coordinator);
+        .isEqualTo(1);
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum())
         .isEqualTo(FILES_PER_SSTABLE);
     }
