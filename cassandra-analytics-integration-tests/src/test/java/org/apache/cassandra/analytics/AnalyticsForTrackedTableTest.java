@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.vdurmont.semver4j.Semver;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.Feature;
@@ -37,6 +38,7 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.TestUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -45,6 +47,7 @@ import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Tests bulk write and read from a table with mutation tracking enabled
@@ -70,6 +73,15 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
                              .sorted(Comparator.comparing(row -> row.getInt(0)))
                              .collect(Collectors.toList());
         assertThat(rows.size()).isEqualTo(ROW_COUNT);
+    }
+
+    @Override
+    protected void beforeClusterProvisioning()
+    {
+        Semver clusterVersion = TestUtils.getDTestClusterVersion().withClearedSuffixAndBuild();
+        assumeThat(clusterVersion.isGreaterThanOrEqualTo(new Semver("6.0", Semver.SemverType.LOOSE)))
+        .describedAs("Mutation tracking requires Cassandra 6.0 or later")
+        .isTrue();
     }
 
     @Override
