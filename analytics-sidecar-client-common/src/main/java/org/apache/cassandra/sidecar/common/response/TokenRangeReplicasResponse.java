@@ -88,14 +88,23 @@ public class TokenRangeReplicasResponse
         // inclusive
         private final String end;
         private final Map<String, List<String>> replicasByDatacenter;
+        // null when the Sidecar does not report witness replicas
+        private final Map<String, List<String>> witnessesByDatacenter;
+
+        public ReplicaInfo(String start, String end, Map<String, List<String>> replicasByDatacenter)
+        {
+            this(start, end, replicasByDatacenter, null);
+        }
 
         public ReplicaInfo(@JsonProperty("start") String start,
                            @JsonProperty("end") String end,
-                           @JsonProperty("replicas") Map<String, List<String>> replicasByDatacenter)
+                           @JsonProperty("replicas") Map<String, List<String>> replicasByDatacenter,
+                           @JsonProperty("witnessesByDatacenter") Map<String, List<String>> witnessesByDatacenter)
         {
             this.start = start;
             this.end = end;
             this.replicasByDatacenter = replicasByDatacenter;
+            this.witnessesByDatacenter = witnessesByDatacenter;
         }
 
         /**
@@ -126,6 +135,16 @@ public class TokenRangeReplicasResponse
         }
 
         /**
+         * @return mapping of datacenter to the replicas in {@link #replicasByDatacenter()} that are witnesses for
+         * the token range, or {@code null} when the Sidecar does not report witness replicas
+         */
+        @JsonProperty("witnessesByDatacenter")
+        public Map<String, List<String>> witnessesByDatacenter()
+        {
+            return witnessesByDatacenter;
+        }
+
+        /**
          * {@inheritDoc}
          */
         @Override
@@ -142,7 +161,8 @@ public class TokenRangeReplicasResponse
             ReplicaInfo that = (ReplicaInfo) o;
             return start.equals(that.start)
                    && end.equals(that.end)
-                   && replicasByDatacenter.equals(that.replicasByDatacenter);
+                   && replicasByDatacenter.equals(that.replicasByDatacenter)
+                   && Objects.equals(witnessesByDatacenter, that.witnessesByDatacenter);
         }
 
         /**
@@ -151,7 +171,7 @@ public class TokenRangeReplicasResponse
         @Override
         public int hashCode()
         {
-            return Objects.hash(start, end, replicasByDatacenter);
+            return Objects.hash(start, end, replicasByDatacenter, witnessesByDatacenter);
         }
 
         /**
@@ -164,6 +184,7 @@ public class TokenRangeReplicasResponse
                    "start='" + start + '\'' +
                    ", end='" + end + '\'' +
                    ", replicasByDatacenter=" + replicasByDatacenter +
+                   ", witnessesByDatacenter=" + witnessesByDatacenter +
                    '}';
         }
     }
