@@ -43,7 +43,6 @@ import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.Preconditions;
 
 import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
 
@@ -96,11 +95,11 @@ public final class CdcEventUtils
         }
     }
 
-    // return the list of field names that have data present in the row
+    // return the list of Avro field names that have data present in the row
     public static List<String> updatedFieldNames(CdcEvent event)
     {
         return updatedFields(event).stream()
-                                   .map(value -> value.columnName)
+                                   .map(value -> AvroNames.escape(value.columnName))
                                    .collect(Collectors.toList());
     }
 
@@ -232,7 +231,8 @@ public final class CdcEventUtils
 
     private static Map<String, Object> makeRangePredicate(String columnName, String predicateType, Object value)
     {
-        return mapOf(AvroConstants.FIELD_KEY, columnName, AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
+        // the field is named like the field of the encoded value
+        return mapOf(AvroConstants.FIELD_KEY, AvroNames.escape(columnName), AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
     }
 
     // return index of the longest prefix (exclusive)
@@ -303,10 +303,7 @@ public final class CdcEventUtils
 
         for (Value field : CdcEventUtils.updatedFields(event))
         {
-            Schema.Field column = AvroSchemas.field(tableSchema, field.columnName);
-            Preconditions.checkNotNull(column,
-                                       "Encountered an unknown field during event encoding. " +
-                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
+            Schema.Field column = AvroDataUtils.field(tableSchema, field.columnName);
             ByteBuffer value = field.getValue();
             if (value == null) // the field is deleted
             {

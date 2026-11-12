@@ -76,8 +76,8 @@ public class AvroGenericRecordTransformer extends AvroBaseRecordTransformer<Gene
         String namespace = cdcSchema.getNamespace();
         if (!Preconditions.isNullOrEmpty(schemaNamespacePrefix))
         {
-            name = AvroNames.sanitize(event.table);
-            namespace = schemaNamespacePrefix + '.' + AvroNames.sanitize(event.keyspace);
+            name = AvroNames.escape(event.table);
+            namespace = schemaNamespacePrefix + '.' + AvroNames.escape(event.keyspace);
         }
         return AvroSchemaUtils.buildMergedSchema(event.payload.getSchema(), name, namespace);
     }

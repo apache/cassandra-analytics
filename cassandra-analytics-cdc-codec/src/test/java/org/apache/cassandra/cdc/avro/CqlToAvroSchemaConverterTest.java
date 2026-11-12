@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -36,6 +35,7 @@ import com.google.common.io.Resources;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -54,6 +54,7 @@ import static org.apache.avro.Schema.Type.STRING;
 import static org.apache.avro.Schema.Type.UNION;
 import static org.apache.cassandra.spark.utils.ArrayUtils.setOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 public class CqlToAvroSchemaConverterTest
@@ -196,25 +197,48 @@ public class CqlToAvroSchemaConverterTest
         String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<\"my-type\">);");
         Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt));
 
-        assertThat(fullNameOf(schema, "c1")).as("sanitized record name").isEqualTo("a.my_type");
+        assertThat(fullNameOf(schema, "c1")).as("escaped record name").isEqualTo("a.my_u002dtype");
         assertThat(readCqlType(schema, "c1")).as("CQL type for 'c1' field").isEqualTo("my-type");
     }
 
     @Test
-    public void testSanitizedUdtNamesDoNotCollide()
+    public void testEscapedUdtNamesDoNotCollide()
     {
-        // "a-b", "a+b" and "a_b" all sanitize to a_b; the name that is already valid keeps it, the others get 2 and 3
+        // "a-b", "a+b" and "a_b" each escape to a name of their own; the name that is valid as it is does not change
         String hyphen = "CREATE TYPE \"a-b\" (id text);";
-        String space = "CREATE TYPE \"a+b\" (id int);";
+        String plus = "CREATE TYPE \"a+b\" (id int);";
         String valid = "CREATE TYPE a_b (id bigint);";
         String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<\"a-b\">, c2 frozen<\"a+b\">, " +
                                           "c3 frozen<a_b>);");
-        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(hyphen, space, valid));
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(hyphen, plus, valid));
 
-        assertThat(fullNameOf(schema, "c1")).as("first colliding name").isEqualTo("a.a_b2");
-        assertThat(fullNameOf(schema, "c2")).as("second colliding name").isEqualTo("a.a_b3");
+        assertThat(fullNameOf(schema, "c1")).isEqualTo("a.a_u002db");
+        assertThat(fullNameOf(schema, "c2")).isEqualTo("a.a_u002bb");
         assertThat(fullNameOf(schema, "c3")).as("name that is valid as is").isEqualTo("a.a_b");
         assertThat(readCqlType(schema, "c1")).as("CQL type keeps the original name").isEqualTo("a-b");
+    }
+
+    @Test
+    public void testUdtsWithTheSameAvroNameAreRejected()
+    {
+        // a_u002db is a valid name that looks like "a-b" escaped; Avro would silently reuse the first record for both
+        String hyphen = "CREATE TYPE \"a-b\" (id text);";
+        String lookalike = "CREATE TYPE a_u002db (id int);";
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<\"a-b\">, c2 frozen<a_u002db>);");
+
+        assertThatThrownBy(() -> cqlToAvroSchemaConverter.convert("a", createStmt, setOf(hyphen, lookalike)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("have the same Avro name a.a_u002db");
+    }
+
+    @Test
+    public void testColumnsWithTheSameAvroNameAreRejected()
+    {
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"a-b\" int, a_u002db text);");
+
+        assertThatThrownBy(() -> cqlToAvroSchemaConverter.convert("a", createStmt, Collections.emptySet()))
+        .isInstanceOf(AvroRuntimeException.class)
+        .hasMessageContaining("Duplicate field a_u002db");
     }
 
     @Test
@@ -225,24 +249,26 @@ public class CqlToAvroSchemaConverterTest
                             "\"my-col\" frozen<address>, PRIMARY KEY (\"my-pk\", \"my-ck\"));";
         Schema schema = cqlToAvroSchemaConverter.convert("my-ks", createStmt, setOf(udt));
 
-        assertThat(schema.getFullName()).as("sanitized table record").isEqualTo("my_ks.my_table.my_table");
-        assertThat(schema.getNamespace()).isEqualTo("my_ks.my_table");
-        assertThat(AvroSchemas.primaryKeys(schema)).as("key props use Avro names").containsExactly("my_pk", "my_ck");
-        assertThat(AvroSchemas.partitionKeys(schema)).containsExactly("my_pk");
-        assertThat(AvroSchemas.clusteringKeys(schema)).containsExactly("my_ck");
-        assertThat(AvroSchemas.staticColumns(schema)).containsExactly("my_static");
+        assertThat(schema.getFullName()).as("escaped table record").isEqualTo("my_u002dks.my_u002dtable.my_u002dtable");
+        assertThat(schema.getNamespace()).isEqualTo("my_u002dks.my_u002dtable");
+        assertThat(AvroSchemas.primaryKeys(schema)).as("key props use Avro names").containsExactly("my_u002dpk", "my_u002dck");
+        assertThat(AvroSchemas.partitionKeys(schema)).containsExactly("my_u002dpk");
+        assertThat(AvroSchemas.clusteringKeys(schema)).containsExactly("my_u002dck");
+        assertThat(AvroSchemas.staticColumns(schema)).containsExactly("my_u002dstatic");
 
         Schema.Field column = AvroSchemas.field(schema, "my-col");
         assertThat(column).as("column found by its CQL name").isNotNull();
-        assertThat(column.name()).isEqualTo("my_col");
+        assertThat(column.name()).isEqualTo("my_u002dcol");
         assertThat(AvroSchemas.cqlName(column)).isEqualTo("my-col");
         assertThat(schema.getField("my-col")).as("the CQL name is not an Avro field name").isNull();
+        assertThat(AvroSchemas.field(schema, "my_u002dcol")).as("the Avro name is not a CQL name").isNull();
 
         Schema udtSchema = AvroSchemas.unwrapNullable(column.schema());
-        assertThat(udtSchema.getFullName()).isEqualTo("my_ks.address");
+        assertThat(udtSchema.getFullName()).isEqualTo("my_u002dks.address");
         Schema.Field zip = AvroSchemas.field(udtSchema, "zip-code");
         assertThat(zip).as("UDT field found by its CQL name").isNotNull();
-        assertThat(zip.name()).isEqualTo("zip_code");
+        assertThat(zip.name()).isEqualTo("zip_u002dcode");
+        assertThat(AvroSchemas.cqlName(zip)).isEqualTo("zip-code");
         // names that are valid are not flagged, and are found by their name
         assertThat(AvroSchemas.field(udtSchema, "city").getProp(AvroConstants.CQL_NAME_PROP)).isNull();
         assertThat(AvroSchemas.field(udtSchema, "missing")).isNull();
@@ -251,31 +277,66 @@ public class CqlToAvroSchemaConverterTest
     }
 
     @Test
-    public void testSanitizedColumnNamesDoNotCollide()
+    public void testEscapedNamesDoNotDependOnOtherColumns()
     {
-        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"a-b\" int, \"a+b\" text, a_b bigint);");
+        // adding or dropping a column does not rename the others
+        Schema before = cqlToAvroSchemaConverter.convert("a", decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"a+b\" text);"),
+                                                         Collections.emptySet());
+        Schema after = cqlToAvroSchemaConverter.convert("a", decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"a-b\" int, " +
+                                                                           "\"a+b\" text, a_b bigint);"),
+                                                        Collections.emptySet());
+
+        assertThat(AvroSchemas.field(before, "a+b").name()).isEqualTo("a_u002bb");
+        assertThat(AvroSchemas.field(after, "a+b").name()).isEqualTo("a_u002bb");
+        assertThat(AvroSchemas.field(after, "a-b").name()).isEqualTo("a_u002db");
+        assertThat(AvroSchemas.field(after, "a_b").name()).isEqualTo("a_b");
+    }
+
+    @Test
+    public void testLeadingDigitIsEscaped()
+    {
+        // a leading digit is escaped rather than prefixed, so "1col" and "_1col" keep different names
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"1col\" int, \"_1col\" text);");
         Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, Collections.emptySet());
 
-        assertThat(AvroSchemas.field(schema, "a_b").name()).as("valid name keeps its name").isEqualTo("a_b");
-        // the order in which the renamed columns are numbered is the order of the table's fields
-        assertThat(Arrays.asList(AvroSchemas.field(schema, "a-b").name(), AvroSchemas.field(schema, "a+b").name()))
-        .containsExactlyInAnyOrder("a_b2", "a_b3");
-        assertThat(AvroSchemas.unwrapNullable(AvroSchemas.field(schema, "a_b").schema()).getType()).isEqualTo(LONG);
-        // a name taken by a renamed field is not the CQL name of that field
-        assertThat(AvroSchemas.field(schema, "a_b2")).isNull();
-        assertThat(AvroSchemas.field(schema, "a_b3")).isNull();
+        assertThat(AvroSchemas.field(schema, "1col").name()).isEqualTo("_u0031col");
+        assertThat(AvroSchemas.field(schema, "_1col").name()).isEqualTo("_1col");
+    }
+
+    @Test
+    public void testNonAsciiNamesAreEscaped()
+    {
+        // characters outside the BMP are escaped as their two UTF-16 chars
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"café\" int, \"x😀\" text);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, Collections.emptySet());
+
+        assertThat(AvroSchemas.field(schema, "café").name()).isEqualTo("caf_u00e9");
+        assertThat(AvroSchemas.field(schema, "x😀").name()).isEqualTo("x_ud83d_ude00");
+        assertThat(new Schema.Parser().parse(schema.toString()).toString()).isEqualTo(schema.toString());
+    }
+
+    @Test
+    public void testUdtFieldsWithTheSameAvroNameAreRejected()
+    {
+        String udt = "CREATE TYPE fields (\"a-b\" int, a_u002db text);";
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 frozen<fields>);");
+
+        assertThatThrownBy(() -> cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt)))
+        .isInstanceOf(AvroRuntimeException.class)
+        .hasMessageContaining("Duplicate field a_u002db");
     }
 
     @Test
     public void testUdtNamedLikeTheTableDoesNotCollideWithIt()
     {
+        // the table record is named <keyspace>.<table>.<table> and the UDT record <keyspace>.<udt>
         String udt = "CREATE TYPE same (id text);";
         String createStmt = "CREATE TABLE a.same (pk int PRIMARY KEY, c1 frozen<same>);";
         Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt));
 
-        assertThat(schema.getName()).as("the table keeps its name").isEqualTo("same");
-        assertThat(fullNameOf(schema, "c1")).as("the UDT is renumbered").isEqualTo("a.same2");
-        assertThat(readCqlType(schema, "c1")).as("CQL type keeps the original name").isEqualTo("same");
+        assertThat(schema.getFullName()).isEqualTo("a.same.same");
+        assertThat(fullNameOf(schema, "c1")).isEqualTo("a.same");
+        assertThat(new Schema.Parser().parse(schema.toString()).toString()).isEqualTo(schema.toString());
     }
 
     private static String fullNameOf(Schema schema, String field)

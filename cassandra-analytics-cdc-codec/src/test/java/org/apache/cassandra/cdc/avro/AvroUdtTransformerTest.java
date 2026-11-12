@@ -22,10 +22,13 @@ package org.apache.cassandra.cdc.avro;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,8 +39,11 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
+import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.CdcEventBuilder;
+import org.apache.cassandra.cdc.msg.FourZeroRangeTombstoneBuilder;
+import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -141,17 +147,81 @@ public class AvroUdtTransformerTest
     @Test
     public void testQuotedColumnAndUdtFieldNames() throws IOException
     {
-        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".quoted (id uuid PRIMARY KEY, \"my-col\" frozen<quoted_result>);",
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".\"quoted-table\" (id uuid PRIMARY KEY, " +
+                                       "\"my-col\" frozen<quoted_result>, \"big-col\" text);",
                                        "CREATE TYPE " + KEYSPACE + ".quoted_result (\"status-code\" int, message text);");
         CdcEvent event = insert(table, UUID.randomUUID(),
                                 Value.of(KEYSPACE, "my-col", "frozen<quoted_result>",
-                                         fields(ByteBuffer.allocate(4).putInt(0, 200), text("ok"))));
+                                         fields(ByteBuffer.allocate(4).putInt(0, 200), text("ok"))),
+                                Value.of(KEYSPACE, "big-col", "text", text(String.join("", Collections.nCopies(100, "x")))));
+
+        // the id and my-col fit in the threshold, big-col does not
+        GenericRecord record = transformAndEncode(table, event, 64, "prefix");
+        GenericRecord payload = (GenericRecord) record.get(AvroConstants.PAYLOAD_KEY);
 
         // the fields are written under their Avro names
-        GenericRecord result = (GenericRecord) transformAndEncode(table, event).get("my_col");
-
-        assertThat(result.get("status_code")).isEqualTo(200);
+        GenericRecord result = (GenericRecord) payload.get("my_u002dcol");
+        assertThat(result.get("status_u002dcode")).isEqualTo(200);
         assertThat(result.get("message")).hasToString("ok");
+        // and the envelope names them the same way
+        assertThat(stringsOf(record.get(AvroConstants.UPDATE_FIELDS_KEY))).containsExactly("id", "my_u002dcol", "big_u002dcol");
+        assertThat(stringsOf(record.get(AvroConstants.TRUNCATED_FIELDS_KEY))).containsExactly("big_u002dcol");
+        // the envelope is named like the table record
+        assertThat(record.getSchema().getFullName()).isEqualTo("prefix." + KEYSPACE + ".quoted_u002dtable");
+        assertThat(payload.getSchema().getName()).isEqualTo("quoted_u002dtable");
+    }
+
+    @Test
+    public void testUdtWithQuotedFieldNamesRoundTrips() throws IOException
+    {
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".round_trip (id uuid PRIMARY KEY, c frozen<round_trip_udt>);",
+                                       "CREATE TYPE " + KEYSPACE + ".round_trip_udt (\"zip-code\" int, city text);");
+        CdcEvent event = insert(table, UUID.randomUUID(),
+                                Value.of(KEYSPACE, "c", "frozen<round_trip_udt>",
+                                         fields(ByteBuffer.allocate(4).putInt(0, 94000), text("sf"))));
+        GenericRecord payload = (GenericRecord) transformAndEncode(table, event, AvroBaseRecordTransformer.DEFAULT_TRUNCATE_THRESHOLD, null)
+                                                .get(AvroConstants.PAYLOAD_KEY);
+
+        // reading a UDT gives the CQL field names, which is what writing it expects
+        Map<Object, Object> read = (Map<Object, Object>) RecordReader.get().read(payload, "c");
+        assertThat(read).containsOnlyKeys("zip-code", "city");
+        Schema.Field column = payload.getSchema().getField("c");
+        GenericRecord written = (GenericRecord) AvroDataUtils.toAvro(read, column.schema());
+        assertThat(written).isEqualTo(payload.get("c"));
+    }
+
+    @Test
+    public void testRangePredicateOnQuotedClusteringKey() throws IOException
+    {
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".quoted_range (id uuid, \"my-ck\" int, v text, " +
+                                       "PRIMARY KEY (id, \"my-ck\"));");
+        CdcEventBuilder builder = CdcEventBuilder.of(CdcEvent.Kind.RANGE_DELETE, KEYSPACE, table.table());
+        builder.setPartitionKeys(listOf(Value.of(KEYSPACE, "id", "uuid", uuid(UUID.randomUUID()))));
+        // the tombstones are complete, so the builder that assembles them from markers has nothing left
+        builder.setRangeTombstoneBuilder(new FourZeroRangeTombstoneBuilder(CassandraSchema.getTable(KEYSPACE, table.table()).get()));
+        builder.setRangeTombstoneList(listOf(new RangeTombstone(listOf(Value.of(KEYSPACE, "my-ck", "int", ByteBuffer.allocate(4).putInt(0, 1))), true,
+                                                                listOf(Value.of(KEYSPACE, "my-ck", "int", ByteBuffer.allocate(4).putInt(0, 5))), false)));
+        builder.setMaxTimestampMicros(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
+        GenericRecord record = transformAndEncode(table, builder.build(), AvroBaseRecordTransformer.DEFAULT_TRUNCATE_THRESHOLD, null);
+
+        Schema tableSchema = new CqlToAvroSchemaConverterImplementation(bridge).convert(table);
+        List<String> predicates = new ArrayList<>();
+        for (Object predicate : (List<?>) record.get(AvroConstants.RANGE_KEY))
+        {
+            GenericRecord range = (GenericRecord) predicate;
+            // the predicate names the field it encodes
+            assertThat(range.get(AvroConstants.FIELD_KEY)).hasToString("my_u002dck");
+            ByteBuffer value = (ByteBuffer) range.get(AvroConstants.VALUE_KEY);
+            GenericRecord decoded = new GenericDatumReader<GenericRecord>(tableSchema)
+                                    .read(null, DecoderFactory.get().binaryDecoder(value.array(), value.position(), value.remaining(), null));
+            predicates.add(range.get(AvroConstants.RANGE_PREDICATE_KEY) + " " + decoded.get("my_u002dck"));
+        }
+        assertThat(predicates).containsExactly("GTE 1", "LT 5");
+    }
+
+    private static List<String> stringsOf(Object list)
+    {
+        return ((List<?>) list).stream().map(Object::toString).collect(Collectors.toList());
     }
 
     /**
@@ -178,11 +248,22 @@ public class AvroUdtTransformerTest
      */
     private GenericRecord transformAndEncode(CqlTable table, CdcEvent event) throws IOException
     {
+        return (GenericRecord) transformAndEncode(table, event, AvroBaseRecordTransformer.DEFAULT_TRUNCATE_THRESHOLD, null)
+                               .get(AvroConstants.PAYLOAD_KEY);
+    }
+
+    /**
+     * Transforms the event, encodes and decodes the full CDC record, and returns the decoded record
+     */
+    private GenericRecord transformAndEncode(CqlTable table, CdcEvent event, int truncateThreshold, String schemaNamespacePrefix)
+    throws IOException
+    {
         Schema tableSchema = new CqlToAvroSchemaConverterImplementation(bridge).convert(table);
         AvroGenericRecordTransformer transformer =
         new AvroGenericRecordTransformer(new SingleTableSchemaStore(tableSchema),
                                          key -> bridge.cassandraTypes().parseType(key.keyspace, key.type),
-                                         null);
+                                         truncateThreshold,
+                                         schemaNamespacePrefix);
 
         GenericData.Record record = transformer.transform(event);
 
@@ -190,7 +271,7 @@ public class AvroUdtTransformerTest
         byte[] encoded = AvroDataUtils.encode(new GenericDatumWriter<>(record.getSchema()), record, null);
         GenericRecord decoded = new GenericDatumReader<GenericRecord>(record.getSchema())
                                 .read(null, DecoderFactory.get().binaryDecoder(encoded, null));
-        return (GenericRecord) decoded.get(AvroConstants.PAYLOAD_KEY);
+        return decoded;
     }
 
     private static ByteBuffer text(String value)

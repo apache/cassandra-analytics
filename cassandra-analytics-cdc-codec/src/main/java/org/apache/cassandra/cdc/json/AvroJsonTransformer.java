@@ -27,7 +27,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.cassandra.cdc.avro.CdcEventAvroEncoder;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.avro.AvroDataUtils;
-import org.apache.cassandra.cdc.avro.AvroSchemas;
 import org.apache.cassandra.cdc.avro.CdcEventUtils;
 import org.apache.cassandra.cdc.avro.JavaTypeConverter;
 import org.apache.cassandra.cdc.msg.CdcEvent;
@@ -54,8 +53,7 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
             GenericData.Record update = new GenericData.Record(tableSchema);
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
             Object javaValue = JavaTypeConverter.deserialize(type, field.getValue());
-            Schema.Field column = AvroSchemas.field(tableSchema, field.columnName);
-            update.put(column.name(), AvroDataUtils.toAvro(javaValue, column.schema()));
+            AvroDataUtils.putField(update, field.columnName, javaValue);
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
         record.put(PAYLOAD_KEY, payload);
@@ -71,8 +69,7 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
                      .forEach(field -> {
                          CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
                          Object javaValue = JavaTypeConverter.deserialize(type, field.getValue());
-                         Schema.Field column = AvroSchemas.field(tableSchema, field.columnName);
-                         update.put(column.name(), AvroDataUtils.toAvro(javaValue, column.schema()));
+                         AvroDataUtils.putField(update, field.columnName, javaValue);
                      });
         return update;
     }

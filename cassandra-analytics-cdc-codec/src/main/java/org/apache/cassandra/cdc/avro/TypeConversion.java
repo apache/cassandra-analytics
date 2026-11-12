@@ -450,7 +450,8 @@ public interface TypeConversion<T>
                                         fieldSchema);
 
             GenericRecord record = (GenericRecord) fieldValue;
-            return fieldSchema.getFields().stream().collect(toMap(Schema.Field::name, field -> readValue(record, field.name())));
+            // keyed by CQL field name, like the values that AvroDataUtils.toAvro converts
+            return fieldSchema.getFields().stream().collect(toMap(AvroSchemas::cqlName, field -> readValue(record, field.name())));
         }
 
         private Object readValue(GenericRecord kv, String name)
