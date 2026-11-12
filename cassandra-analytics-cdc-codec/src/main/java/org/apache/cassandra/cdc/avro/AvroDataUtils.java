@@ -39,6 +39,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.cassandra.spark.utils.Preconditions;
 
 import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_KEY_NAME;
 import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_VALUE_NAME;
@@ -55,6 +56,31 @@ public final class AvroDataUtils
     }
 
     private static final Conversions.DecimalConversion decimalConversions = new Conversions.DecimalConversion();
+
+    /**
+     * Find the field of a record by its name in CQL. See {@link AvroNames}.
+     *
+     * @throws NullPointerException if the record has no such field
+     */
+    public static Schema.Field field(Schema record, String cqlName)
+    {
+        return Preconditions.checkNotNull(AvroSchemas.field(record, cqlName),
+                                          "Encountered an unknown field. Field: %s. Avro schema: %s",
+                                          cqlName, record.getFullName());
+    }
+
+    /**
+     * Converts the value of a column or UDT field to Avro, and puts it in the record under the Avro name of the field
+     *
+     * @param record    record of the table or UDT
+     * @param cqlName   name of the column or UDT field in CQL
+     * @param javaValue value as produced by {@link JavaTypeConverter}
+     */
+    public static void putField(GenericData.Record record, String cqlName, Object javaValue)
+    {
+        Schema.Field field = field(record.getSchema(), cqlName);
+        record.put(field.name(), toAvro(javaValue, field.schema()));
+    }
 
     /**
      * Converts Cassandra value object to Avro, and eventually the Avro data is used to be converted into
@@ -132,10 +158,8 @@ public final class AvroDataUtils
             {
                 // udt type
                 GenericData.Record udtEntry = new GenericData.Record(unwrapped);
-                map.forEach((key, value) -> {
-                    final String fieldName = key.toString(); // UDT key should always be the fieldName of type String
-                    udtEntry.put(fieldName, toAvro(value, unwrapped.getField(fieldName).schema()));
-                });
+                // UDT key should always be the fieldName of type String
+                map.forEach((key, value) -> putField(udtEntry, key.toString(), value));
                 return udtEntry;
             }
             else

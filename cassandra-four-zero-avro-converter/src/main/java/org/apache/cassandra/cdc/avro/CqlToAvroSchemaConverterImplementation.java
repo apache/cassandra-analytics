@@ -21,7 +21,9 @@ package org.apache.cassandra.cdc.avro;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -134,33 +136,41 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         List<String> partitionKeys = new ArrayList<>();
         List<String> clusteringKeys = new ArrayList<>();
         List<String> staticColumns = new ArrayList<>();
-        String topLevelNamespace = String.format("%s.%s", keyspace, table);
+        String avroTable = AvroNames.escape(table);
+        String topLevelNamespace = String.format("%s.%s", AvroNames.escape(keyspace), avroTable);
+        // Avro names of the UDT records, to tell apart UDTs that escape to the same name
+        Map<String, String> udtNames = new HashMap<>();
 
         for (CqlField cqlField : cqlTable.fields())
         {
-            ColumnMetadata column = tableMetadata.getColumn(new ColumnIdentifier(cqlField.name(), false));
-            Schema avroField = schemaFrom(column, topLevelNamespace);
-            fields.add(new Schema.Field(column.name.toString(), avroField, "doc", null, Schema.Field.Order.ASCENDING));
+            // the field name is the identifier itself, so its case is kept; quoted names can be mixed case
+            ColumnMetadata column = tableMetadata.getColumn(new ColumnIdentifier(cqlField.name(), true));
+            String columnName = column.name.toString();
+            String avroName = AvroNames.escape(columnName);
+            Schema avroField = schemaFrom(column, topLevelNamespace + '.' + avroName, udtNames);
+            Schema.Field field = new Schema.Field(avroName, avroField, "doc", null, Schema.Field.Order.ASCENDING);
+            flagCqlNameIfChanged(field, columnName);
+            fields.add(field);
 
             if (column.isPrimaryKeyColumn())
             {
-                primaryKeys.add(column.name.toString());
+                primaryKeys.add(avroName);
 
                 if (column.isPartitionKey())
                 {
-                    partitionKeys.add(column.name.toString());
+                    partitionKeys.add(avroName);
                 }
                 else
                 {
-                    clusteringKeys.add(column.name.toString());
+                    clusteringKeys.add(avroName);
                 }
             }
             else if (column.isStatic())
             {
-                staticColumns.add(column.name.toString());
+                staticColumns.add(avroName);
             }
         }
-        Schema avroSchema = Schema.createRecord(table, "doc", topLevelNamespace, false, fields);
+        Schema avroSchema = Schema.createRecord(avroTable, "doc", topLevelNamespace, false, fields);
         AvroSchemas.setPrimaryKeys(avroSchema, primaryKeys);
         AvroSchemas.setPartitionKeys(avroSchema, partitionKeys);
         AvroSchemas.setClusteringKeys(avroSchema, clusteringKeys);
@@ -168,10 +178,18 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         return avroSchema;
     }
 
-    private static Schema schemaFrom(ColumnMetadata column, String namespace)
+    private static Schema schemaFrom(ColumnMetadata column, String namespace, Map<String, String> udtNames)
     {
-        Schema schema = schemaFrom(column.type, namespace + '.' + column.name.toString());
+        Schema schema = schemaFrom(column.type, namespace, udtNames);
         return SchemaBuilder.nullable().type(schema);
+    }
+
+    private static void flagCqlNameIfChanged(Schema.Field field, String cqlName)
+    {
+        if (!field.name().equals(cqlName))
+        {
+            AvroSchemas.flagCqlName(field, cqlName);
+        }
     }
 
     private static boolean isFrozen(AbstractType<?> type)
@@ -179,7 +197,7 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         return (type.isFreezable() && !type.isMultiCell()) || type instanceof FrozenType;
     }
 
-    private static Schema schemaFrom(AbstractType<?> columnCqlType, String namespace)
+    private static Schema schemaFrom(AbstractType<?> columnCqlType, String namespace, Map<String, String> udtNames)
     {
         // If a type is reversed we should convert the base type
         AbstractType<?> cqlType = columnCqlType.isReversed() ? ((ReversedType<?>) columnCqlType).baseType : columnCqlType;
@@ -190,12 +208,12 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         if (cqlType instanceof ListType)
         {
             result = SchemaBuilder.array()
-                                  .items(schemaFrom(((ListType<?>) cqlType).getElementsType(), namespace));
+                                  .items(schemaFrom(((ListType<?>) cqlType).getElementsType(), namespace, udtNames));
         }
         else if (cqlType instanceof SetType)
         {
             result = SchemaBuilder.array()
-                                  .items(schemaFrom(((SetType<?>) cqlType).getElementsType(), namespace));
+                                  .items(schemaFrom(((SetType<?>) cqlType).getElementsType(), namespace, udtNames));
             AvroSchemas.flagArrayAsSet(result);
         }
         else if (cqlType instanceof MapType)
@@ -215,10 +233,10 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
                                                                          .fields();
             // map keys and values are not nullable
             keyValue.name(ARRAY_BASED_MAP_KEY_NAME)
-                    .type(schemaFrom(cqlMap.getKeysType(), keyNamespace))
+                    .type(schemaFrom(cqlMap.getKeysType(), keyNamespace, udtNames))
                     .noDefault();
             keyValue.name(ARRAY_BASED_MAP_VALUE_NAME)
-                    .type(schemaFrom(cqlMap.getValuesType(), valueNamespace))
+                    .type(schemaFrom(cqlMap.getValuesType(), valueNamespace, udtNames))
                     .noDefault();
             result = SchemaBuilder.builder()
                                   .array()
@@ -231,23 +249,31 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
             // and references it by name elsewhere. Records nested in its fields are namespaced by the UDT, not by its
             // position; the record_udt segment keeps them apart from the records of a table named like the UDT.
             UserType userType = (UserType) cqlType;
-            String udtName = userType.getNameAsString();
-            String fieldNamespace = userType.keyspace + '.' + udtName + '.' + AvroConstants.RECORD_BASED_UDT_NAME;
+            // the Avro name is the escaped CQL name, which is kept in the cqlType property
+            String udtName = AvroNames.escape(userType.getNameAsString());
+            String udtKeyspace = AvroNames.escape(userType.keyspace);
+            checkUniqueUdtName(udtNames, udtKeyspace + '.' + udtName, userType);
+            String fieldNamespace = udtKeyspace + '.' + udtName + '.' + AvroConstants.RECORD_BASED_UDT_NAME;
             SchemaBuilder.FieldAssembler<Schema> udtValue = SchemaBuilder.builder()
                                                                          .record(udtName)
-                                                                         .namespace(userType.keyspace)
+                                                                         .namespace(udtKeyspace)
                                                                          .fields();
             for (int i = 0; i < userType.size(); i++)
             {
-                String fieldName = userType.fieldNameAsString(i);
-                udtValue.name(fieldName)
-                        .type(schemaFrom(userType.fieldType(i), fieldNamespace + '.' + fieldName))
-                        .noDefault();
+                String cqlFieldName = userType.fieldNameAsString(i);
+                String fieldName = AvroNames.escape(cqlFieldName);
+                SchemaBuilder.FieldBuilder<Schema> fieldBuilder = udtValue.name(fieldName);
+                if (!fieldName.equals(cqlFieldName))
+                {
+                    fieldBuilder.prop(AvroConstants.CQL_NAME_PROP, cqlFieldName);
+                }
+                fieldBuilder.type(schemaFrom(userType.fieldType(i), fieldNamespace + '.' + fieldName, udtNames))
+                            .noDefault();
             }
             result = udtValue.endRecord();
             AvroSchemas.flagAsUdt(result);
             // the record is shared by all uses of the UDT, so properties that depend on the use (frozen, reversed) are not set
-            AvroSchemas.flagCqlType(result, udtName);
+            AvroSchemas.flagCqlType(result, userType.getNameAsString());
             return result;
         }
         else
@@ -266,6 +292,21 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         }
 
         return result;
+    }
+
+    /**
+     * Avro defines a record once and references it by name elsewhere, so two UDTs that escape to the same name would
+     * silently share the definition of the first one. See {@link AvroNames#escape}.
+     */
+    private static void checkUniqueUdtName(Map<String, String> udtNames, String avroName, UserType userType)
+    {
+        String cqlName = userType.keyspace + '.' + userType.getNameAsString();
+        String previous = udtNames.putIfAbsent(avroName, cqlName);
+        if (previous != null && !previous.equals(cqlName))
+        {
+            throw new IllegalArgumentException(String.format("UDTs %s and %s have the same Avro name %s",
+                                                             previous, cqlName, avroName));
+        }
     }
 
     /**

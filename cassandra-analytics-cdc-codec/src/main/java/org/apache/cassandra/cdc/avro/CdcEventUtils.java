@@ -43,7 +43,6 @@ import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.Preconditions;
 
 import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
 
@@ -96,11 +95,25 @@ public final class CdcEventUtils
         }
     }
 
-    // return the list of field names that have data present in the row
+    /**
+     * @return the name of the column in CQL. Events name columns the way CQL statements do, quoted when needed (for
+     * example {@code "my-col"} or {@code "MyCol"}), while schemas name them by the identifier itself.
+     */
+    public static String columnName(Value value)
+    {
+        String name = value.columnName;
+        if (name.length() >= 2 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"')
+        {
+            return name.substring(1, name.length() - 1).replace("\"\"", "\"");
+        }
+        return name;
+    }
+
+    // return the list of Avro field names that have data present in the row
     public static List<String> updatedFieldNames(CdcEvent event)
     {
         return updatedFields(event).stream()
-                                   .map(value -> value.columnName)
+                                   .map(value -> AvroNames.escape(columnName(value)))
                                    .collect(Collectors.toList());
     }
 
@@ -193,7 +206,7 @@ public final class CdcEventUtils
         {
             for (FieldValue fv : valueSet)
             {
-                result.add(makeRangePredicate(fv.value.columnName,
+                result.add(makeRangePredicate(columnName(fv.value),
                                               valueSet.size() > 1 ? "IN" : "EQ",
                                               encoder.apply(fv.value)));
             }
@@ -213,14 +226,14 @@ public final class CdcEventUtils
             if (index < start.size())
             {
                 Value v = start.get(index);
-                result.add(makeRangePredicate(v.columnName,
+                result.add(makeRangePredicate(columnName(v),
                                               startInclusive ? "GTE" : "GT",
                                               encoder.apply(v)));
             }
             if (index < end.size())
             {
                 Value v = end.get(index);
-                result.add(makeRangePredicate(v.columnName,
+                result.add(makeRangePredicate(columnName(v),
                                               endInclusive ? "LTE" : "LT",
                                               encoder.apply(v)));
             }
@@ -232,7 +245,8 @@ public final class CdcEventUtils
 
     private static Map<String, Object> makeRangePredicate(String columnName, String predicateType, Object value)
     {
-        return mapOf(AvroConstants.FIELD_KEY, columnName, AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
+        // the field is named like the field of the encoded value
+        return mapOf(AvroConstants.FIELD_KEY, AvroNames.escape(columnName), AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
     }
 
     // return index of the longest prefix (exclusive)
@@ -303,28 +317,25 @@ public final class CdcEventUtils
 
         for (Value field : CdcEventUtils.updatedFields(event))
         {
+            Schema.Field column = AvroDataUtils.field(tableSchema, columnName(field));
             ByteBuffer value = field.getValue();
             if (value == null) // the field is deleted
             {
-                update.put(field.columnName, null);
+                update.put(column.name(), null);
                 continue;
             }
 
             if (totalSize + value.remaining() > truncateThreshold)
             {
-                truncatedFields.add(field.columnName);
+                truncatedFields.add(column.name());
                 continue;
             }
 
             totalSize += value.remaining();
 
-            Schema.Field column = tableSchema.getField(field.columnName);
-            Preconditions.checkNotNull(column,
-                                       "Encountered an unknown field during event encoding. " +
-                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
             Object javaValue = JavaTypeConverter.deserialize(type, value);
-            update.put(field.columnName, AvroDataUtils.toAvro(javaValue, column.schema()));
+            update.put(column.name(), AvroDataUtils.toAvro(javaValue, column.schema()));
         }
         return new UpdatedEvent(update, truncatedFields);
     }

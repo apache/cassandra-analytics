@@ -71,15 +71,10 @@ extends CdcEventAvroEncoder
             ByteBuffer fieldValue = field.getValue();
             Preconditions.checkNotNull(fieldValue, "Field value of column %s should not be null for range predicate", field.columnName);
             Schema tableSchema = store.getSchema(event.keyspace + '.' + event.table, null);
-            Schema.Field column = tableSchema.getField(field.columnName);
-            Preconditions.checkNotNull(column,
-                                       "Encountered an unknown field during range predicate encoding. " +
-                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
-
             GenericData.Record update = new GenericData.Record(tableSchema);
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
             Object javaValue = JavaTypeConverter.deserialize(type, fieldValue);
-            update.put(field.columnName, AvroDataUtils.toAvro(javaValue, column.schema()));
+            AvroDataUtils.putField(update, CdcEventUtils.columnName(field), javaValue);
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
         applyCommonFields(event, record, predicateFieldEncoder);
