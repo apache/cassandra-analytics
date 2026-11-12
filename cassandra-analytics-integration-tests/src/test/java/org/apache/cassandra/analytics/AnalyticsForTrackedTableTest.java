@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.vdurmont.semver4j.Semver;
@@ -53,6 +54,7 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void bulkWriteReadFromTrackedTable()
     {
+        waitForSchemaReady(2, TimeUnit.MINUTES);
         SparkSession spark = getOrCreateSparkSession();
         Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
 
