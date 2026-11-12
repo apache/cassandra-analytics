@@ -304,6 +304,18 @@ public class CqlToAvroSchemaConverterTest
     }
 
     @Test
+    public void testMixedCaseColumnNames()
+    {
+        // quoted names keep their case, whether they are valid in Avro or not
+        String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, \"MyCol\" int, \"My-Col\" text);");
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, Collections.emptySet());
+
+        assertThat(AvroSchemas.field(schema, "MyCol").name()).isEqualTo("MyCol");
+        assertThat(AvroSchemas.field(schema, "MyCol").getProp(AvroConstants.CQL_NAME_PROP)).isNull();
+        assertThat(AvroSchemas.field(schema, "My-Col").name()).isEqualTo("My_u002dCol");
+    }
+
+    @Test
     public void testNonAsciiNamesAreEscaped()
     {
         // characters outside the BMP are escaped as their two UTF-16 chars

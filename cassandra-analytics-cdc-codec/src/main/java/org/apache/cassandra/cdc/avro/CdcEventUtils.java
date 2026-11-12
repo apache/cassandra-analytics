@@ -96,16 +96,35 @@ public final class CdcEventUtils
     }
 
     /**
+     * @return the name of the column in CQL. Events name columns the way CQL statements do, quoted when needed (for
+     * example {@code "my-col"} or {@code "MyCol"}), while schemas name them by the identifier itself.
+     */
+    public static String columnName(Value value)
+    {
+        return unquote(value.columnName);
+    }
+
+    private static String unquote(String name)
+    {
+        if (name.length() >= 2 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"')
+        {
+            return name.substring(1, name.length() - 1).replace("\"\"", "\"");
+        }
+        return name;
+    }
+
+    /**
      * @return the Avro names of the updated columns; a partially updated UDT column is listed as its written fields,
      * e.g. {@code udt.field}
      */
     public static List<String> updatedFieldNames(CdcEvent event)
     {
+        // keyed by column name and listing field names as events name them, quoted when needed
         Map<String, List<String>> updatedUdtFields = event.getUpdatedUdtFields();
         List<String> names = new ArrayList<>();
         for (Value value : updatedFields(event))
         {
-            String column = AvroNames.escape(value.columnName);
+            String column = AvroNames.escape(columnName(value));
             List<String> udtFields = updatedUdtFields == null ? null : updatedUdtFields.get(value.columnName);
             if (udtFields == null)
             {
@@ -113,7 +132,7 @@ public final class CdcEventUtils
             }
             else
             {
-                udtFields.forEach(field -> names.add(column + '.' + AvroNames.escape(field)));
+                udtFields.forEach(field -> names.add(column + '.' + AvroNames.escape(unquote(field))));
             }
         }
         return names;
@@ -208,7 +227,7 @@ public final class CdcEventUtils
         {
             for (FieldValue fv : valueSet)
             {
-                result.add(makeRangePredicate(fv.value.columnName,
+                result.add(makeRangePredicate(columnName(fv.value),
                                               valueSet.size() > 1 ? "IN" : "EQ",
                                               encoder.apply(fv.value)));
             }
@@ -228,14 +247,14 @@ public final class CdcEventUtils
             if (index < start.size())
             {
                 Value v = start.get(index);
-                result.add(makeRangePredicate(v.columnName,
+                result.add(makeRangePredicate(columnName(v),
                                               startInclusive ? "GTE" : "GT",
                                               encoder.apply(v)));
             }
             if (index < end.size())
             {
                 Value v = end.get(index);
-                result.add(makeRangePredicate(v.columnName,
+                result.add(makeRangePredicate(columnName(v),
                                               endInclusive ? "LTE" : "LT",
                                               encoder.apply(v)));
             }
@@ -319,7 +338,7 @@ public final class CdcEventUtils
 
         for (Value field : CdcEventUtils.updatedFields(event))
         {
-            Schema.Field column = AvroDataUtils.field(tableSchema, field.columnName);
+            Schema.Field column = AvroDataUtils.field(tableSchema, columnName(field));
             ByteBuffer value = field.getValue();
             if (value == null) // the field is deleted
             {

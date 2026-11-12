@@ -94,6 +94,9 @@ public final class AvroSchemaUtils
      * <p>Prefer {@link #buildMergedSchema(Schema, String, String)} unless a custom envelope
      * template is explicitly required.
      *
+     * <p>The name and namespace may hold CQL identifiers, such as the table and the keyspace; they are escaped here
+     * (see {@link AvroNames}), so that every caller gets the same Avro names for them.
+     *
      * @param envelopeTemplate the base CDC envelope schema
      * @param payloadSchema    the table-specific Avro schema produced by the CQL-to-Avro converter
      * @param name             the record name for the merged schema
@@ -105,7 +108,7 @@ public final class AvroSchemaUtils
                                            String name,
                                            String namespace)
     {
-        Schema mergedSchema = Schema.createRecord(name, "schema", namespace, false);
+        Schema mergedSchema = Schema.createRecord(AvroNames.escape(name), "schema", AvroNames.escapeNamespace(namespace), false);
         Schema.Field payloadField = new Schema.Field(AvroConstants.PAYLOAD_KEY, payloadSchema, AvroConstants.PAYLOAD_KEY);
 
         List<Schema.Field> fields = new ArrayList<>();

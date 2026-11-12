@@ -143,7 +143,8 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
 
         for (CqlField cqlField : cqlTable.fields())
         {
-            ColumnMetadata column = tableMetadata.getColumn(new ColumnIdentifier(cqlField.name(), false));
+            // the field name is the identifier itself, so its case is kept; quoted names can be mixed case
+            ColumnMetadata column = tableMetadata.getColumn(new ColumnIdentifier(cqlField.name(), true));
             String columnName = column.name.toString();
             String avroName = AvroNames.escape(columnName);
             Schema avroField = schemaFrom(column, topLevelNamespace + '.' + avroName, udtNames);

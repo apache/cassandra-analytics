@@ -64,4 +64,23 @@ public final class AvroNames
         }
         return escaped == null ? name : escaped.toString();
     }
+
+    /**
+     * Escapes each dot-separated segment of a namespace, such as {@code <prefix>.<keyspace>}. See {@link #escape}.
+     *
+     * @return the Avro namespace, or null if the namespace is null
+     */
+    public static String escapeNamespace(String namespace)
+    {
+        if (namespace == null)
+        {
+            return null;
+        }
+        String[] segments = namespace.split("\\.", -1);
+        for (int i = 0; i < segments.length; i++)
+        {
+            segments[i] = escape(segments[i]);
+        }
+        return String.join(".", segments);
+    }
 }
