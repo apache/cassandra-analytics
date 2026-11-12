@@ -30,6 +30,9 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -69,6 +72,8 @@ import org.jetbrains.annotations.Nullable;
 public abstract class DataLayer implements Serializable
 {
     public static final long serialVersionUID = 42L;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataLayer.class);
 
     public DataLayer()
     {
@@ -601,7 +606,13 @@ public abstract class DataLayer implements Serializable
             {
                 Timestamp timestamp = (Timestamp) value;
                 // sub-millisecond precision is not supported by Cassandra timestamp type
-                return timestamp.getNanos() % 1000000 == 0;
+                boolean hasSubMillisecondPrecision = timestamp.getNanos() % 1000000 != 0;
+                if (hasSubMillisecondPrecision)
+                {
+                    LOGGER.warn("Skipping SAI filter on attribute '{}' with nanoseconds '{}' due to unsupported sub-millisecond precision",
+                                attribute, timestamp.getNanos());
+                }
+                return !hasSubMillisecondPrecision;
             }
             return true;
         }
