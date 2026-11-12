@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -432,29 +433,27 @@ public abstract class DataLayer implements Serializable
     @Nullable
     private SaiFilter toSaiFilter(@NotNull Filter filter)
     {
-        String attribute = filterAttribute(filter);
-        Object value = filterValue(filter);
-        SaiFilter.Operator operator = saiOperator(filter);
-        if (attribute == null || value == null || operator == null)
+        SaiPredicate predicate = SaiPredicate.from(filter);
+        if (predicate == null || !predicate.isSupported())
         {
             return null;
         }
 
-        SaiIndex index = saiIndexForAttribute(attribute);
+        SaiIndex index = saiIndexForAttribute(predicate.attribute);
         if (index == null)
         {
             return null;
         }
 
-        CqlField field = resolveField(attribute);
+        CqlField field = resolveField(predicate.attribute);
         Object cqlValue = SqlToCqlTypeConverter.getConverter(field.type())
-                                               .convert(value);
+                                               .convert(predicate.value);
 
         ByteBuffer buffer = field.serialize(cqlValue);
         byte[] bytes = new byte[buffer.remaining()];
         buffer.duplicate().get(bytes);
 
-        return new SaiFilter(index, operator, bytes);
+        return new SaiFilter(index, predicate.operator, bytes);
     }
 
     /**
@@ -518,84 +517,6 @@ public abstract class DataLayer implements Serializable
         return match;
     }
 
-    @Nullable
-    private static String filterAttribute(Filter filter)
-    {
-        if (filter instanceof EqualTo)
-        {
-            return ((EqualTo) filter).attribute();
-        }
-        if (filter instanceof GreaterThan)
-        {
-            return ((GreaterThan) filter).attribute();
-        }
-        if (filter instanceof GreaterThanOrEqual)
-        {
-            return ((GreaterThanOrEqual) filter).attribute();
-        }
-        if (filter instanceof LessThan)
-        {
-            return ((LessThan) filter).attribute();
-        }
-        if (filter instanceof LessThanOrEqual)
-        {
-            return ((LessThanOrEqual) filter).attribute();
-        }
-        return null;
-    }
-
-    @Nullable
-    private static Object filterValue(Filter filter)
-    {
-        if (filter instanceof EqualTo)
-        {
-            return ((EqualTo) filter).value();
-        }
-        if (filter instanceof GreaterThan)
-        {
-            return ((GreaterThan) filter).value();
-        }
-        if (filter instanceof GreaterThanOrEqual)
-        {
-            return ((GreaterThanOrEqual) filter).value();
-        }
-        if (filter instanceof LessThan)
-        {
-            return ((LessThan) filter).value();
-        }
-        if (filter instanceof LessThanOrEqual)
-        {
-            return ((LessThanOrEqual) filter).value();
-        }
-        return null;
-    }
-
-    @Nullable
-    private static SaiFilter.Operator saiOperator(Filter filter)
-    {
-        if (filter instanceof EqualTo)
-        {
-            return SaiFilter.Operator.EQ;
-        }
-        if (filter instanceof GreaterThan)
-        {
-            return SaiFilter.Operator.GT;
-        }
-        if (filter instanceof GreaterThanOrEqual)
-        {
-            return SaiFilter.Operator.GTE;
-        }
-        if (filter instanceof LessThan)
-        {
-            return SaiFilter.Operator.LT;
-        }
-        if (filter instanceof LessThanOrEqual)
-        {
-            return SaiFilter.Operator.LTE;
-        }
-        return null;
-    }
-
     /**
      * Override to plug in your own Stats instrumentation for recording internal events
      *
@@ -613,5 +534,76 @@ public abstract class DataLayer implements Serializable
             return s;
         }
         return s.toLowerCase();
+    }
+
+    private static class SaiPredicate
+    {
+        private final String attribute;
+        private final Object value;
+        private final SaiFilter.Operator operator;
+
+        private SaiPredicate(String attribute, Object value, SaiFilter.Operator operator)
+        {
+            this.attribute = attribute;
+            this.value = value;
+            this.operator = operator;
+        }
+
+        @Nullable
+        private static SaiPredicate create(String attribute, Object value,
+                                           SaiFilter.Operator operator)
+        {
+            if (attribute == null || value == null)
+            {
+                return null;
+            }
+            return new SaiPredicate(attribute, value, operator);
+        }
+
+        @Nullable
+        private static SaiPredicate from(Filter filter)
+        {
+            if (filter instanceof EqualTo)
+            {
+                EqualTo eq = (EqualTo) filter;
+                return create(eq.attribute(), eq.value(), SaiFilter.Operator.EQ);
+            }
+            if (filter instanceof GreaterThan)
+            {
+                GreaterThan gt = (GreaterThan) filter;
+                return create(gt.attribute(), gt.value(), SaiFilter.Operator.GT);
+            }
+            if (filter instanceof GreaterThanOrEqual)
+            {
+                GreaterThanOrEqual gte = (GreaterThanOrEqual) filter;
+                return create(gte.attribute(), gte.value(), SaiFilter.Operator.GTE);
+            }
+            if (filter instanceof LessThan)
+            {
+                LessThan lt = (LessThan) filter;
+                return create(lt.attribute(), lt.value(), SaiFilter.Operator.LT);
+            }
+            if (filter instanceof LessThanOrEqual)
+            {
+                LessThanOrEqual lte = (LessThanOrEqual) filter;
+                return create(lte.attribute(), lte.value(), SaiFilter.Operator.LTE);
+            }
+            return null;
+        }
+
+        /**
+         * @return {@code false} if for any reason predicate cannot be supported by SAI index,
+         *         {@code true} otherwise
+         */
+        private boolean isSupported()
+        {
+            if (value instanceof Timestamp)
+            {
+                Timestamp timestamp = (Timestamp) value;
+                // sub-millisecond precision is not supported by Cassandra timestamp type
+                return timestamp.getNanos() % 1000000 == 0;
+            }
+            return true;
+        }
     }
 }

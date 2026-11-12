@@ -20,12 +20,19 @@
 package org.apache.cassandra.spark.data;
 
 import java.nio.file.Path;
+import java.sql.Timestamp;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestDataLayer;
@@ -47,6 +54,7 @@ import org.apache.spark.sql.sources.Or;
 import org.apache.spark.sql.sources.StringContains;
 import org.apache.spark.sql.sources.StringEndsWith;
 import org.apache.spark.sql.sources.StringStartsWith;
+import org.assertj.core.api.ListAssert;
 
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
@@ -275,6 +283,44 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
             // Without an exact spelling, case-insensitive lookup is ambiguous. Do not prune with either index.
             assertThat(dataLayer.saiFilters(new Filter[]{new EqualTo("FOO", 1)})).isEmpty();
+        });
+    }
+
+    static Stream<Arguments> saiUnsupportedPredicates()
+    {
+        return Stream.of(
+        Arguments.arguments("timestamp", Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()), false),
+        Arguments.arguments("timestamp", Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123000000, ZoneOffset.UTC).toInstant()), true)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("saiUnsupportedPredicates")
+    public void testSaiUnsupportedPredicates(String columnType, Object filterValue, boolean supported)
+    {
+        runTest((partitioner, directory, bridge) -> {
+            TestSchema schema = TestSchema.builder(bridge)
+                                          .withPartitionKey("id", bridge.aInt())
+                                          .withColumn("val", bridge.parseType(columnType))
+                                          .build();
+            List<Path> dataFiles = getFileType(directory, FileType.DATA).collect(Collectors.toList());
+            TestDataLayer dataLayer = new TestDataLayer(bridge, dataFiles, schema.buildTable())
+            {
+                @Override
+                public List<SaiIndex> saiIndexes()
+                {
+                    return ImmutableList.of(new SaiIndex("val_idx", "val", false, Collections.emptyMap()));
+                }
+            };
+            ListAssert<SaiFilter> check = assertThat(dataLayer.saiFilters(new Filter[]{new EqualTo("val", filterValue)}));
+            if (supported)
+            {
+                check.hasSize(1);
+            }
+            else
+            {
+                check.isEmpty();
+            }
         });
     }
 

@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.ICoordinator;
@@ -121,6 +122,17 @@ public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
         .as("SAI range query was not effective for %s; fullScanBytes=%s, saiReadBytes=%s", name, fullScanBytes, saiReadBytes)
         .isGreaterThan(0)
         .isLessThan(fullScanBytes / 2);
+    }
+
+    // Spark timestamps have microsecond precision, Cassandra's only millisecond. The matching row is stored at
+    // 04:05:00.000, which is before 04:05:00.0005, so the SAI pruning hint must not exclude it.
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = { "timestamp_col < '2011-02-03T04:05:00.0005+0000'",
+                             "timestamp_col <= '2011-02-03T04:05:00.0005+0000'" })
+    void testSubMillisecondTimestampUpperBound(String predicate)
+    {
+        List<Row> actual = findMatches(TABLE, true, predicate);
+        assertThat(actual).extracting(row -> row.getInt(0)).contains(MATCH_ID);
     }
 
     @Override

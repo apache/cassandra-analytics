@@ -256,7 +256,10 @@ if the limit is exceeded, SAI-based pruning is abandoned and the worker falls ba
 The candidate tokens are then passed to the BTI or BIG primary index to identify the ranges that need to be read from
 `Data.db`, allowing non-matching portions of the SSTable to be skipped.
 
-Filtering on indexed complex types such as lists, sets, maps, tuples and UDTs is not supported.
+Unsupported features:
+
+* Filtering on indexed complex type columns such as lists, sets, maps, tuples and UDTs
+* Filtering with timestamp values having sub-millisecond precision on `timestamp` columns
 
 SAI-based filtering may perform better with lower Spark parallelism. With fewer workers, fewer executors need to
 download and scan the complete SAI indexes, and each worker is assigned a larger token range, increasing the likelihood
