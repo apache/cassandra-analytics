@@ -90,7 +90,7 @@ class AnalyticsForTrackedTableTest extends SharedClusterSparkIntegrationTestBase
             instanceConfig.putAll(conf.additionalInstanceConfig);
         }
         instanceConfig.put("mutation_tracking.enabled", true);
-        instanceConfig.put("repair_request_timeout", "600000ms");
+        instanceConfig.put("repair_request_timeout", "20000ms");
         return conf.additionalInstanceConfig(instanceConfig);
     }
 
