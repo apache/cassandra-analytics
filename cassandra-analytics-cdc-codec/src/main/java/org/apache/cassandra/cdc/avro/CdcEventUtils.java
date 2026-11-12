@@ -43,7 +43,6 @@ import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.Preconditions;
 
 import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
 
@@ -97,7 +96,7 @@ public final class CdcEventUtils
     }
 
     /**
-     * @return the names of the updated columns; a partially updated UDT column is listed as its written fields,
+     * @return the Avro names of the updated columns; a partially updated UDT column is listed as its written fields,
      * e.g. {@code udt.field}
      */
     public static List<String> updatedFieldNames(CdcEvent event)
@@ -106,14 +105,15 @@ public final class CdcEventUtils
         List<String> names = new ArrayList<>();
         for (Value value : updatedFields(event))
         {
+            String column = AvroNames.escape(value.columnName);
             List<String> udtFields = updatedUdtFields == null ? null : updatedUdtFields.get(value.columnName);
             if (udtFields == null)
             {
-                names.add(value.columnName);
+                names.add(column);
             }
             else
             {
-                udtFields.forEach(field -> names.add(value.columnName + '.' + field));
+                udtFields.forEach(field -> names.add(column + '.' + AvroNames.escape(field)));
             }
         }
         return names;
@@ -247,7 +247,8 @@ public final class CdcEventUtils
 
     private static Map<String, Object> makeRangePredicate(String columnName, String predicateType, Object value)
     {
-        return mapOf(AvroConstants.FIELD_KEY, columnName, AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
+        // the field is named like the field of the encoded value
+        return mapOf(AvroConstants.FIELD_KEY, AvroNames.escape(columnName), AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
     }
 
     // return index of the longest prefix (exclusive)
@@ -318,10 +319,7 @@ public final class CdcEventUtils
 
         for (Value field : CdcEventUtils.updatedFields(event))
         {
-            Schema.Field column = AvroSchemas.field(tableSchema, field.columnName);
-            Preconditions.checkNotNull(column,
-                                       "Encountered an unknown field during event encoding. " +
-                                       "Field: %s. Avro schema: %s", field.columnName, tableSchema.getFullName());
+            Schema.Field column = AvroDataUtils.field(tableSchema, field.columnName);
             ByteBuffer value = field.getValue();
             if (value == null) // the field is deleted
             {

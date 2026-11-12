@@ -145,7 +145,7 @@ public class AvroSchemas
     }
 
     /**
-     * Keep the name a field has in CQL, when its Avro name had to be changed to be valid and unique. See {@link AvroNames}.
+     * Keep the name a field has in CQL, when its Avro name had to be escaped to be valid. See {@link AvroNames}.
      */
     public static void flagCqlName(Schema.Field field, String cqlName)
     {
@@ -153,7 +153,7 @@ public class AvroSchemas
     }
 
     /**
-     * @return the name of the field in CQL, which is the name of the field unless it had to be changed
+     * @return the name of the field in CQL, which is the name of the field unless it had to be escaped
      */
     public static String cqlName(Schema.Field field)
     {
@@ -164,21 +164,14 @@ public class AvroSchemas
     /**
      * Find the field of a record by its name in CQL.
      *
-     * @return the field, or null if the record has no such field
+     * @return the field, or null if the record has no such field. The Avro name of an escaped field is not its CQL
+     * name, so it does not find the field.
      */
     @Nullable
     public static Schema.Field field(Schema record, String cqlName)
     {
-        Schema.Field field = record.getField(cqlName);
-        if (field != null && cqlName(field).equals(cqlName))
-        {
-            return field;
-        }
-        // the Avro name of the field is not the one in CQL, or the name is taken by a field that was renamed to it
-        return record.getFields().stream()
-                     .filter(candidate -> candidate.getProp(AvroConstants.CQL_NAME_PROP) != null && cqlName(candidate).equals(cqlName))
-                     .findFirst()
-                     .orElse(null);
+        Schema.Field field = record.getField(AvroNames.escape(cqlName));
+        return field != null && cqlName(field).equals(cqlName) ? field : null;
     }
 
     public static boolean isFrozen(Schema schema)
