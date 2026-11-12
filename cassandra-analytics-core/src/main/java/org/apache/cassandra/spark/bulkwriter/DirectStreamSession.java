@@ -237,7 +237,7 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         directDataTransferApi.uploadSSTableComponent(componentFile, ssTableIdx, instance, this.sessionID, digest);
     }
 
-    private List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
+    protected List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
     {
         try (CommitCoordinator cc = CommitCoordinator.commit(writerContext, transportContext, streamResult))
         {
