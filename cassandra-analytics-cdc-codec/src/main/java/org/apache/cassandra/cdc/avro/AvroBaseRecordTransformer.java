@@ -74,7 +74,7 @@ extends CdcEventAvroEncoder
             GenericData.Record update = new GenericData.Record(tableSchema);
             CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(event.keyspace, field.columnType));
             Object javaValue = JavaTypeConverter.deserialize(type, fieldValue);
-            AvroDataUtils.putField(update, field.columnName, javaValue);
+            AvroDataUtils.putField(update, CdcEventUtils.columnName(field), javaValue);
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
         applyCommonFields(event, record, predicateFieldEncoder);

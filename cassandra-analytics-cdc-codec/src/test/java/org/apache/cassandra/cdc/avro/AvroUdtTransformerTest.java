@@ -46,6 +46,7 @@ import org.apache.cassandra.cdc.msg.FourZeroRangeTombstoneBuilder;
 import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -147,15 +148,22 @@ public class AvroUdtTransformerTest
     @Test
     public void testQuotedColumnAndUdtFieldNames() throws IOException
     {
-        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".\"quoted-table\" (id uuid PRIMARY KEY, " +
-                                       "\"my-col\" frozen<quoted_result>, \"big-col\" text);",
+        // table names are limited to word characters, but one starting with a digit is not a valid Avro name
+        CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".\"1quoted\" (id uuid PRIMARY KEY, " +
+                                       "\"my-col\" frozen<quoted_result>, \"MyCol\" int, \"q\"\"uote\" int, \"big-col\" text);",
                                        "CREATE TYPE " + KEYSPACE + ".quoted_result (\"status-code\" int, message text);");
+        // events name the columns the way CQL statements do
+        assertThat(eventName(table, "my-col")).isEqualTo("\"my-col\"");
+        assertThat(eventName(table, "q\"uote")).isEqualTo("\"q\"\"uote\"");
         CdcEvent event = insert(table, UUID.randomUUID(),
-                                Value.of(KEYSPACE, "my-col", "frozen<quoted_result>",
+                                Value.of(KEYSPACE, eventName(table, "my-col"), "frozen<quoted_result>",
                                          fields(ByteBuffer.allocate(4).putInt(0, 200), text("ok"))),
-                                Value.of(KEYSPACE, "big-col", "text", text(String.join("", Collections.nCopies(100, "x")))));
+                                Value.of(KEYSPACE, eventName(table, "MyCol"), "int", ByteBuffer.allocate(4).putInt(0, 7)),
+                                Value.of(KEYSPACE, eventName(table, "q\"uote"), "int", ByteBuffer.allocate(4).putInt(0, 8)),
+                                Value.of(KEYSPACE, eventName(table, "big-col"), "text",
+                                         text(String.join("", Collections.nCopies(100, "x")))));
 
-        // the id and my-col fit in the threshold, big-col does not
+        // all the columns but big-col fit in the threshold
         GenericRecord record = transformAndEncode(table, event, 64, "prefix");
         GenericRecord payload = (GenericRecord) record.get(AvroConstants.PAYLOAD_KEY);
 
@@ -163,12 +171,15 @@ public class AvroUdtTransformerTest
         GenericRecord result = (GenericRecord) payload.get("my_u002dcol");
         assertThat(result.get("status_u002dcode")).isEqualTo(200);
         assertThat(result.get("message")).hasToString("ok");
+        assertThat(payload.get("MyCol")).as("mixed case name that is valid in Avro").isEqualTo(7);
+        assertThat(payload.get("q_u0022uote")).isEqualTo(8);
         // and the envelope names them the same way
-        assertThat(stringsOf(record.get(AvroConstants.UPDATE_FIELDS_KEY))).containsExactly("id", "my_u002dcol", "big_u002dcol");
+        assertThat(stringsOf(record.get(AvroConstants.UPDATE_FIELDS_KEY)))
+        .containsExactly("id", "my_u002dcol", "MyCol", "q_u0022uote", "big_u002dcol");
         assertThat(stringsOf(record.get(AvroConstants.TRUNCATED_FIELDS_KEY))).containsExactly("big_u002dcol");
         // the envelope is named like the table record
-        assertThat(record.getSchema().getFullName()).isEqualTo("prefix." + KEYSPACE + ".quoted_u002dtable");
-        assertThat(payload.getSchema().getName()).isEqualTo("quoted_u002dtable");
+        assertThat(record.getSchema().getFullName()).isEqualTo("prefix." + KEYSPACE + "._u0031quoted");
+        assertThat(payload.getSchema().getName()).isEqualTo("_u0031quoted");
     }
 
     @Test
@@ -199,8 +210,9 @@ public class AvroUdtTransformerTest
         builder.setPartitionKeys(listOf(Value.of(KEYSPACE, "id", "uuid", uuid(UUID.randomUUID()))));
         // the tombstones are complete, so the builder that assembles them from markers has nothing left
         builder.setRangeTombstoneBuilder(new FourZeroRangeTombstoneBuilder(CassandraSchema.getTable(KEYSPACE, table.table()).get()));
-        builder.setRangeTombstoneList(listOf(new RangeTombstone(listOf(Value.of(KEYSPACE, "my-ck", "int", ByteBuffer.allocate(4).putInt(0, 1))), true,
-                                                                listOf(Value.of(KEYSPACE, "my-ck", "int", ByteBuffer.allocate(4).putInt(0, 5))), false)));
+        String ck = eventName(table, "my-ck");
+        builder.setRangeTombstoneList(listOf(new RangeTombstone(listOf(Value.of(KEYSPACE, ck, "int", ByteBuffer.allocate(4).putInt(0, 1))), true,
+                                                                listOf(Value.of(KEYSPACE, ck, "int", ByteBuffer.allocate(4).putInt(0, 5))), false)));
         builder.setMaxTimestampMicros(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
         GenericRecord record = transformAndEncode(table, builder.build(), AvroBaseRecordTransformer.DEFAULT_TRUNCATE_THRESHOLD, null);
 
@@ -217,6 +229,14 @@ public class AvroUdtTransformerTest
             predicates.add(range.get(AvroConstants.RANGE_PREDICATE_KEY) + " " + decoded.get("my_u002dck"));
         }
         assertThat(predicates).containsExactly("GTE 1", "LT 5");
+    }
+
+    /**
+     * @return the name of the column as CDC events carry it, which is quoted when CQL needs it
+     */
+    private static String eventName(CqlTable table, String column)
+    {
+        return CassandraSchema.getTable(KEYSPACE, table.table()).get().getColumn(new ColumnIdentifier(column, true)).name.toCQLString();
     }
 
     private static List<String> stringsOf(Object list)

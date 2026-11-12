@@ -44,7 +44,8 @@ import org.apache.kafka.clients.producer.KafkaProducer;
  * <p>{@code schemaNamespacePrefix} controls the Avro schema identity of each produced record:
  * <ul>
  *   <li>If non-empty, the merged schema is given the name of the source table and the namespace
- *       {@code <schemaNamespacePrefix>.<keyspace>}, producing a unique schema per table that can
+ *       {@code <schemaNamespacePrefix>.<keyspace>}, escaped where they are not valid in Avro (see
+ *       {@link org.apache.cassandra.cdc.avro.AvroNames}), producing a unique schema per table that can
  *       be registered independently in the schema registry.</li>
  *   <li>If empty, the name and namespace from the CDC envelope template are used for all tables,
  *       resulting in a single shared schema registration.</li>
