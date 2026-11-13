@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -37,6 +38,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
 {
@@ -132,7 +134,23 @@ public class BulkReaderSaiTypesTest extends BulkReaderSaiTestBase
     void testSubMillisecondTimestampUpperBound(String predicate)
     {
         List<Row> actual = findMatches(TABLE, true, predicate);
+
         assertThat(actual).extracting(row -> row.getInt(0)).contains(MATCH_ID);
+
+        long saiReadBytes = bytesRead();
+        assertThat(saiReadBytes)
+        .as("SAI range query was not effective; fullScanBytes=%s, saiReadBytes=%s", fullScanBytes, saiReadBytes)
+        .isGreaterThan(0)
+        .isLessThan(fullScanBytes / 2);
+    }
+
+    // Fail-fast in case of microsecond precision required in timestamp equality filter.
+    @Test
+    void testSubMillisecondTimestampEqualityFailFast()
+    {
+        assertThatThrownBy(() -> findMatches(TABLE, true, "timestamp_col = '2011-02-03T04:05:00.0005+0000'"))
+        .hasMessage("Cassandra timestamp column does not support sub-millisecond precision. " +
+                    "Condition 'timestamp_col = 2011-02-03T04:05:00.000500Z' is guaranteed to return no records.");
     }
 
     @Override

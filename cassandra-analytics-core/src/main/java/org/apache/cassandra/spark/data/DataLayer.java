@@ -23,15 +23,13 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -72,8 +70,6 @@ import org.jetbrains.annotations.Nullable;
 public abstract class DataLayer implements Serializable
 {
     public static final long serialVersionUID = 42L;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DataLayer.class);
 
     public DataLayer()
     {
@@ -439,7 +435,7 @@ public abstract class DataLayer implements Serializable
     private SaiFilter toSaiFilter(@NotNull Filter filter)
     {
         SaiPredicate predicate = SaiPredicate.from(filter);
-        if (predicate == null || !predicate.isSupported())
+        if (predicate == null)
         {
             return null;
         }
@@ -451,6 +447,7 @@ public abstract class DataLayer implements Serializable
         }
 
         CqlField field = resolveField(predicate.attribute);
+        predicate = predicate.transform(field);
         Object cqlValue = SqlToCqlTypeConverter.getConverter(field.type())
                                                .convert(predicate.value);
 
@@ -597,24 +594,41 @@ public abstract class DataLayer implements Serializable
         }
 
         /**
-         * @return {@code false} if for any reason predicate cannot be supported by SAI index,
-         *         {@code true} otherwise
+         * Transforms this predicate, if necessary, to account for differences between
+         * Spark and Cassandra data types. The transformations preserve the original
+         * predicate's matching results.
+         *
+         * @param field the Cassandra field associated with this predicate
+         * @return the transformed predicate, or original one if no transformation is needed
+         * @throws IllegalArgumentException if predicate cannot be accepted and is logically incorrect
          */
-        private boolean isSupported()
+        public SaiPredicate transform(CqlField field)
         {
-            if (value instanceof Timestamp)
+            if (SqlToCqlTypeConverter.TIMESTAMP.equals(field.cqlTypeName()))
             {
                 Timestamp timestamp = (Timestamp) value;
-                // sub-millisecond precision is not supported by Cassandra timestamp type
                 boolean hasSubMillisecondPrecision = timestamp.getNanos() % 1000000 != 0;
                 if (hasSubMillisecondPrecision)
                 {
-                    LOGGER.warn("Skipping SAI filter on attribute '{}' with nanoseconds '{}' due to unsupported sub-millisecond precision",
-                                attribute, timestamp.getNanos());
+                    long floorMillis = timestamp.getTime();
+                    switch (operator)
+                    {
+                        case EQ:
+                            throw new IllegalArgumentException(String.format("Cassandra timestamp column does not support sub-millisecond precision. " +
+                                                                             "Condition '%s = %s' is guaranteed to return no records.", attribute,
+                                                                             timestamp.toInstant().atZone(ZoneOffset.UTC)));
+                        case LT:
+                        case LTE:
+                            return new SaiPredicate(attribute, new Timestamp(floorMillis), SaiFilter.Operator.LTE);
+                        case GT:
+                        case GTE:
+                            return new SaiPredicate(attribute, new Timestamp(floorMillis + 1), SaiFilter.Operator.GTE);
+                        default:
+                            return this;
+                    }
                 }
-                return !hasSubMillisecondPrecision;
             }
-            return true;
+            return this;
         }
     }
 }

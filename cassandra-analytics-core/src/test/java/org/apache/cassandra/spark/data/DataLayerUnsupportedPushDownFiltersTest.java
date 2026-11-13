@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
@@ -36,6 +37,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestDataLayer;
+import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.sources.And;
@@ -54,11 +56,11 @@ import org.apache.spark.sql.sources.Or;
 import org.apache.spark.sql.sources.StringContains;
 import org.apache.spark.sql.sources.StringEndsWith;
 import org.apache.spark.sql.sources.StringStartsWith;
-import org.assertj.core.api.ListAssert;
 
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DataLayerUnsupportedPushDownFiltersTest
 {
@@ -286,17 +288,35 @@ public class DataLayerUnsupportedPushDownFiltersTest
         });
     }
 
-    static Stream<Arguments> saiUnsupportedPredicates()
+    static Stream<Arguments> saiPredicateTransformation()
     {
         return Stream.of(
-        Arguments.arguments("timestamp", Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()), false),
-        Arguments.arguments("timestamp", Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123000000, ZoneOffset.UTC).toInstant()), true)
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.EQ,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            null,
+                            null,
+                            "Cassandra timestamp column does not support sub-millisecond precision. " +
+                            "Condition 'val = 2026-10-12T08:39:12.123456789Z' is guaranteed to return no records."),
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.LT,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            SaiFilter.Operator.LTE,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123000000, ZoneOffset.UTC).toInstant()),
+                            null),
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.GT,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            SaiFilter.Operator.GTE,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 124000000, ZoneOffset.UTC).toInstant()),
+                            null)
         );
     }
 
-    @ParameterizedTest
-    @MethodSource("saiUnsupportedPredicates")
-    public void testSaiUnsupportedPredicates(String columnType, Object filterValue, boolean supported)
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("saiPredicateTransformation")
+    public void testSaiPredicateTransformation(String columnType, SaiFilter.Operator beforeOperator, Object beforeValue,
+                                               SaiFilter.Operator afterOperator, Object afterValue, String errorMessage)
     {
         runTest((partitioner, directory, bridge) -> {
             TestSchema schema = TestSchema.builder(bridge)
@@ -312,16 +332,43 @@ public class DataLayerUnsupportedPushDownFiltersTest
                     return ImmutableList.of(new SaiIndex("val_idx", "val", false, Collections.emptyMap()));
                 }
             };
-            ListAssert<SaiFilter> check = assertThat(dataLayer.saiFilters(new Filter[]{new EqualTo("val", filterValue)}));
-            if (supported)
+            Filter filter = createSparkFilter("val", beforeOperator, beforeValue);
+            if (errorMessage != null)
             {
-                check.hasSize(1);
+                assertThatThrownBy(() -> dataLayer.saiFilters(new Filter[]{filter})).hasMessage(errorMessage);
             }
             else
             {
-                check.isEmpty();
+                List<SaiFilter> saiFilters = dataLayer.saiFilters(new Filter[]{filter});
+
+                assertThat(saiFilters).hasSize(1);
+                assertThat(saiFilters.get(0).operator()).isEqualTo(afterOperator);
+
+                Object actualValue = bridge.parseType(columnType).deserializeToJavaType(ByteBuffer.wrap(saiFilters.get(0).value()));
+                Object expectedValue = SqlToCqlTypeConverter.getConverter(bridge.parseType(columnType)).convert(afterValue);
+
+                assertThat(actualValue).isEqualTo(expectedValue);
             }
         });
+    }
+
+    private Filter createSparkFilter(String attribute, SaiFilter.Operator operator, Object value)
+    {
+        switch (operator)
+        {
+            case EQ:
+                return new EqualTo(attribute, value);
+            case LT:
+                return new LessThan(attribute, value);
+            case LTE:
+                return new LessThanOrEqual(attribute, value);
+            case GT:
+                return new GreaterThan(attribute, value);
+            case GTE:
+                return new GreaterThanOrEqual(attribute, value);
+            default:
+                throw new IllegalArgumentException("Unknown operator: " + operator);
+        }
     }
 
     @Test
