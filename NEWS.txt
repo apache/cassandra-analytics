@@ -1,3 +1,89 @@
+0.5
+===
+
+Upgrading
+---------
+    - Spark 4.0 / Scala 2.13 / JDK 17 is now the default build (CASSANALYTICS-34) and JDK 17 is required for
+      default build. Spark 3 is still supported.
+
+    - Reader and writer use SSTable version for selecting bridge version instead of the Cassandra release version
+      (CASSANALYTICS-24):
+
+      * The `spark.cassandra_analytics.cassandra.version` option has been removed. It was
+        previously used to pick the Kryo registrator before the cluster version was discovered;
+        all bundled bridges' registrators are now registered up front. The option is silently
+        ignored if still set.
+
+      * `ClusterInfo.getLowestCassandraVersion()` (returning `String`) was replaced by
+        `ClusterInfo.getBridgeVersion()` (returning `CassandraVersion`). The same rename applies to
+        `IBroadcastableClusterInfo` and `BulkWriterConfig`. Custom `ClusterInfo` implementations
+        must be updated.
+
+      * To fall back to the previous behavior, set
+        `spark.cassandra_analytics.bridge.disable_sstable_version_based=true`.
+
+    - CDC persisted-state wire format changed (CASSANALYTICS-184). `CdcState.ReplicaCountSerializer`
+      now writes the replica-count map size as an `int` rather than a `short`. State written by 0.4 and
+      earlier cannot be read by 0.5 and vice versa.
+
+    - `SchemaSupplier.getCdcEnabledTables()` was replaced by `SchemaSupplier.getTables()`, which must
+      return all tables, CDC-enabled or not, so the bridge schema is complete enough to deserialize
+      any commit log mutation (CASSANALYTICS-182). Custom `SchemaSupplier` implementations must be
+      updated.
+
+    - S3 storage transport credentials are now modeled as `StorageAuth` rather than
+      `StorageCredentials` (CASSANALYTICS-155). Custom `StorageTransportExtension`
+      implementations must be updated.
+
+    - CDC Avro record names changed for UDTs and collections (CASSANALYTICS-204). Generated names
+      were previously invalid Avro names or collided between distinct types. Three changes:
+
+      * A UDT is now a record named `<keyspace>.<udt>`, defined once per schema and referenced by
+        name wherever it is used, rather than a record named `record_udt` under the namespace of
+        each use. Records nested in its fields are namespaced by the UDT.
+
+      * List and set element records use the collection's own namespace. The namespace previously
+        embedded the CQL type, which is not a valid Avro name; the CQL type remains available in
+        the `cqlType` property.
+
+      * A map whose key and value both contain maps namespaces the two entry records separately so
+        their full names differ. Other maps are unchanged.
+
+      Consumers that bind to these schemas (generated classes, a schema registry, anything matching
+      on record full names) must be regenerated or re-registered before upgrading. Records written
+      by 0.4 and earlier do not deserialize against the 0.5 schemas.
+
+New features
+------------
+    - SSTable-version-based bridge determination (CASSANALYTICS-24).
+    - Support vector data type (CASSANALYTICS-26).
+    - Spark 4.0 Support (CASSANALYTICS-34).
+    - Add Cassandra 6.0 support (CASSANALYTICS-37).
+    - Add IAM credential support for S3 storage transport (CASSANALYTICS-155).
+    - Make BulkWriterConfig extensible (CASSANALYTICS-168).
+    - Upgrade sidecar version to 0.4.0 (CASSANALYTICS-176).
+    - Add CapturePublishedSchema metric to SidecarCdcStats (CASSANALYTICS-189).
+
+Bug fixes
+---------
+    - Eliminate redundant filesystem lookups in SSTable direct streaming (CASSANALYTICS-104).
+    - Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167).
+    - Avoid Spark 4 partitioning warnings during bulk reads (CASSANALYTICS-171).
+    - Exclude IP address from RingInstance equality so node replacement does not fail bulk write jobs (CASSANALYTICS-175).
+    - CDC logs NPE for deleted column values (CASSANALYTICS-178).
+    - Fix total timeout calculation for getAllNodeSettings (CASSANALYTICS-179).
+    - TokenPartitioner fails to detect range gap in reader (CASSANALYTICS-180).
+    - CDC batch-write mixing a CDC-enabled and CDC-disabled table drops the CDC table's mutation (CASSANALYTICS-182).
+    - CdcState.ReplicaCountSerializer map-size overflow corrupts persisted CDC state (CASSANALYTICS-184).
+    - AbstractSchemaBuilder.build() drops the cdc flag, silently disabling CDC on all tables (CASSANALYTICS-186).
+    - Fix FastByteOperations Silently Falling Back to Pure-Java Comparator (CASSANALYTICS-187).
+    - Expand list of architecture that supports unaligned access in FastByteOperations (CASSANALYTICS-188).
+    - CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191).
+    - Skip CDC-irrelevant mutations on deserialization failure (CASSANALYTICS-196).
+    - Opening one keyspace instance rebuilds every keyspace instance in the Cassandra 6.0 bridge (CASSANALYTICS-202).
+    - Fix UDT column deserialization in CDC (CASSANALYTICS-203).
+    - CDC Avro schemas have invalid or colliding record names for UDTs and collections (CASSANALYTICS-204).
+
 0.4
 ===
 
