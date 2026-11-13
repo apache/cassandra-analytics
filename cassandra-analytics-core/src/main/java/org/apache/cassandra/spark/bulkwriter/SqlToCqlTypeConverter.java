@@ -23,10 +23,12 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 import com.google.common.net.InetAddresses;
+import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -357,6 +360,18 @@ public final class SqlToCqlTypeConverter implements Serializable
         @SuppressWarnings("UnstableApiUsage")
         public InetAddress convertInternal(Object object)
         {
+            if (object instanceof byte[])
+            {
+                byte[] bytes = (byte[]) object;
+                try
+                {
+                    return InetAddress.getByAddress(bytes);
+                }
+                catch (UnknownHostException e)
+                {
+                    throw new IllegalArgumentException("Expected raw IPv4 or IPv6 address bytes: " + Arrays.toString(bytes), e);
+                }
+            }
             if (object instanceof InetAddress)
             {
                 return (InetAddress) object;
@@ -426,6 +441,10 @@ public final class SqlToCqlTypeConverter implements Serializable
             else if (object instanceof Integer)
             {
                 return BigInteger.valueOf((Integer) object);
+            }
+            else if (object instanceof BigDecimal)
+            {
+                return ((BigDecimal) object).toBigInteger();
             }
             else
             {
@@ -526,6 +545,13 @@ public final class SqlToCqlTypeConverter implements Serializable
         @Override
         public Integer convertInternal(Object object)
         {
+            if (object instanceof java.sql.Date)
+            {
+                long epochDay = ((java.sql.Date) object)
+                                .toLocalDate()
+                                .toEpochDay();
+                return encodeEpochDay(epochDay);
+            }
             if (object instanceof Date)
             {
                 return fromDate((Date) object);
@@ -554,6 +580,12 @@ public final class SqlToCqlTypeConverter implements Serializable
             int result = (int) TimeUnit.MILLISECONDS.toDays(millisSinceEpoch);
             result -= Integer.MIN_VALUE;
             return result;
+        }
+
+        protected int encodeEpochDay(long epochDay)
+        {
+            int epoch = Ints.checkedCast(epochDay);
+            return epoch - Integer.MIN_VALUE;
         }
     }
 

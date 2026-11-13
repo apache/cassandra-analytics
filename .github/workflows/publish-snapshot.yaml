@@ -38,7 +38,7 @@ permissions:
 jobs:
   publish-common:
     name: Publish snapshot (common artifacts)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only publish after a successful build of a push to trunk (never a PR, and
     # never a fork's Test run, which would otherwise have access to our secrets).
     if: >-
@@ -94,7 +94,7 @@ jobs:
 
   publish-spark:
     name: Publish snapshot (spark artifacts) - Scala ${{ matrix.scala }} Spark${{ matrix.spark }} JDK${{ matrix.jdk }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&

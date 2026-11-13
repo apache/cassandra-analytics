@@ -56,14 +56,14 @@ public class SSTableCache
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableCache.class);
 
     public static final SSTableCache INSTANCE = new SSTableCache();
-    private final Cache<SSTable, SummaryDbUtils.Summary>             summary = buildCache(propOrDefault("sbr.cache.summary.maxEntries", 4096),
-                                                                                          propOrDefault("sbr.cache.summary.expireAfterMins", 15));
+    private final Cache<SSTable, SummaryDbUtils.Summary>               summary = buildCache(propOrDefault("sbr.cache.summary.maxEntries", 4096),
+                                                                                            propOrDefault("sbr.cache.summary.expireAfterMins", 15));
     private final Cache<SSTable, Pair<DecoratedKey, DecoratedKey>>     index = buildCache(propOrDefault("sbr.cache.index.maxEntries", 128),
                                                                                           propOrDefault("sbr.cache.index.expireAfterMins", 60));
     private final Cache<SSTable, Map<MetadataType, MetadataComponent>> stats = buildCache(propOrDefault("sbr.cache.stats.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
-    private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
-                                                                                          propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+    private final Cache<SSTable, BloomFilter>                          filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
+                                                                                           propOrDefault("sbr.cache.filter.expireAfterMins", 60));
     // if compression is disabled then the CompressionInfo.db file will not exist
     // therefore we can cache as Optional to a) avoid null errors in the cache and b) record that the component does not exist
     private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(

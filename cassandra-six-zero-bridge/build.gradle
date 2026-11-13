@@ -37,6 +37,7 @@ def overriddenTests = [
         'org/apache/cassandra/bridge/CassandraSchemaTests.java',
         'org/apache/cassandra/bridge/SSTableWriterImplementationTest.java',
         'org/apache/cassandra/spark/reader/SchemaBuilderTests.java',
+        'org/apache/cassandra/spark/reader/sai/SaiIndexReaderEndToEndTests.java',
 ].collect { new File(fiveZeroTestDir, it).absolutePath }
 
 sourceSets {

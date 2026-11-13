@@ -33,6 +33,7 @@ import java.util.stream.IntStream;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.utils.FilterUtils;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -55,6 +56,7 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     final CaseInsensitiveStringMap options;
     StructType requiredSchema = null;
     Filter[] pushedFilters = new Filter[0];
+    List<SaiFilter> saiFilters = new ArrayList<>();
 
     CassandraScanBuilder(DataLayer dataLayer, StructType schema, CaseInsensitiveStringMap options)
     {
@@ -78,6 +80,7 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     @Override
     public Filter[] pushFilters(Filter[] filters)
     {
+        saiFilters = dataLayer.saiFilters(filters);
         Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(filters);
 
         List<Filter> supportedFilters = new ArrayList<>(Arrays.asList(filters));
@@ -116,7 +119,7 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     @Override
     public PartitionReaderFactory createReaderFactory()
     {
-        return new CassandraPartitionReaderFactory(dataLayer, requiredSchema, buildPartitionKeyFilters());
+        return new CassandraPartitionReaderFactory(dataLayer, requiredSchema, buildPartitionKeyFilters(), saiFilters);
     }
 
     @Override

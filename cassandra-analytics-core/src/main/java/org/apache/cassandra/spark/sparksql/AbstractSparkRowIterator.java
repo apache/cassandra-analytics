@@ -29,6 +29,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -45,10 +46,11 @@ abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
                              @NotNull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
                              @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                             @NotNull List<SaiFilter> saiFilters,
                              Function<RowBuilder<T>, RowBuilder<T>> decorator)
     {
         super(
-        buildCellIterator(partitionId, dataLayer.cqlTable(), requiredSchema, dataLayer, partitionKeyFilters),
+        buildCellIterator(partitionId, dataLayer.cqlTable(), requiredSchema, dataLayer, partitionKeyFilters, saiFilters),
         dataLayer.stats(),
         requiredSchema == null ? null : requiredSchema.fieldNames(),
         decorator
@@ -59,10 +61,11 @@ abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
                                                     CqlTable cqlTable,
                                                     @Nullable StructType requiredSchema,
                                                     @NotNull DataLayer dataLayer,
-                                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                                                    @NotNull List<SaiFilter> saiFilters)
     {
         StructType columnFilter = useColumnFilter(requiredSchema, cqlTable) ? requiredSchema : null;
-        return new SparkCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);
+        return new SparkCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters, saiFilters);
     }
 
     private static boolean useColumnFilter(@Nullable StructType requiredSchema, CqlTable cqlTable)

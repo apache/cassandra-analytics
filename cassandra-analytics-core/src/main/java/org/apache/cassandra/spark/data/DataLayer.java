@@ -22,6 +22,8 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +35,7 @@ import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -43,13 +46,20 @@ import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.spark.sql.sources.And;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.GreaterThan;
+import org.apache.spark.sql.sources.GreaterThanOrEqual;
 import org.apache.spark.sql.sources.In;
+import org.apache.spark.sql.sources.LessThan;
+import org.apache.spark.sql.sources.LessThanOrEqual;
+import org.apache.spark.sql.sources.Or;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructType;
@@ -236,7 +246,7 @@ public abstract class DataLayer implements Serializable
 
     public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters, SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
-        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilter, null);
+        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilter, null, Collections.emptyList());
     }
 
     /**
@@ -267,13 +277,24 @@ public abstract class DataLayer implements Serializable
         return true;
     }
 
+    public boolean saiFilteringEnabled()
+    {
+        return ClientConfig.DEFAULT_SAI_FILTERING_ENABLED;
+    }
+
+    public int saiMaxCandidateTokens()
+    {
+        return ClientConfig.DEFAULT_SAI_MAX_CANDIDATE_TOKENS;
+    }
+
     /**
      * @return CompactionScanner for iterating over one or more SSTables, compacting data and purging tombstones
      */
     public StreamScanner<RowData> openCompactionScanner(int partitionId,
                                                         List<PartitionKeyFilter> partitionKeyFilters,
                                                         SSTableTimeRangeFilter sstableTimeRangeFilter,
-                                                        @Nullable PruneColumnFilter columnFilter)
+                                                        @Nullable PruneColumnFilter columnFilter,
+                                                        @NotNull List<SaiFilter> saiFilters)
     {
         List<PartitionKeyFilter> filtersInRange;
         try
@@ -295,7 +316,10 @@ public abstract class DataLayer implements Serializable
                                              timeProvider(),
                                              readIndexOffset(),
                                              useIncrementalRepair(),
-                                             stats());
+                                             stats(),
+                                             saiFilteringEnabled() ? saiFilters : Collections.emptyList(),
+                                             saiMaxCandidateTokens(),
+                                             executorService());
     }
 
     /**
@@ -349,6 +373,153 @@ public abstract class DataLayer implements Serializable
     }
 
     /**
+     * @return SAI definitions available for this table.
+     */
+    @NotNull
+    public List<SaiIndex> saiIndexes()
+    {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Extracts Spark predicates that can safely be used as SAI pruning hints.
+     *
+     * These predicates remain in {@link #unsupportedPushDownFilters(Filter[])} so Spark evaluates them after the
+     * Cassandra reader has reconciled all candidate partitions. SAI therefore narrows physical I/O without becoming
+     * part of the correctness boundary.
+     */
+    @NotNull
+    public List<SaiFilter> saiFilters(@NotNull Filter[] filters)
+    {
+        if (saiIndexes().isEmpty())
+        {
+            return Collections.emptyList();
+        }
+
+        List<SaiFilter> result = new ArrayList<>();
+        for (Filter filter : filters)
+        {
+            addSaiFilters(filter, result);
+        }
+        return result;
+    }
+
+    /**
+     * Adds SAI-capable predicates from a conjunctive Spark filter tree.
+     *
+     * A partially-indexable AND can still use its indexable branch because every final match must satisfy that
+     * branch. OR is not supported by Cassandra 5.0 SAI, so an OR subtree is never used for SAI pruning.
+     */
+    private void addSaiFilters(@NotNull Filter filter, @NotNull List<SaiFilter> result)
+    {
+        if (filter instanceof And)
+        {
+            And and = (And) filter;
+            addSaiFilters(and.left(), result);
+            addSaiFilters(and.right(), result);
+            return;
+        }
+        if (filter instanceof Or)
+        {
+            return;
+        }
+
+        SaiFilter saiFilter = toSaiFilter(filter);
+        if (saiFilter != null)
+        {
+            result.add(saiFilter);
+        }
+    }
+
+    @Nullable
+    private SaiFilter toSaiFilter(@NotNull Filter filter)
+    {
+        SaiPredicate predicate = SaiPredicate.from(filter);
+        if (predicate == null)
+        {
+            return null;
+        }
+
+        SaiIndex index = saiIndexForAttribute(predicate.attribute);
+        if (index == null)
+        {
+            return null;
+        }
+
+        CqlField field = resolveField(predicate.attribute);
+        predicate = predicate.transform(field);
+        Object cqlValue = SqlToCqlTypeConverter.getConverter(field.type())
+                                               .convert(predicate.value);
+
+        ByteBuffer buffer = field.serialize(cqlValue);
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.duplicate().get(bytes);
+
+        return new SaiFilter(index, predicate.operator, bytes);
+    }
+
+    /**
+     * Resolves a Spark attribute to an indexed Cassandra column.
+     *
+     * Exact spelling always wins. Case-insensitive matching is retained for the normal unquoted identifier path,
+     * but only when all matching indexes refer to the same Cassandra column spelling. If, for example, both
+     * {@code Foo} and {@code foo} are indexed, an attribute such as {@code FOO} is deliberately not used for SAI
+     * pruning because choosing either index could create false negatives.
+     */
+    @Nullable
+    private SaiIndex saiIndexForAttribute(@NotNull String attribute)
+    {
+        CqlField field = resolveField(attribute);
+        if (field == null)
+        {
+            return null;
+        }
+
+        SaiIndex match = null;
+        for (SaiIndex index : saiIndexes())
+        {
+            if (index.column().equals(field.name()))
+            {
+                if (match != null)
+                {
+                    return null;
+                }
+                match = index;
+            }
+        }
+        return match;
+    }
+
+    @Nullable
+    private CqlField resolveField(@NotNull String attribute)
+    {
+        // exact match always wins
+        for (CqlField field : cqlTable().fields())
+        {
+            if (field.name().equals(attribute))
+            {
+                return field;
+            }
+        }
+
+        // otherwise case-insensitive resolution is safe only if
+        // there is exactly one matching table column
+        CqlField match = null;
+        for (CqlField field : cqlTable().fields())
+        {
+            if (field.name().equalsIgnoreCase(attribute))
+            {
+                if (match != null)
+                {
+                    return null;
+                }
+                match = field;
+            }
+        }
+        return match;
+    }
+
+    /**
      * Override to plug in your own Stats instrumentation for recording internal events
      *
      * @return Stats implementation to record internal events
@@ -365,5 +536,99 @@ public abstract class DataLayer implements Serializable
             return s;
         }
         return s.toLowerCase();
+    }
+
+    private static class SaiPredicate
+    {
+        private final String attribute;
+        private final Object value;
+        private final SaiFilter.Operator operator;
+
+        private SaiPredicate(String attribute, Object value, SaiFilter.Operator operator)
+        {
+            this.attribute = attribute;
+            this.value = value;
+            this.operator = operator;
+        }
+
+        @Nullable
+        private static SaiPredicate create(String attribute, Object value,
+                                           SaiFilter.Operator operator)
+        {
+            if (attribute == null || value == null)
+            {
+                return null;
+            }
+            return new SaiPredicate(attribute, value, operator);
+        }
+
+        @Nullable
+        private static SaiPredicate from(Filter filter)
+        {
+            if (filter instanceof EqualTo)
+            {
+                EqualTo eq = (EqualTo) filter;
+                return create(eq.attribute(), eq.value(), SaiFilter.Operator.EQ);
+            }
+            if (filter instanceof GreaterThan)
+            {
+                GreaterThan gt = (GreaterThan) filter;
+                return create(gt.attribute(), gt.value(), SaiFilter.Operator.GT);
+            }
+            if (filter instanceof GreaterThanOrEqual)
+            {
+                GreaterThanOrEqual gte = (GreaterThanOrEqual) filter;
+                return create(gte.attribute(), gte.value(), SaiFilter.Operator.GTE);
+            }
+            if (filter instanceof LessThan)
+            {
+                LessThan lt = (LessThan) filter;
+                return create(lt.attribute(), lt.value(), SaiFilter.Operator.LT);
+            }
+            if (filter instanceof LessThanOrEqual)
+            {
+                LessThanOrEqual lte = (LessThanOrEqual) filter;
+                return create(lte.attribute(), lte.value(), SaiFilter.Operator.LTE);
+            }
+            return null;
+        }
+
+        /**
+         * Transforms this predicate, if necessary, to account for differences between
+         * Spark and Cassandra data types. The transformations preserve the original
+         * predicate's matching results.
+         *
+         * @param field the Cassandra field associated with this predicate
+         * @return the transformed predicate, or original one if no transformation is needed
+         * @throws IllegalArgumentException if predicate cannot be accepted and is logically incorrect
+         */
+        public SaiPredicate transform(CqlField field)
+        {
+            if (SqlToCqlTypeConverter.TIMESTAMP.equals(field.cqlTypeName()))
+            {
+                Timestamp timestamp = (Timestamp) value;
+                boolean hasSubMillisecondPrecision = timestamp.getNanos() % 1000000 != 0;
+                if (hasSubMillisecondPrecision)
+                {
+                    long floorMillis = timestamp.getTime();
+                    switch (operator)
+                    {
+                        case EQ:
+                            throw new IllegalArgumentException(String.format("Cassandra timestamp column does not support sub-millisecond precision. " +
+                                                                             "Condition '%s = %s' is guaranteed to return no records.", attribute,
+                                                                             timestamp.toInstant().atZone(ZoneOffset.UTC)));
+                        case LT:
+                        case LTE:
+                            return new SaiPredicate(attribute, new Timestamp(floorMillis), SaiFilter.Operator.LTE);
+                        case GT:
+                        case GTE:
+                            return new SaiPredicate(attribute, new Timestamp(floorMillis + 1), SaiFilter.Operator.GTE);
+                        default:
+                            return this;
+                    }
+                }
+            }
+            return this;
+        }
     }
 }

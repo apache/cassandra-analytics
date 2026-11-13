@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.util.Collections;
+
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -183,6 +185,7 @@ class SidecarProvisionedSSTableTest
                                              table,
                                              snapshot,
                                              ImmutableMap.of(FileType.DATA, fileInfo, FileType.COMPRESSION_INFO, compressionInfo),
+                                             Collections.emptyMap(),
                                              1,
                                              Stats.DoNothingStats.INSTANCE);
     }

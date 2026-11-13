@@ -253,7 +253,7 @@ public class SparkRowIteratorTests
             return true;
         }).when(scanner).next();
 
-        when(dataLayer.openCompactionScanner(anyInt(), anyListOf(PartitionKeyFilter.class), any(), any())).thenReturn(scanner);
+        when(dataLayer.openCompactionScanner(anyInt(), anyListOf(PartitionKeyFilter.class), any(), any(), any())).thenReturn(scanner);
 
         // Use SparkRowIterator and verify values match expected
         SparkRowIterator it = new SparkRowIterator(0, dataLayer);

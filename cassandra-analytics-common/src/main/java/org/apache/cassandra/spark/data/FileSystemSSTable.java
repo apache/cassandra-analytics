@@ -24,8 +24,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +94,70 @@ public class FileSystemSSTable extends SSTable
     public boolean isMissing(FileType fileType)
     {
         return resolveComponentFile(fileType) == null;
+    }
+
+    @NotNull
+    @Override
+    public Set<String> saiComponentNames()
+    {
+        Path parent = dataFilePath.getParent();
+        if (parent == null)
+        {
+            return Collections.emptySet();
+        }
+
+        String sstablePrefix = dataFilePath.getFileName().toString()
+                                           .replace(FileType.DATA.getFileSuffix(), "");
+        try (Stream<Path> files = Files.list(parent))
+        {
+            return files.filter(Files::isRegularFile)
+                        .map(p -> p.getFileName().toString())
+                        .filter(name -> name.startsWith(sstablePrefix))
+                        .filter(SSTable::isSaiComponent)
+                        .collect(Collectors.toSet());
+        }
+        catch (IOException exception)
+        {
+            LOGGER.warn("Unable to list custom SSTable components for {}", dataFilePath, exception);
+            return Collections.emptySet();
+        }
+    }
+
+    @Nullable
+    @Override
+    public InputStream openCustomComponent(@NotNull String componentName)
+    {
+        if (!isSupportedComponent(componentName))
+        {
+            return null;
+        }
+
+        Path component = dataFilePath.resolveSibling(componentName);
+        try
+        {
+            return new BufferedInputStream(new FileInputStream(component.toFile()));
+        }
+        catch (FileNotFoundException exception)
+        {
+            return null;
+        }
+    }
+
+    @Override
+    public long customComponentLength(@NotNull String componentName)
+    {
+        if (!isSupportedComponent(componentName))
+        {
+            throw new IllegalArgumentException("Unknown SSTable component: " + componentName);
+        }
+        try
+        {
+            return Files.size(dataFilePath.resolveSibling(componentName));
+        }
+        catch (IOException exception)
+        {
+            throw new RuntimeException(exception);
+        }
     }
 
     @Nullable

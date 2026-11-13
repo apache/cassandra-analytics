@@ -25,11 +25,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.sstable.indexsummary.IndexSummary;
+import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.reader.sai.CandidateTokens;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -44,6 +49,84 @@ final class IndexDbUtils
     private IndexDbUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    @NotNull
+    public static List<DataDbRange> findDataDbRanges(@Nullable IndexSummary indexSummary,
+                                                     @NotNull CandidateTokens.Slice candidates,
+                                                     @NotNull IPartitioner partitioner,
+                                                     @NotNull SSTable ssTable,
+                                                     @NotNull Stats stats) throws IOException
+    {
+        if (candidates.isEmpty())
+        {
+            return Collections.emptyList();
+        }
+
+        long searchStartOffset = indexSummary == null
+                                 ? 0L
+                                 : SummaryDbUtils.findIndexOffsetInSummary(indexSummary,
+                                                                           partitioner,
+                                                                           candidates.first());
+
+        try (InputStream is = ssTable.openPrimaryIndexStream())
+        {
+            if (is == null)
+            {
+                throw new IOException("Unable to open Index.db for " + ssTable.getDataFileName());
+            }
+
+            DataInputStream in = new DataInputStream(is);
+            ByteBufferUtils.skipFully(in, searchStartOffset);
+
+            long maxGapBytes = ssTable.customComponentChunkBufferSize(FileType.INDEX.getFileSuffix()) / 2;
+            DataDbRange.Accumulator result = new DataDbRange.Accumulator(maxGapBytes);
+            int candidateIndex = 0;
+            Long matchedDataPosition = null;
+
+            // Index.db and the SAI candidate set are both token sorted. Walk them together instead of creating a
+            // token range object for every candidate. Keep a candidate selected while equal-token Index.db entries
+            // are observed so rare partitioner collisions cannot create false negatives.
+            while (candidateIndex < candidates.size() || matchedDataPosition != null)
+            {
+                BigInteger token;
+                long dataPosition;
+                try
+                {
+                    token = readNextToken(partitioner, in, stats);
+                    dataPosition = ReaderUtils.readPosition(in);
+                    ReaderUtils.skipPromotedIndex(in);
+                }
+                catch (EOFException eof)
+                {
+                    break;
+                }
+
+                if (matchedDataPosition != null)
+                {
+                    result.add(matchedDataPosition, dataPosition);
+                    matchedDataPosition = null;
+                }
+
+                while (candidateIndex < candidates.size() && candidates.compareAt(candidateIndex, token) < 0)
+                {
+                    candidateIndex++;
+                }
+
+                if (candidateIndex < candidates.size() && candidates.compareAt(candidateIndex, token) == 0)
+                {
+                    matchedDataPosition = dataPosition;
+                }
+            }
+
+            if (matchedDataPosition != null)
+            {
+                // No following Index.db entry was available to provide an exact end. The stream reader will stop at
+                // EOF (or its Spark token bound), so an unbounded final interval is safe.
+                result.add(matchedDataPosition, Long.MAX_VALUE);
+            }
+            return result.build();
+        }
     }
 
     @Nullable

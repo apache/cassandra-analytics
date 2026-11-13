@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
@@ -39,14 +40,17 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
     final DataLayer dataLayer;
     final StructType requiredSchema;
     final List<PartitionKeyFilter> partitionKeyFilters;
+    final List<SaiFilter> saiFilters;
 
     CassandraPartitionReaderFactory(DataLayer dataLayer,
                                     StructType requiredSchema,
-                                    List<PartitionKeyFilter> partitionKeyFilters)
+                                    List<PartitionKeyFilter> partitionKeyFilters,
+                                    List<SaiFilter> saiFilters)
     {
         this.dataLayer = dataLayer;
         this.requiredSchema = requiredSchema;
         this.partitionKeyFilters = partitionKeyFilters;
+        this.saiFilters = saiFilters;
     }
 
     @Override
@@ -64,6 +68,6 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
                       + "Using TaskContext to determine the partitionId type={}, partitionId={}",
                         partition.getClass().getName(), partitionId);
         }
-        return new SparkRowIterator(partitionId, dataLayer, requiredSchema, partitionKeyFilters);
+        return new SparkRowIterator(partitionId, dataLayer, requiredSchema, partitionKeyFilters, saiFilters);
     }
 }

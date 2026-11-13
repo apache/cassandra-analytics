@@ -19,15 +19,26 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.sql.Timestamp;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestDataLayer;
+import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.sources.And;
 import org.apache.spark.sql.sources.EqualNullSafe;
@@ -49,6 +60,7 @@ import org.apache.spark.sql.sources.StringStartsWith;
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DataLayerUnsupportedPushDownFiltersTest
 {
@@ -179,6 +191,184 @@ public class DataLayerUnsupportedPushDownFiltersTest
                 assertThat(unsupportedFilters).hasSize(1);
             }
         });
+    }
+
+    @Test
+    public void testSaiFiltersArePruningHintsOnly()
+    {
+        runTest((partitioner, directory, bridge) -> {
+            TestSchema schema = TestSchema.basic(bridge);
+            List<Path> dataFiles = getFileType(directory, FileType.DATA).collect(Collectors.toList());
+            TestDataLayer dataLayer = new TestDataLayer(bridge, dataFiles, schema.buildTable())
+            {
+                @Override
+                public List<SaiIndex> saiIndexes()
+                {
+                    return ImmutableList.of(new SaiIndex("c_idx", "c", false, Collections.emptyMap()),
+                                            new SaiIndex("b_idx", "b", false, Collections.emptyMap()));
+                }
+            };
+
+            EqualTo equality = new EqualTo("c", 25);
+            GreaterThan lowerBound = new GreaterThan("C", 10);
+            LessThan otherColumn = new LessThan("b", 100);
+            Filter[] allFilters = {equality, lowerBound, otherColumn};
+
+            List<SaiFilter> saiFilters = dataLayer.saiFilters(allFilters);
+            assertThat(saiFilters).hasSize(3);
+            assertThat(saiFilters.get(0).operator()).isEqualTo(SaiFilter.Operator.EQ);
+            assertThat(saiFilters.get(0).value()).isEqualTo(bridge.aInt().serialize(25).array());
+            assertThat(saiFilters.get(1).operator()).isEqualTo(SaiFilter.Operator.GT);
+            assertThat(saiFilters.get(1).value()).isEqualTo(bridge.aInt().serialize(10).array());
+            assertThat(saiFilters.get(2).index().name()).isEqualTo("b_idx");
+            assertThat(saiFilters.get(2).operator()).isEqualTo(SaiFilter.Operator.LT);
+            assertThat(saiFilters.get(2).value()).isEqualTo(bridge.aInt().serialize(100).array());
+
+            // SAI is only an I/O pruning hint. Spark must still evaluate the predicates for correctness.
+            assertThat(dataLayer.unsupportedPushDownFilters(allFilters)).containsExactly(allFilters);
+
+            List<SaiFilter> nested = dataLayer.saiFilters(new Filter[]{new And(equality, otherColumn)});
+            assertThat(nested).hasSize(2);
+            assertThat(nested.get(0).index().name()).isEqualTo("c_idx");
+            assertThat(nested.get(1).index().name()).isEqualTo("b_idx");
+
+            // Cassandra 5.0 SAI does not support OR, so even a fully indexed OR is not used for pruning.
+            assertThat(dataLayer.saiFilters(new Filter[]{new Or(equality, otherColumn)})).isEmpty();
+
+            // An unsupported OR subtree does not prevent an independent AND conjunct from being used safely.
+            List<SaiFilter> nestedBoolean = dataLayer.saiFilters(new Filter[]{new And(new Or(equality, otherColumn),
+                                                                                      lowerBound)});
+            assertThat(nestedBoolean).containsExactly(new SaiFilter(new SaiIndex("c_idx", "c", false, Collections.emptyMap()),
+                                                                    SaiFilter.Operator.GT,
+                                                                    bridge.aInt().serialize(10).array()));
+
+            List<SaiFilter> partialOr = dataLayer.saiFilters(new Filter[]{new Or(equality,
+                                                                                 new StringContains("not_indexed", "x"))});
+            assertThat(partialOr).isEmpty();
+
+            // A partial AND may still use the SAI-capable branch as a conservative pruning hint.
+            List<SaiFilter> partialAnd = dataLayer.saiFilters(new Filter[]{new And(equality,
+                                                                                   new StringContains("not_indexed", "x"))});
+            assertThat(partialAnd).containsExactly(new SaiFilter(new SaiIndex("c_idx", "c", false, Collections.emptyMap()),
+                                                                 SaiFilter.Operator.EQ,
+                                                                 bridge.aInt().serialize(25).array()));
+        });
+    }
+
+    @Test
+    public void testSaiFilterColumnMatchingCaseSensitiveIdentifiers()
+    {
+        runTest((partitioner, directory, bridge) -> {
+            TestSchema schema = TestSchema.builder(bridge)
+                                          .withPartitionKey("id", bridge.aInt())
+                                          .withColumn("foo", bridge.aInt())
+                                          .withColumn("Foo", bridge.aInt())
+                                .build();
+            List<Path> dataFiles = getFileType(directory, FileType.DATA).collect(Collectors.toList());
+            TestDataLayer dataLayer = new TestDataLayer(bridge, dataFiles, schema.buildTable())
+            {
+                @Override
+                public List<SaiIndex> saiIndexes()
+                {
+                    return ImmutableList.of(new SaiIndex("upper_idx", "Foo", true, Collections.emptyMap()),
+                                            new SaiIndex("lower_idx", "foo", false, Collections.emptyMap()));
+                }
+            };
+
+            List<SaiFilter> exactUpper = dataLayer.saiFilters(new Filter[]{new EqualTo("Foo", 1)});
+            assertThat(exactUpper).hasSize(1);
+            assertThat(exactUpper.get(0).index().name()).isEqualTo("upper_idx");
+
+            List<SaiFilter> exactLower = dataLayer.saiFilters(new Filter[]{new EqualTo("foo", 1)});
+            assertThat(exactLower).hasSize(1);
+            assertThat(exactLower.get(0).index().name()).isEqualTo("lower_idx");
+
+            // Without an exact spelling, case-insensitive lookup is ambiguous. Do not prune with either index.
+            assertThat(dataLayer.saiFilters(new Filter[]{new EqualTo("FOO", 1)})).isEmpty();
+        });
+    }
+
+    static Stream<Arguments> saiPredicateTransformation()
+    {
+        return Stream.of(
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.EQ,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            null,
+                            null,
+                            "Cassandra timestamp column does not support sub-millisecond precision. " +
+                            "Condition 'val = 2026-10-12T08:39:12.123456789Z' is guaranteed to return no records."),
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.LT,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            SaiFilter.Operator.LTE,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123000000, ZoneOffset.UTC).toInstant()),
+                            null),
+        Arguments.arguments("timestamp",
+                            SaiFilter.Operator.GT,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 123456789, ZoneOffset.UTC).toInstant()),
+                            SaiFilter.Operator.GTE,
+                            Timestamp.from(ZonedDateTime.of(2026, 10, 12, 8, 39, 12, 124000000, ZoneOffset.UTC).toInstant()),
+                            null)
+        );
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("saiPredicateTransformation")
+    public void testSaiPredicateTransformation(String columnType, SaiFilter.Operator beforeOperator, Object beforeValue,
+                                               SaiFilter.Operator afterOperator, Object afterValue, String errorMessage)
+    {
+        runTest((partitioner, directory, bridge) -> {
+            TestSchema schema = TestSchema.builder(bridge)
+                                          .withPartitionKey("id", bridge.aInt())
+                                          .withColumn("val", bridge.parseType(columnType))
+                                          .build();
+            List<Path> dataFiles = getFileType(directory, FileType.DATA).collect(Collectors.toList());
+            TestDataLayer dataLayer = new TestDataLayer(bridge, dataFiles, schema.buildTable())
+            {
+                @Override
+                public List<SaiIndex> saiIndexes()
+                {
+                    return ImmutableList.of(new SaiIndex("val_idx", "val", false, Collections.emptyMap()));
+                }
+            };
+            Filter filter = createSparkFilter("val", beforeOperator, beforeValue);
+            if (errorMessage != null)
+            {
+                assertThatThrownBy(() -> dataLayer.saiFilters(new Filter[]{filter})).hasMessage(errorMessage);
+            }
+            else
+            {
+                List<SaiFilter> saiFilters = dataLayer.saiFilters(new Filter[]{filter});
+
+                assertThat(saiFilters).hasSize(1);
+                assertThat(saiFilters.get(0).operator()).isEqualTo(afterOperator);
+
+                Object actualValue = bridge.parseType(columnType).deserializeToJavaType(ByteBuffer.wrap(saiFilters.get(0).value()));
+                Object expectedValue = SqlToCqlTypeConverter.getConverter(bridge.parseType(columnType)).convert(afterValue);
+
+                assertThat(actualValue).isEqualTo(expectedValue);
+            }
+        });
+    }
+
+    private Filter createSparkFilter(String attribute, SaiFilter.Operator operator, Object value)
+    {
+        switch (operator)
+        {
+            case EQ:
+                return new EqualTo(attribute, value);
+            case LT:
+                return new LessThan(attribute, value);
+            case LTE:
+                return new LessThanOrEqual(attribute, value);
+            case GT:
+                return new GreaterThan(attribute, value);
+            case GTE:
+                return new GreaterThanOrEqual(attribute, value);
+            default:
+                throw new IllegalArgumentException("Unknown operator: " + operator);
+        }
     }
 
     @Test

@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.utils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +38,9 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.SaiIndex;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * CQL-related utility methods
@@ -269,6 +272,99 @@ public final class CqlUtils
             indexCount++;
         }
         return indexCount;
+    }
+
+    /**
+     * Extracts simple scalar Storage-Attached-Index definitions for the requested table.
+     *
+     * Collection targets such as {@code keys(m)} and {@code values(m)} are intentionally
+     * ignored for now. The SSTable SAI pruning path currently supports scalar predicates only.
+     */
+    public static List<SaiIndex> extractSaiIndexes(@NotNull String schemaStr,
+                                                   @NotNull String keyspace,
+                                                   @NotNull String table)
+    {
+        String cleaned = cleanCql(schemaStr);
+
+        String identifier = "(?:\\\"[^\\\"]+\\\"|[A-Za-z_][A-Za-z0-9_]*)";
+        Pattern pattern = Pattern.compile("CREATE\\s+(?:CUSTOM\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(" + identifier + ")\\s+"
+                                          + "ON\\s+\\\"?" + Pattern.quote(keyspace) + "\\\"?\\.\\\"?" + Pattern.quote(table) + "\\\"?\\s*"
+                                          + "\\(([^)]*)\\)\\s+USING\\s+'([^']+)'"
+                                          + "(?:\\s+WITH\\s+OPTIONS\\s*=\\s*(\\{[^}]*\\}))?\\s*;", Pattern.CASE_INSENSITIVE);
+
+        Matcher matcher = pattern.matcher(cleaned);
+        List<SaiIndex> indexes = new ArrayList<>();
+        while (matcher.find())
+        {
+            String indexClass = matcher.group(3);
+            if (!isSaiIndexClass(indexClass))
+            {
+                continue;
+            }
+
+            String target = matcher.group(2).trim();
+            String column = scalarIndexColumn(target);
+            boolean columnQuoted = isQuoteIdentifier(target);
+            if (column == null)
+            {
+                continue;
+            }
+
+            Map<String, String> options = parseIndexOptions(matcher.group(4));
+            indexes.add(new SaiIndex(unquoteIdentifier(matcher.group(1)), column, columnQuoted, options));
+        }
+        return indexes;
+    }
+
+    private static boolean isSaiIndexClass(String indexClass)
+    {
+        return "sai".equalsIgnoreCase(indexClass)
+               || "StorageAttachedIndex".equalsIgnoreCase(indexClass)
+               || indexClass.endsWith(".StorageAttachedIndex");
+    }
+
+    @Nullable
+    private static String scalarIndexColumn(String target)
+    {
+        String trimmed = target.trim();
+        if (trimmed.matches("[A-Za-z_][A-Za-z0-9_]*") || trimmed.matches("\\\"[^\\\"]+\\\""))
+        {
+            return unquoteIdentifier(trimmed);
+        }
+        return null;
+    }
+
+    private static String unquoteIdentifier(String identifier)
+    {
+        String trimmed = identifier.trim();
+        if (isQuoteIdentifier(trimmed))
+        {
+            return trimmed.substring(1, trimmed.length() - 1)
+                          .replace("\"\"", "\"");
+        }
+        return trimmed;
+    }
+
+    private static boolean isQuoteIdentifier(String identifier)
+    {
+        String trimmed = identifier.trim();
+        return trimmed.length() >= 2 && trimmed.charAt(0) == '"' && trimmed.charAt(trimmed.length() - 1) == '"';
+    }
+
+    private static Map<String, String> parseIndexOptions(@Nullable String options)
+    {
+        if (options == null)
+        {
+            return Collections.emptyMap();
+        }
+        try
+        {
+            return MAPPER.readValue(options, new TypeReference<Map<String, String>>() {});  // CHECKSTYLE IGNORE: Empty anonymous inner class
+        }
+        catch (IOException exception)
+        {
+            throw new RuntimeException("Unable to parse index options: " + options, exception);
+        }
     }
 
     /**
