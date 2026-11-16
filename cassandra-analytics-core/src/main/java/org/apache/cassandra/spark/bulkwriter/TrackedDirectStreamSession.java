@@ -100,32 +100,12 @@ public class TrackedDirectStreamSession extends DirectStreamSession
         return shuffled.get(0);
     }
 
+    /**
+     * Validates coordinator received the write instead of CL check
+     */
     @Override
-    protected StreamResult doFinalizeStream()
+    protected void validateStreamResult(DirectStreamResult streamResult, List<CommitResult> commitResults)
     {
-        sendRemainingSSTables();
-        DirectStreamResult streamResult = new DirectStreamResult(sessionID,
-                                                                 tokenRange,
-                                                                 errors,
-                                                                 new ArrayList<>(replicas),
-                                                                 sstableWriter.rowCount(),
-                                                                 sstableWriter.bytesWritten());
-        List<CommitResult> commitResults;
-        try
-        {
-            commitResults = commit(streamResult);
-        }
-        catch (Exception exception)
-        {
-            if (exception instanceof InterruptedException)
-            {
-                Thread.currentThread().interrupt();
-            }
-            throw new RuntimeException(exception);
-        }
-        streamResult.setCommitResults(commitResults);
-        LOGGER.debug("[{}]: Tracked StreamResult: {}", sessionID, streamResult);
         BulkWriteValidator.validateCoordinatorWriteSucceeded(tokenRange, errors, commitResults, LOGGER, WRITE_PHASE, writerContext.job());
-        return streamResult;
     }
 }

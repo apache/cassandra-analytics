@@ -140,9 +140,17 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         }
         streamResult.setCommitResults(cr);
         LOGGER.debug("StreamResult: {}", streamResult);
-        // Check consistency given the no. failures
-        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
+        validateStreamResult(streamResult, cr);
         return streamResult;
+    }
+
+    /**
+     * Validates the outcome of the stream, throwing if bulk write did not succeed. By default, checks enough replicas
+     * received write to meet CL.
+     */
+    protected void validateStreamResult(DirectStreamResult streamResult, List<CommitResult> commitResults)
+    {
+        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
     }
 
     @Override
@@ -178,6 +186,11 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                     sessionID, preparedSSTable.dataFile(),
                     replicas.stream().map(RingInstance::nodeName).collect(Collectors.joining(",")));
         replicas.removeIf(replica -> !trySendSSTableToOneReplica(preparedSSTable, ssTableIdx, replica));
+        if (replicas.isEmpty())
+        {
+            // Fail fast so that task stops producing SSTables when there are no more replicas left
+            setLastStreamFailure(new IOException("All replicas failed to receive SSTables for range " + tokenRange));
+        }
     }
 
     private boolean trySendSSTableToOneReplica(SortedSSTableWriter.PreparedSSTable preparedSSTable,
@@ -237,7 +250,7 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         directDataTransferApi.uploadSSTableComponent(componentFile, ssTableIdx, instance, this.sessionID, digest);
     }
 
-    protected List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
+    private List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
     {
         try (CommitCoordinator cc = CommitCoordinator.commit(writerContext, transportContext, streamResult))
         {

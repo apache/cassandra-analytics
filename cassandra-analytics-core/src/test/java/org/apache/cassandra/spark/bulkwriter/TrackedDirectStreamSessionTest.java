@@ -210,6 +210,22 @@ public class TrackedDirectStreamSessionTest
         .hasCauseInstanceOf(ImportFailedException.class);
     }
 
+    @Test
+    void testUploadFailureOfSoleCoordinatorFailsFast() throws IOException
+    {
+        writerContext.setUploadSupplier(instance -> false);
+        TrackedDirectStreamSession ss = createNonValidatingStreamSession();
+        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
+
+        assertThatThrownBy(() -> ss.finalizeStreamAsync().get()).isInstanceOf(ExecutionException.class);
+
+        assertThat(ss.replicas).isEmpty();
+        assertThatThrownBy(ss::throwIfLastStreamFailed)
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("Unexpected exception while streaming SSTables")
+        .hasRootCauseMessage("All replicas failed to receive SSTables for range " + range);
+    }
+
     private Set<String> coordinatorsForEveryRange(MockBulkWriterContext context, TokenRangeMapping<RingInstance> mapping)
     {
         return coordinatorsForEveryRange(context, mapping,
