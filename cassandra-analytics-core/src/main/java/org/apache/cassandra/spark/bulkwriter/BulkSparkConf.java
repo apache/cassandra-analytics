@@ -769,8 +769,7 @@ public class BulkSparkConf implements Serializable
     {
         return truststorePath != null
                || truststoreBase64Encoded != null
-               || truststorePassword != null
-               || truststoreType != null;
+               || truststorePassword != null;
     }
 
     public boolean isSslEnabled()
