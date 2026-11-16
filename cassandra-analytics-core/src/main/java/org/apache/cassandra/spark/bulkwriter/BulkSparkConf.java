@@ -446,7 +446,7 @@ public class BulkSparkConf implements Serializable
             }
         }
 
-        Preconditions.checkArgument(!hasTruststoreConfigured() || isSslEnabled(),
+        Preconditions.checkArgument(!hasAnyTruststoreOptions() || isSslEnabled(),
                                     "Incomplete truststore configured, TLS would be disabled. Provide all "
                                     + "truststore options or remove them entirely");
     }
@@ -765,7 +765,7 @@ public class BulkSparkConf implements Serializable
         return truststorePassword != null && (truststorePath != null || truststoreBase64Encoded != null);
     }
 
-    public boolean hasTruststoreConfigured()
+    public boolean hasAnyTruststoreOptions()
     {
         return truststorePath != null
                || truststoreBase64Encoded != null

@@ -254,7 +254,7 @@ class BulkSparkConfTest
         options.remove(WriterOptions.KEYSTORE_PASSWORD.name());
 
         BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
-        assertThat(conf.hasTruststoreConfigured()).isFalse();
+        assertThat(conf.hasAnyTruststoreOptions()).isFalse();
         assertThat(conf.isSslEnabled())
         .describedAs("With neither store configured, plaintext HTTP is the explicit choice")
         .isFalse();
