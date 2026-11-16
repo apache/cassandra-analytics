@@ -408,7 +408,8 @@ public class BulkSparkConf implements Serializable
      *                              or if either mTLS TrustStore file path or base64 string is provided,
      *                              but the password is missing
      * @throws IllegalArgumentException if the mTLS TrustStore password is provided,
-     *                                  but both file path and base64 string are missing
+     *                                  but both file path and base64 string are missing;
+     *                                  or if a TrustStore is configured but TLS would not be enabled
      */
     public void validateSslConfiguration()
     {
@@ -444,6 +445,10 @@ public class BulkSparkConf implements Serializable
                                          + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD);
             }
         }
+
+        Preconditions.checkArgument(!hasTruststoreConfigured() || isSslEnabled(),
+                                    "Incomplete truststore configured, TLS would be disabled. Provide all "
+                                    + "truststore options or remove them entirely");
     }
 
     public int getUserProvidedSidecarPort()
@@ -758,5 +763,18 @@ public class BulkSparkConf implements Serializable
     public boolean hasTruststoreAndTruststorePassword()
     {
         return truststorePassword != null && (truststorePath != null || truststoreBase64Encoded != null);
+    }
+
+    public boolean hasTruststoreConfigured()
+    {
+        return truststorePath != null
+               || truststoreBase64Encoded != null
+               || truststorePassword != null
+               || truststoreType != null;
+    }
+
+    public boolean isSslEnabled()
+    {
+        return hasKeystoreAndKeystorePassword() || hasTruststoreAndTruststorePassword();
     }
 }
