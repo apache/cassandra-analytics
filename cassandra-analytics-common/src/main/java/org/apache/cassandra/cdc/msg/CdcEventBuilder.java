@@ -49,6 +49,9 @@ public class CdcEventBuilder
     // Records the tombstoned elements/cells in a complex data
     @Nullable
     protected Map<String, List<ByteBuffer>> tombstonedCellsInComplex = null;
+    // Records the fields written by partial updates of non-frozen UDT columns
+    @Nullable
+    protected Map<String, List<String>> updatedUdtFields = null;
     // Records the range tombstone markers with in the same partition
     @Nullable
     protected List<RangeTombstone> rangeTombstoneList = null;
@@ -179,6 +182,16 @@ public class CdcEventBuilder
         }
         List<ByteBuffer> tombstones = tombstonedCellsInComplex.computeIfAbsent(columnName, k -> new ArrayList<>());
         tombstones.add(key);
+    }
+
+    // records a field written by a partial update of a non-frozen UDT column
+    public void addUpdatedUdtField(String columnName, String fieldName)
+    {
+        if (updatedUdtFields == null)
+        {
+            updatedUdtFields = new HashMap<>();
+        }
+        updatedUdtFields.computeIfAbsent(columnName, k -> new ArrayList<>()).add(fieldName);
     }
 
     // Update the maxTimestamp if the input `timestamp` is larger.

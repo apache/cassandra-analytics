@@ -96,12 +96,27 @@ public final class CdcEventUtils
         }
     }
 
-    // return the list of field names that have data present in the row
+    /**
+     * @return the names of the updated columns; a partially updated UDT column is listed as its written fields,
+     * e.g. {@code udt.field}
+     */
     public static List<String> updatedFieldNames(CdcEvent event)
     {
-        return updatedFields(event).stream()
-                                   .map(value -> value.columnName)
-                                   .collect(Collectors.toList());
+        Map<String, List<String>> updatedUdtFields = event.getUpdatedUdtFields();
+        List<String> names = new ArrayList<>();
+        for (Value value : updatedFields(event))
+        {
+            List<String> udtFields = updatedUdtFields == null ? null : updatedUdtFields.get(value.columnName);
+            if (udtFields == null)
+            {
+                names.add(value.columnName);
+            }
+            else
+            {
+                udtFields.forEach(field -> names.add(value.columnName + '.' + field));
+            }
+        }
+        return names;
     }
 
     public static List<Value> updatedFields(CdcEvent event)
