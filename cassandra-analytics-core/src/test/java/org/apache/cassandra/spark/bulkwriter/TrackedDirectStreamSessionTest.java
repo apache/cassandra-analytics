@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
@@ -36,9 +38,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.exception.ImportFailedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -211,13 +215,22 @@ public class TrackedDirectStreamSessionTest
     }
 
     @Test
-    void testUploadFailureOfSoleCoordinatorFailsFast() throws IOException
+    void testUploadFailureOfSoleCoordinatorFailsFast() throws IOException, ExecutionException, InterruptedException
     {
         writerContext.setUploadSupplier(instance -> false);
         TrackedDirectStreamSession ss = createNonValidatingStreamSession();
-        ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
+        assertThat(ss.replicas).hasSize(1);
 
-        assertThatThrownBy(() -> ss.finalizeStreamAsync().get()).isInstanceOf(ExecutionException.class);
+        tableWriter.close();
+        Set<SSTableDescriptor> produced = new HashSet<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder))
+        {
+            stream.forEach(path -> produced.add(SSTables.getSSTableDescriptor(path)));
+        }
+        assertThat(produced).isNotEmpty();
+
+        ss.onSSTablesProduced(produced);
+        executor.futures.get(0).get();
 
         assertThat(ss.replicas).isEmpty();
         assertThatThrownBy(ss::throwIfLastStreamFailed)

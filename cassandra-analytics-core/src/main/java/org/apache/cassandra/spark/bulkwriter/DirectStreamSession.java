@@ -86,9 +86,20 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 IntWrapper sstableCounter = new IntWrapper();
                 preparedSSTables.sstables()
                                 .forEach(preparedSSTable -> {
+                                    // no replicas left to send to, skip the rest of the batch
+                                    if (replicas.isEmpty())
+                                    {
+                                        return;
+                                    }
                                     sstableCounter.value++;
                                     sendSStableToReplicas(preparedSSTable);
                                 });
+
+                if (replicas.isEmpty())
+                {
+                    // Fail fast so that task stops producing SSTables when there are no more replicas left
+                    setLastStreamFailure(new IOException("All replicas failed to receive SSTables for range " + tokenRange));
+                }
 
                 LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, sstableCounter.value);
                 Set<Path> allSSTableFiles = preparedSSTables.files();
@@ -186,11 +197,6 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                     sessionID, preparedSSTable.dataFile(),
                     replicas.stream().map(RingInstance::nodeName).collect(Collectors.joining(",")));
         replicas.removeIf(replica -> !trySendSSTableToOneReplica(preparedSSTable, ssTableIdx, replica));
-        if (replicas.isEmpty())
-        {
-            // Fail fast so that task stops producing SSTables when there are no more replicas left
-            setLastStreamFailure(new IOException("All replicas failed to receive SSTables for range " + tokenRange));
-        }
     }
 
     private boolean trySendSSTableToOneReplica(SortedSSTableWriter.PreparedSSTable preparedSSTable,
