@@ -146,7 +146,8 @@ public class AvroUdtTransformerTest
     }
 
     @Test
-    public void testPartiallyUpdatedNonFrozenUdtColumn() throws IOException {
+    public void testPartiallyUpdatedNonFrozenUdtColumn() throws IOException
+    {
         CqlTable table = registerTable("CREATE TABLE " + KEYSPACE + ".partial (id uuid PRIMARY KEY, result partial_result);",
                 "CREATE TYPE " + KEYSPACE + ".partial_result (status text, code int);");
         // UPDATE ... SET result.code = 500: status is not written, so it is packed as null
