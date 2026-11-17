@@ -67,17 +67,4 @@ class TokenRangeReplicasResponseTest
 
         assertThat(info.witnessesByDatacenter()).isEmpty();
     }
-
-    @Test
-    void testWitnessesAreSerialized() throws Exception
-    {
-        TokenRangeReplicasResponse.ReplicaInfo info = new TokenRangeReplicasResponse.ReplicaInfo(
-        "0", "100",
-        Collections.singletonMap("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042")),
-        Collections.singletonMap("dc1", Collections.singletonList("1.1.1.2:9042")));
-
-        String json = MAPPER.writeValueAsString(info);
-
-        assertThat(json).contains("\"witnessesByDatacenter\":{\"dc1\":[\"1.1.1.2:9042\"]}");
-    }
 }

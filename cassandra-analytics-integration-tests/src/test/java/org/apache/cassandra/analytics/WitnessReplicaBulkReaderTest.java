@@ -28,8 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -126,16 +124,16 @@ class WitnessReplicaBulkReaderTest extends SharedClusterSparkIntegrationTestBase
     }
 
     /**
-     * A read from a witness keyspace must fail at job setup, at every consistency level, while the Sidecar does not
-     * report which replicas are witnesses. Without that, the reader cannot tell which replicas are full, so it cannot
-     * know whether full replicas alone satisfy the consistency level: any replica could be the witness. Before
-     * CASSANALYTICS-164 it succeeded and silently returned a subset of the rows.
+     * A read from a witness keyspace must fail at job setup while the Sidecar does not report which replicas are
+     * witnesses. Without that, the reader cannot tell which replicas are full, so it cannot know whether full replicas
+     * alone satisfy the consistency level: any replica could be the witness. The failure happens while building the
+     * ring, before the consistency level is used, so one consistency level is enough. Before CASSANALYTICS-164 the
+     * read succeeded and silently returned a subset of the rows.
      */
-    @ParameterizedTest
-    @ValueSource(strings = {"ONE", "QUORUM", "LOCAL_QUORUM", "ALL"})
-    void bulkReadFromWitnessKeyspaceFailsWhenSidecarDoesNotReportWitnesses(String consistencyLevel)
+    @Test
+    void bulkReadFromWitnessKeyspaceFailsWhenSidecarDoesNotReportWitnesses()
     {
-        assertThatThrownBy(() -> bulkReaderDataFrame(witnessTable).option("consistencyLevel", consistencyLevel)
+        assertThatThrownBy(() -> bulkReaderDataFrame(witnessTable).option("consistencyLevel", "QUORUM")
                                                                   .load()
                                                                   .collectAsList())
         .hasStackTraceContaining("did not report which replicas")
