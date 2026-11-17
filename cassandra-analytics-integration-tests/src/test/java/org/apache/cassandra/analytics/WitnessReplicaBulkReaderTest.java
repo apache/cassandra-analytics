@@ -127,8 +127,9 @@ class WitnessReplicaBulkReaderTest extends SharedClusterSparkIntegrationTestBase
 
     /**
      * A read from a witness keyspace must fail at job setup, at every consistency level, while the Sidecar does not
-     * report which replicas are witnesses. Before CASSANALYTICS-164 it succeeded and silently returned a subset of the
-     * rows.
+     * report which replicas are witnesses. Without that, the reader cannot tell which replicas are full, so it cannot
+     * know whether full replicas alone satisfy the consistency level: any replica could be the witness. Before
+     * CASSANALYTICS-164 it succeeded and silently returned a subset of the rows.
      */
     @ParameterizedTest
     @ValueSource(strings = {"ONE", "QUORUM", "LOCAL_QUORUM", "ALL"})
