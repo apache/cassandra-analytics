@@ -19,6 +19,15 @@
 
 package org.apache.cassandra.cdc.avro;
 
+/**
+ * Columns and UDT fields are named by their Avro names everywhere: the fields of the payload and of UDT records, the
+ * {@link #UPDATE_FIELDS_KEY} and {@link #TRUNCATED_FIELDS_KEY} lists, the {@link #FIELD_KEY} of range predicates, and the
+ * key and static column properties of the table schema. The Avro name is the CQL name, escaped if it is not valid in
+ * Avro (see {@link AvroNames#escape}); an escaped field keeps its CQL name in the {@link #CQL_NAME_PROP} property.
+ * <p>
+ * Java values are keyed by CQL names instead: the UDT maps that {@code JavaTypeConverter} produces and
+ * {@code AvroDataUtils.toAvro} converts, and the UDT maps that {@code RecordReader} returns.
+ */
 public final class AvroConstants
 {
     public static final String PAYLOAD_KEY = "payload";
@@ -46,6 +55,7 @@ public final class AvroConstants
     public static final String VARIABLE_INTEGER_NAME = "varint";
     public static final String INET_NAME = "inet";
     static final String CQL_TYPE_NAME = "cqlType";
+    public static final String CQL_NAME_PROP = "cqlName";
     static final String FROZEN_FLAG_PROP = "isFrozen";
     static final String PRIMARY_KEYS_PROP = "primary_keys";
     static final String PARTITION_KEYS_PROP = "partition_keys";

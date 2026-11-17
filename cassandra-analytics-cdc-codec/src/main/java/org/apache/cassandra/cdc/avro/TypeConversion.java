@@ -451,11 +451,12 @@ public interface TypeConversion<T>
                                         fieldSchema);
 
             GenericRecord record = (GenericRecord) fieldValue;
+            // keyed by CQL field name, like the values that AvroDataUtils.toAvro converts;
             // UDT fields can be null, which Collectors.toMap does not accept
             Map<String, Object> result = new LinkedHashMap<>();
             for (Schema.Field field : fieldSchema.getFields())
             {
-                result.put(field.name(), readValue(record, field.name()));
+                result.put(AvroSchemas.cqlName(field), readValue(record, field.name()));
             }
             return result;
         }
