@@ -126,7 +126,7 @@ public abstract class AbstractCqlTuple extends CqlCollection implements CqlField
                 break;
             }
             int length = buffer.getInt();
-            result[position++] = length > 0 ? type.deserializeToJavaType(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
+            result[position++] = length >= 0 ? type.deserializeToJavaType(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
         }
         return result;
     }
