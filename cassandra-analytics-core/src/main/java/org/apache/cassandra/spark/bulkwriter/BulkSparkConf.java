@@ -176,6 +176,7 @@ public class BulkSparkConf implements Serializable
     private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
     protected final String coordinatedWriteConfJson;
     private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
+    protected final boolean coordinatedWriteFastForwardEnabled;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -276,6 +277,11 @@ public class BulkSparkConf implements Serializable
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
+        this.coordinatedWriteFastForwardEnabled = MapUtils.getBoolean(options, WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(),
+                                                                      false, "coordinated write fast forward enabled");
+        Preconditions.checkArgument(!coordinatedWriteFastForwardEnabled || coordinatedWriteConfJson != null,
+                                    WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name() + " requires "
+                                    + WriterOptions.COORDINATED_WRITE_CONFIG.name());
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
@@ -352,6 +358,14 @@ public class BulkSparkConf implements Serializable
         }
 
         return coordinatedWriteConf;
+    }
+
+    /**
+     * @return true if fast forward is enabled for coordinated write; false otherwise
+     */
+    public boolean isCoordinatedWriteFastForwardEnabled()
+    {
+        return coordinatedWriteFastForwardEnabled;
     }
 
     @Nullable

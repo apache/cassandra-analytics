@@ -307,6 +307,36 @@ class BulkSparkConfTest
     }
 
     @Test
+    void testCoordinatedWriteFastForward()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.COORDINATED_WRITE_CONFIG.name());
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isCoordinatedWriteFastForwardEnabled())
+        .describedAs("Fast forward should be disabled by default")
+        .isFalse();
+
+        options.put(WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(), "true");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .describedAs("Fast forward is only valid for coordinated write")
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("COORDINATED_WRITE_FAST_FORWARD_ENABLED requires COORDINATED_WRITE_CONFIG");
+
+        String coordinatedWriteConfJson = "{\"cluster1\":" +
+                                          "{\"sidecarContactPoints\":[\"instance-1:9999\"]," +
+                                          "\"localDc\":\"dc1\"}}";
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJson);
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isCoordinatedWriteFastForwardEnabled()).isTrue();
+
+        options.put(WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(), "false");
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isCoordinatedWriteFastForwardEnabled()).isFalse();
+    }
+
+    @Test
     void testCoordinatedWriteConf()
     {
         Map<String, String> options = copyDefaultOptions();

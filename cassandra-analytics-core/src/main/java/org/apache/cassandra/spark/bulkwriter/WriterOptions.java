@@ -154,4 +154,18 @@ public enum WriterOptions implements WriterOption
      * </ul>
      */
     STORAGE_CREDENTIAL_TYPE,
+    /**
+     * Option to enable fast forward for coordinated write. It is only valid when {@link #COORDINATED_WRITE_CONFIG}
+     * is present, and it defaults to {@code false}.
+     * <p>
+     * When enabled, Sidecar stages the uploaded slices as soon as they are available, instead of waiting for the
+     * {@code STAGE_READY} signal, and imports the staged data once all clusters have staged, instead of waiting for
+     * the {@code IMPORT_READY} signal. It shortens the job duration, especially when some datacenters are slower
+     * than others.
+     * <p>
+     * Only enable it when it is acceptable that the imported data becomes visible immediately and that importing
+     * cannot be rolled back. It requires the Sidecars of all clusters to support fast forward (CASSSIDECAR-463);
+     * otherwise, the restore job creation is rejected.
+     */
+    COORDINATED_WRITE_FAST_FORWARD_ENABLED,
 }

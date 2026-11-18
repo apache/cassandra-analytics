@@ -312,6 +312,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return null;
     }
 
+    @Override
+    public boolean isCoordinatedWriteFastForwardEnabled()
+    {
+        return false;
+    }
+
     public void setSkipCleanOnFailures(boolean skipClean)
     {
         this.skipClean = skipClean;

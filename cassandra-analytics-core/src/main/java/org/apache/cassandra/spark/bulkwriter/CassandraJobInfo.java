@@ -139,6 +139,12 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
+    public boolean isCoordinatedWriteFastForwardEnabled()
+    {
+        return conf.isCoordinatedWriteFastForwardEnabled();
+    }
+
+    @Override
     public int getCommitThreadsPerInstance()
     {
         return conf.commitThreadsPerInstance;

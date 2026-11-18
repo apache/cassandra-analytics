@@ -475,6 +475,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                                      // TODO: add test case once we advance the sidecar version that understands the flag,
                                                      //       or a better testing strategy is figured out
                                                      .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
+                                                     .fastForwardEnabled(job.isCoordinatedWriteFastForwardEnabled())
                                                      .build();
             api.createRestoreJob(payload);
         });

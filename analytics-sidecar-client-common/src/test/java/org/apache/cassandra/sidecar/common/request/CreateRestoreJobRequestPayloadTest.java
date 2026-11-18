@@ -40,6 +40,7 @@ import org.apache.cassandra.sidecar.common.data.CredentialType;
 
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CONSISTENCY_LEVEL;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CREDENTIAL_TYPE;
+import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_FAST_FORWARD_ENABLED;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_LOCAL_DATA_CENTER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -288,5 +289,50 @@ class CreateRestoreJobRequestPayloadTest
         CreateRestoreJobRequestPayload deserialized = MAPPER.readValue(json, CreateRestoreJobRequestPayload.class);
         assertThat(deserialized.credentialType()).isEqualTo(CredentialType.IAM);
         assertThat(deserialized.secrets()).isEqualTo(secrets);
+    }
+
+    @Test
+    void testFastForwardDisabledByDefaultAndOmittedFromJson() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        CreateRestoreJobRequestPayload req = CreateRestoreJobRequestPayload
+                                             .builder(secrets, System.currentTimeMillis() + 10000)
+                                             .consistencyLevel(ConsistencyLevel.QUORUM)
+                                             .build();
+        assertThat(req.fastForwardEnabled()).isFalse();
+        String json = MAPPER.writeValueAsString(req);
+        assertThat(json)
+        .describedAs("fastForwardEnabled=false should be omitted, so that Sidecars without fast forward support accept the request")
+        .doesNotContain(JOB_FAST_FORWARD_ENABLED);
+    }
+
+    @Test
+    void testFastForwardEnabledRoundTrip() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        CreateRestoreJobRequestPayload original = CreateRestoreJobRequestPayload
+                                                  .builder(secrets, System.currentTimeMillis() + 10000)
+                                                  .consistencyLevel(ConsistencyLevel.LOCAL_QUORUM, "dc1")
+                                                  .fastForwardEnabled(true)
+                                                  .build();
+        assertThat(original.fastForwardEnabled()).isTrue();
+        String json = MAPPER.writeValueAsString(original);
+        assertThat(json).contains("\"" + JOB_FAST_FORWARD_ENABLED + "\":true");
+        CreateRestoreJobRequestPayload deserialized = MAPPER.readValue(json, CreateRestoreJobRequestPayload.class);
+        assertThat(deserialized.fastForwardEnabled()).isTrue();
+        assertThat(deserialized.consistencyLevel()).isEqualTo("LOCAL_QUORUM");
+        assertThat(deserialized.localDatacenter()).isEqualTo("dc1");
+    }
+
+    @Test
+    void testFastForwardEnabledWithoutConsistencyLevelFails()
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        assertThatThrownBy(() -> CreateRestoreJobRequestPayload
+                                 .builder(secrets, System.currentTimeMillis() + 10000)
+                                 .fastForwardEnabled(true)
+                                 .build())
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Must specify a " + JOB_CONSISTENCY_LEVEL + " when fastForwardEnabled is true");
     }
 }
