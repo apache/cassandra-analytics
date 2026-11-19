@@ -45,6 +45,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.partitioningBy;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 /**
@@ -72,16 +75,17 @@ public class CoordinatedWriteConf
     CoordinatedWriteConf create(String json, ConsistencyLevel.CL consistencyLevel, Class<T> clusterConfType)
     {
         JavaType javaType = TypeFactory.defaultInstance().constructMapType(Map.class, String.class, clusterConfType);
-        CoordinatedWriteConf result;
+        Map<String, T> clusters;
         try
         {
-            result = new CoordinatedWriteConf(json, OBJECT_MAPPER.readValue(json, javaType));
+            clusters = OBJECT_MAPPER.readValue(json, javaType);
         }
         catch (Exception e)
         {
             throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
                                                " due to " + e.getMessage(), e);
         }
+        CoordinatedWriteConf result = new CoordinatedWriteConf(json, clusters);
         result.clusters().forEach((clusterId, cluster) -> {
             if (consistencyLevel.isLocal())
             {
@@ -102,6 +106,7 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)
     {
+        validateFastForwardEnabled(clusters);
         this.clusters = Collections.unmodifiableMap(clusters);
         try
         {
@@ -115,8 +120,30 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters)
     {
+        validateFastForwardEnabled(clusters);
         this.rawJson = rawJson;
         this.clusters = Collections.unmodifiableMap(clusters);
+    }
+
+    /**
+     * Fast forward must be set the same way on all clusters. Otherwise, the clusters with fast forward import as soon
+     * as the job reaches STAGED, while the others wait for IMPORT_READY. If the job is then aborted before
+     * IMPORT_READY, only some of the clusters have the data, and the imported data cannot be rolled back.
+     */
+    private static void validateFastForwardEnabled(Map<String, ? extends ClusterConf> clusters)
+    {
+        Map<Boolean, List<String>> clusterIdsByFastForward = clusters.entrySet()
+                                                                     .stream()
+                                                                     .sorted((a, b) -> a.getKey().compareTo(b.getKey()))
+                                                                     .collect(partitioningBy(e -> e.getValue().fastForwardEnabled(),
+                                                                                             mapping(Map.Entry::getKey, toList())));
+        List<String> enabled = clusterIdsByFastForward.get(true);
+        List<String> disabled = clusterIdsByFastForward.get(false);
+        if (!enabled.isEmpty() && !disabled.isEmpty())
+        {
+            throw new IllegalArgumentException("fastForwardEnabled must be the same for all clusters. " +
+                                               "enabledClusters=" + enabled + " disabledClusters=" + disabled);
+        }
     }
 
     public Map<String, ClusterConf> clusters()
@@ -168,14 +195,20 @@ public class CoordinatedWriteConf
         /**
          * Whether Sidecar should fast forward the restore job of the cluster, i.e. eagerly pipeline the staging and
          * the importing phases instead of waiting for the phase signals. Staging starts while the restore job is
-         * still in CREATED status, and importing starts once the job reaches STAGED. Only enable it when it is
-         * acceptable that the imported data becomes visible immediately and that importing cannot be rolled back.
-         * It requires the Sidecars of the cluster to support fast forward (CASSSIDECAR-463); otherwise, the restore
-         * job creation is rejected.
+         * still in CREATED status. Importing starts once the job reaches STAGED, which the driver sets only after
+         * all clusters have staged and satisfied the consistency level, instead of waiting for IMPORT_READY.
+         * <p>
+         * It must be set the same way on all clusters; {@link CoordinatedWriteConf} rejects mixed settings. Only
+         * enable it when it is acceptable that the imported data becomes visible immediately and that importing
+         * cannot be rolled back. It requires the Sidecars of the cluster to support fast forward (CASSSIDECAR-463);
+         * otherwise, the restore job creation is rejected.
          *
-         * @return true if fast forward is enabled for the cluster; false otherwise
+         * @return true if fast forward is enabled for the cluster; false otherwise. Defaults to false
          */
-        boolean fastForwardEnabled();
+        default boolean fastForwardEnabled()
+        {
+            return false;
+        }
 
         @Nullable
         default String resolveLocalDc(ConsistencyLevel cl)

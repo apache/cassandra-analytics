@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -451,7 +452,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         // todo: refactor to move away from using 'null'
         RestoreJobSecrets secrets = buildRestoreJobSecrets(conf.getStorageCredentialPair(null), credTypeName);
         JobInfo job = writerContext.job();
-        CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, null, credTypeName).build();
+        CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, null, credTypeName, updatedLeaseTime()).build();
         context.dataTransferApi().createRestoreJob(payload);
     }
 
@@ -469,16 +470,30 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         dataTransferApi.forEach((clusterId, api) -> {
             RestoreJobSecrets secrets = buildRestoreJobSecrets(conf.getStorageCredentialPair(clusterId), credTypeName);
             CoordinatedWriteConf.ClusterConf cluster = coordinatedWriteConf.cluster(clusterId);
-            String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
-            CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, clusterId, credTypeName)
-                                                     .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
-                                                     // TODO: add test case once we advance the sidecar version that understands the flag,
-                                                     //       or a better testing strategy is figured out
-                                                     .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
-                                                     .fastForwardEnabled(cluster.fastForwardEnabled())
-                                                     .build();
-            api.createRestoreJob(payload);
+            api.createRestoreJob(buildCoordinatedRestoreJobPayload(job, clusterId, cluster, cl, secrets, credTypeName, updatedLeaseTime()));
         });
+    }
+
+    /**
+     * Builds the create restore job request for one cluster of a coordinated write
+     */
+    @VisibleForTesting
+    static CreateRestoreJobRequestPayload buildCoordinatedRestoreJobPayload(JobInfo job,
+                                                                           String clusterId,
+                                                                           CoordinatedWriteConf.ClusterConf cluster,
+                                                                           ConsistencyLevel cl,
+                                                                           RestoreJobSecrets secrets,
+                                                                           @org.jetbrains.annotations.Nullable String credentialTypeName,
+                                                                           long expireAtInMillis)
+    {
+        String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
+        return createJobPayloadBuilder(job, secrets, clusterId, credentialTypeName, expireAtInMillis)
+               .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
+               // TODO: add test case once we advance the sidecar version that understands the flag,
+               //       or a better testing strategy is figured out
+               .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
+               .fastForwardEnabled(cluster.fastForwardEnabled())
+               .build();
     }
 
     /**
@@ -497,12 +512,13 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         return pair.toRestoreJobSecrets();
     }
 
-    private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job,
-                                                                            RestoreJobSecrets secrets,
-                                                                            String clusterId,
-                                                                            @org.jetbrains.annotations.Nullable String credentialTypeName)
+    private static CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job,
+                                                                                   RestoreJobSecrets secrets,
+                                                                                   String clusterId,
+                                                                                   @org.jetbrains.annotations.Nullable String credentialTypeName,
+                                                                                   long expireAtInMillis)
     {
-        CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
+        CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, expireAtInMillis);
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
                .jobId(job.getRestoreJobId(clusterId))
                .updateImportOptions(importOptions -> {
@@ -516,7 +532,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         return builder;
     }
 
-    private o.a.c.sidecar.client.shaded.common.data.ConsistencyLevel toSidecarConsistencyLevel(ConsistencyLevel cl)
+    private static o.a.c.sidecar.client.shaded.common.data.ConsistencyLevel toSidecarConsistencyLevel(ConsistencyLevel cl)
     {
         return o.a.c.sidecar.client.shaded.common.data.ConsistencyLevel.fromString(cl.toString());
     }

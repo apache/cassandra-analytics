@@ -389,11 +389,14 @@ consistency check to that DC. S3 Cross-Region Replication provides a separate re
 ----
 
 Each entry can also set `fastForwardEnabled` (default `false`). When it's `true`, Sidecar fast forwards the
-restore job of that cluster: it stages slices as soon as they are uploaded, instead of waiting for the
-stage-ready signal, and imports once all clusters have staged and satisfied the consistency level, instead of
-waiting for the import-ready signal. Only enable it when it is acceptable that imported data becomes visible
-immediately and that importing cannot be rolled back. It requires Sidecar with fast forward support
-(CASSSIDECAR-463); otherwise, the restore job creation is rejected.
+restore job of that cluster. It stages slices as soon as they are uploaded, instead of waiting for the
+`STAGE_READY` signal. It imports as soon as the job reaches `STAGED`, instead of waiting for the `IMPORT_READY`
+signal. The driver sets `STAGED` only after all clusters have staged and satisfied the consistency level.
+
+`fastForwardEnabled` must be the same for all entries; a configuration that enables it for only some clusters
+is rejected. Only enable it when it is acceptable that imported data becomes visible immediately and that
+importing cannot be rolled back. It requires Sidecar with fast forward support (CASSSIDECAR-463); otherwise,
+the restore job creation is rejected.
 
 |_data_transport_extension_class_
 |yes
