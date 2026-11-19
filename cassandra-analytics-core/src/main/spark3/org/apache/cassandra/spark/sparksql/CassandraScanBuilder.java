@@ -115,7 +115,7 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     @Override
     public PartitionReaderFactory createReaderFactory()
     {
-        return new CassandraPartitionReaderFactory(dataLayer, requiredSchema, buildPartitionKeyFilters());
+        return new CassandraPartitionReaderFactory(options, dataLayer, requiredSchema, buildPartitionKeyFilters());
     }
 
     @Override
