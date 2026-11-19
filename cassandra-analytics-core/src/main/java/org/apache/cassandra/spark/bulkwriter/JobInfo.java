@@ -133,10 +133,4 @@ public interface JobInfo
     {
         return coordinatedWriteConf() != null;
     }
-
-    /**
-     * @return true if fast forward is enabled for coordinated write; false, otherwise.
-     * See {@link WriterOptions#COORDINATED_WRITE_FAST_FORWARD_ENABLED}
-     */
-    boolean isCoordinatedWriteFastForwardEnabled();
 }

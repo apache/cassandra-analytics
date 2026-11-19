@@ -165,6 +165,18 @@ public class CoordinatedWriteConf
 
         boolean writeToLocalDcOnly();
 
+        /**
+         * Whether Sidecar should fast forward the restore job of the cluster, i.e. eagerly pipeline the staging and
+         * the importing phases instead of waiting for the phase signals. Staging starts while the restore job is
+         * still in CREATED status, and importing starts once the job reaches STAGED. Only enable it when it is
+         * acceptable that the imported data becomes visible immediately and that importing cannot be rolled back.
+         * It requires the Sidecars of the cluster to support fast forward (CASSSIDECAR-463); otherwise, the restore
+         * job creation is rejected.
+         *
+         * @return true if fast forward is enabled for the cluster; false otherwise
+         */
+        boolean fastForwardEnabled();
+
         @Nullable
         default String resolveLocalDc(ConsistencyLevel cl)
         {
@@ -190,21 +202,29 @@ public class CoordinatedWriteConf
         private final Set<SidecarInstance> sidecarContactPoints;
         private final @Nullable String localDc;
         private final boolean writeToLocalDcOnly;
+        private final boolean fastForwardEnabled;
 
         @JsonCreator
         public SimpleClusterConf(@JsonProperty("sidecarContactPoints") List<String> sidecarContactPointsValue,
                                  @JsonProperty("localDc") String localDc,
-                                 @JsonProperty("writeToLocalDcOnly") boolean writeToLocalDcOnly)
+                                 @JsonProperty("writeToLocalDcOnly") boolean writeToLocalDcOnly,
+                                 @JsonProperty("fastForwardEnabled") boolean fastForwardEnabled)
         {
             this.sidecarContactPointsValue = sidecarContactPointsValue;
             this.sidecarContactPoints = buildSidecarContactPoints(sidecarContactPointsValue);
             this.localDc = localDc;
             this.writeToLocalDcOnly = writeToLocalDcOnly;
+            this.fastForwardEnabled = fastForwardEnabled;
+        }
+
+        public SimpleClusterConf(List<String> sidecarContactPointsValue, String localDc, boolean writeToLocalDcOnly)
+        {
+            this(sidecarContactPointsValue, localDc, writeToLocalDcOnly, false);
         }
 
         public SimpleClusterConf(List<String> sidecarContactPointsValue, String localDc)
         {
-            this(sidecarContactPointsValue, localDc, false);
+            this(sidecarContactPointsValue, localDc, false, false);
         }
 
         @JsonProperty("sidecarContactPoints")
@@ -225,6 +245,13 @@ public class CoordinatedWriteConf
         public boolean writeToLocalDcOnly()
         {
             return writeToLocalDcOnly;
+        }
+
+        @Override
+        @JsonProperty("fastForwardEnabled")
+        public boolean fastForwardEnabled()
+        {
+            return fastForwardEnabled;
         }
 
         @Override

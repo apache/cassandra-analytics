@@ -241,7 +241,8 @@ class CassandraClusterInfoGroupTest
         .isInstanceOf(IllegalStateException.class)
         .describedAs("The exception message should include the original json to help spot the wrong configuration (empty clusterId)")
         .hasMessage("Found coordinatedWriteConf with empty or null clusterId. " +
-                    "CoordinatedWriteConf{json={\"\":{\"sidecarContactPoints\":[\"localhost:9043\"],\"localDc\":\"localDc\",\"writeToLocalDcOnly\":false}}}");
+                    "CoordinatedWriteConf{json={\"\":{\"sidecarContactPoints\":[\"localhost:9043\"],\"localDc\":\"localDc\"," +
+                    "\"writeToLocalDcOnly\":false,\"fastForwardEnabled\":false}}}");
     }
 
     @Test
