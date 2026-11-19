@@ -1404,7 +1404,7 @@ abstract class SidecarClientTest
         MockResponse response = new MockResponse().setResponseCode(ACCEPTED.code()).setBody(nodeSettingsAsString);
         enqueue(response);
 
-        RequestContext requestContext =
+        RequestContext.Builder requestContextBuilder =
         client.requestBuilder()
               .request(new NodeSettingsRequest())
               .retryPolicy(new RetryPolicy()
@@ -1433,9 +1433,8 @@ abstract class SidecarClientTest
                                                                  retryAction);
                       }
                   }
-              })
-              .build();
-        NodeSettings result = client.<NodeSettings>executeRequestAsync(requestContext).get(30, TimeUnit.SECONDS);
+              });
+        NodeSettings result = client.<NodeSettings>executeRequestAsync(requestContextBuilder).get(30, TimeUnit.SECONDS);
         assertThat(result).isNotNull();
         assertThat(result.partitioner()).isEqualTo("test-partitioner");
         assertThat(result.releaseVersion()).isEqualTo("4.0.0");
