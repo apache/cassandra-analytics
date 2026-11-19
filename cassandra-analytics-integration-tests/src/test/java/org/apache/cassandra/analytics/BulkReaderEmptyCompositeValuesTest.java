@@ -36,9 +36,7 @@ public class BulkReaderEmptyCompositeValuesTest extends SharedClusterSparkIntegr
 {
     private static final String UDT_NAME = "test_empty_fields";
 
-    private static final String EMPTY_FROZEN_UDT = "{text_value: '', blob_value: 0x, null_value: null, tail_value: 'tail'}";
-    // TODO: Set null_value to NULL once CASSANALYTICS-217 is fixed.
-    private static final String EMPTY_NON_FROZEN_UDT = "{text_value: '', blob_value: 0x, null_value: 'present', tail_value: 'tail'}";
+    private static final String EMPTY_UDT = "{text_value: '', blob_value: 0x, null_value: null, tail_value: 'tail'}";
 
     private final QualifiedName tupleTable = uniqueTestTableFullName(TEST_KEYSPACE);
     private final QualifiedName frozenUdtTable = uniqueTestTableFullName(TEST_KEYSPACE);
@@ -58,13 +56,13 @@ public class BulkReaderEmptyCompositeValuesTest extends SharedClusterSparkIntegr
     @Test
     public void testEmptyFrozenUdtFields()
     {
-        assertEmptyUdtFields(readCompositeValue(frozenUdtTable), true);
+        assertEmptyUdtFields(readCompositeValue(frozenUdtTable));
     }
 
     @Test
     public void testEmptyNonFrozenUdtFields()
     {
-        assertEmptyUdtFields(readCompositeValue(nonFrozenUdtTable), false);
+        assertEmptyUdtFields(readCompositeValue(nonFrozenUdtTable));
     }
 
     private Row readCompositeValue(QualifiedName table)
@@ -78,19 +76,11 @@ public class BulkReaderEmptyCompositeValuesTest extends SharedClusterSparkIntegr
         return value;
     }
 
-    private static void assertEmptyUdtFields(Row value, boolean frozen)
+    private static void assertEmptyUdtFields(Row value)
     {
         assertThat((String) value.getAs("text_value")).isEmpty();
         assertThat((byte[]) value.getAs("blob_value")).isEmpty();
-        if (frozen)
-        {
-            assertThat(value.isNullAt(value.fieldIndex("null_value"))).isTrue();
-        }
-        else
-        {
-            // TODO: Remove once CASSANALYTICS-217 is fixed.
-            assertThat((String) value.getAs("null_value")).isEqualTo("present");
-        }
+        assertThat(value.isNullAt(value.fieldIndex("null_value"))).isTrue();
         assertThat((String) value.getAs("tail_value")).isEqualTo("tail");
     }
 
@@ -125,11 +115,11 @@ public class BulkReaderEmptyCompositeValuesTest extends SharedClusterSparkIntegr
                                    ConsistencyLevel.ALL);
 
         node.coordinator().execute(String.format("INSERT INTO %s (id, data) VALUES (1, %s)",
-                                                 frozenUdtTable, EMPTY_FROZEN_UDT),
+                                                 frozenUdtTable, EMPTY_UDT),
                                    ConsistencyLevel.ALL);
 
         node.coordinator().execute(String.format("INSERT INTO %s (id, data) VALUES (1, %s)",
-                                                 nonFrozenUdtTable, EMPTY_NON_FROZEN_UDT),
+                                                 nonFrozenUdtTable, EMPTY_UDT),
                                    ConsistencyLevel.ALL);
     }
 }
