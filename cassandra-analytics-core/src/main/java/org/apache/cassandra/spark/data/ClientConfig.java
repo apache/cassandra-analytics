@@ -38,7 +38,9 @@ import org.apache.cassandra.spark.utils.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.addCellLastModifiedTimestamp;
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.addCellTtl;
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.aliasLastModifiedTimestamp;
 import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 public class ClientConfig
@@ -74,6 +76,8 @@ public class ClientConfig
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
     public static final String ENABLE_STATS_KEY = "enableStats";
     public static final String LAST_MODIFIED_COLUMN_NAME_KEY = "lastModifiedColumnName";
+    public static final String CELL_LAST_MODIFIED_COLUMN_NAME_PREFIX = "lastModifiedTimestamp_";
+    public static final String CELL_TTL_COLUMN_NAME_PREFIX = "ttl_";
     public static final String READ_INDEX_OFFSET_KEY = "readIndexOffset";
     public static final String SIZING_KEY = "sizing";
     public static final String SIZING_DEFAULT = "default";
@@ -113,7 +117,9 @@ public class ClientConfig
     protected int maxPartitionSize;
     protected boolean useIncrementalRepair;
     protected List<SchemaFeature> requestedFeatures;
-    protected String lastModifiedTimestampField;
+    protected String rowLastModifiedTimestampField;
+    protected Map<String, String> cellLastModifiedTimestampFields;
+    protected Map<String, String> cellTtlFields;
     protected Boolean enableExpansionShrinkCheck;
     protected int sidecarPort;
     protected boolean quoteIdentifiers;
@@ -144,7 +150,9 @@ public class ClientConfig
         this.sizing = MapUtils.getOrDefault(options, SIZING_KEY, SIZING_DEFAULT);
         this.maxPartitionSize = MapUtils.getInt(options, MAX_PARTITION_SIZE_KEY, 1);
         this.useIncrementalRepair = MapUtils.getBoolean(options, USE_INCREMENTAL_REPAIR, true);
-        this.lastModifiedTimestampField = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
+        this.rowLastModifiedTimestampField = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
+        this.cellLastModifiedTimestampFields = MapUtils.getKeysWithPrefix(options, CELL_LAST_MODIFIED_COLUMN_NAME_PREFIX, true, null);
+        this.cellTtlFields = MapUtils.getKeysWithPrefix(options, CELL_TTL_COLUMN_NAME_PREFIX, true, null);
         this.enableExpansionShrinkCheck = MapUtils.getBoolean(options, ENABLE_EXPANSION_SHRINK_CHECK_KEY, false);
         this.requestedFeatures = initRequestedFeatures(options);
         this.sidecarPort = MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT);
@@ -269,9 +277,19 @@ public class ClientConfig
         return requestedFeatures;
     }
 
-    public String lastModifiedTimestampField()
+    public String rowLastModifiedTimestampField()
     {
-        return lastModifiedTimestampField;
+        return rowLastModifiedTimestampField;
+    }
+
+    public Map<String, String> cellLastModifiedTimestampFields()
+    {
+        return cellLastModifiedTimestampFields;
+    }
+
+    public Map<String, String> cellTtlFields()
+    {
+        return cellTtlFields;
     }
 
     public Boolean enableExpansionShrinkCheck()
@@ -302,17 +320,33 @@ public class ClientConfig
     protected List<SchemaFeature> initRequestedFeatures(Map<String, String> options)
     {
         Map<String, String> optionsCopy = new HashMap<>(options);
-        String lastModifiedColumnName = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
-        if (lastModifiedColumnName != null)
+
+        String rowLastModifiedColumnName = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
+        if (rowLastModifiedColumnName != null)
         {
             optionsCopy.put(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), "true");
         }
-        List<SchemaFeature> requestedFeatures = SchemaFeatureSet.initializeFromOptions(optionsCopy);
-        if (lastModifiedColumnName != null)
+        Map<String, String> cellLastModifiedColumns = MapUtils.getKeysWithPrefix(options, CELL_LAST_MODIFIED_COLUMN_NAME_PREFIX, true, null);
+        if (cellLastModifiedColumns != null)
         {
-            // Create alias to LAST_MODIFICATION_TIMESTAMP
-            aliasLastModifiedTimestamp(requestedFeatures, lastModifiedColumnName);
+            optionsCopy.put(SchemaFeatureSet.CELL_LAST_MODIFIED_TIMESTAMP.optionName(), "true");
         }
+        Map<String, String> cellTtlColumns = MapUtils.getKeysWithPrefix(options, CELL_TTL_COLUMN_NAME_PREFIX, true, null);
+        if (cellTtlColumns != null)
+        {
+            optionsCopy.put(SchemaFeatureSet.CELL_TTL.optionName(), "true");
+        }
+
+        List<SchemaFeature> requestedFeatures = SchemaFeatureSet.initializeFromOptions(optionsCopy);
+
+        if (rowLastModifiedColumnName != null)
+        {
+            // create an alias, otherwise we use default name
+            aliasLastModifiedTimestamp(requestedFeatures, rowLastModifiedColumnName);
+        }
+        addCellLastModifiedTimestamp(requestedFeatures, cellLastModifiedColumns);
+        addCellTtl(requestedFeatures, cellTtlColumns);
+
         return requestedFeatures;
     }
 
