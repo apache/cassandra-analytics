@@ -42,6 +42,10 @@ public final class Properties
     public static final int DEFAULT_MAX_POOL_SIZE = 64;
     public static final long DEFAULT_MAX_BUFFER_SIZE = 6 * MEBI_BYTES;
     public static final long DEFAULT_CHUNK_BUFFER_SIZE = 4 * MEBI_BYTES;
+    // Defaults for Data.db on S3-backed SSTables. Sized to balance per-GET (and SSE-KMS decrypt) overhead against
+    // executor heap pressure when many overlapping SSTables stream concurrently per Spark task.
+    public static final long DEFAULT_S3_DATA_CHUNK_BUFFER_SIZE = 8 * MEBI_BYTES;
+    public static final long DEFAULT_S3_DATA_MAX_BUFFER_SIZE   = 32 * MEBI_BYTES;
     public static final Map<FileType, Long> DEFAULT_MAX_BUFFER_OVERRIDE = Map.ofEntries(
     entry(FileType.INDEX,            128 * KIBI_BYTES),
     entry(FileType.SUMMARY,          256 * KIBI_BYTES),

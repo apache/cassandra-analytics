@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -324,9 +325,13 @@ public abstract class PartitionedDataLayer extends DataLayer
     {
         // Use consistency level and replication factor to calculate min number of replicas required
         // to satisfy consistency level; split replicas into 'primary' and 'backup' replicas,
-        // attempt on primary replicas and use backups to retry in the event of a failure
+        // attempt on primary replicas and use backups to retry in the event of a failure.
+        // The primary-hint predicate biases caller-identified instances into the primary set
+        // when the availability hint is tied; subclasses opt in via getPrimaryHint, otherwise
+        // it is a no-op tie-break (the default returns false for every instance).
         ReplicaSet replicaSet = PartitionedDataLayer.splitReplicas(
-        consistencyLevel, datacenter, instRanges, replicas, this::getAvailability, minReplicas, partitionId);
+        consistencyLevel, datacenter, instRanges, replicas, this::getAvailability,
+        getPrimaryHint(instRanges), minReplicas, partitionId);
         if (replicaSet.primary().size() < minReplicas)
         {
             // Could not find enough primary replicas to meet consistency level
@@ -374,6 +379,25 @@ public abstract class PartitionedDataLayer extends DataLayer
         return AvailabilityHint.UNKNOWN;
     }
 
+    /**
+     * Data Layer can override this method to identify instances the planner should bias toward
+     * the primary replica set when the {@link AvailabilityHint} comparator is tied. The hint is a
+     * secondary tie-break only — availability hints still dominate replica selection.
+     *
+     * <p>The default returns a predicate that yields {@code false} for every instance, so the
+     * tie-break is a no-op and replica selection is identical to the availability-only ordering.
+     * Subclasses with additional information about per-range ownership (for example, the
+     * token-end primary in a Cassandra ring) can opt in by returning a predicate over the
+     * supplied {@code ranges} map.
+     *
+     * @param ranges per-range replica lists currently being planned
+     * @return a predicate identifying instances to prefer when availability is tied
+     */
+    protected Predicate<CassandraInstance> getPrimaryHint(Map<Range<BigInteger>, List<CassandraInstance>> ranges)
+    {
+        return instance -> false;
+    }
+
     static Set<CassandraInstance> rangesToReplicas(@NotNull ConsistencyLevel consistencyLevel,
                                                    @Nullable String dataCenter,
                                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges)
@@ -407,7 +431,30 @@ public abstract class PartitionedDataLayer extends DataLayer
                                     int minReplicas,
                                     int partitionId) throws NotEnoughReplicasException
     {
-        ReplicaSet split = splitReplicas(replicas, ranges, availability, minReplicas, partitionId);
+        return splitReplicas(consistencyLevel, dataCenter, ranges, replicas, availability,
+                             instance -> false, minReplicas, partitionId);
+    }
+
+    /**
+     * Variant of {@link #splitReplicas(ConsistencyLevel, String, Map, Set, Function, int, int)}
+     * that accepts an explicit primary-hint predicate. Caller-identified instances are biased
+     * into the primary replica set when the availability comparator is tied; healthy availability
+     * hints still dominate.
+     *
+     * @param isPrimaryHint predicate identifying instances to prefer when availability is tied;
+     *                      pass {@code instance -> false} for the existing availability-only
+     *                      behavior.
+     */
+    static ReplicaSet splitReplicas(@NotNull ConsistencyLevel consistencyLevel,
+                                    @Nullable String dataCenter,
+                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
+                                    @NotNull Set<CassandraInstance> replicas,
+                                    @NotNull Function<CassandraInstance, AvailabilityHint> availability,
+                                    @NotNull Predicate<CassandraInstance> isPrimaryHint,
+                                    int minReplicas,
+                                    int partitionId) throws NotEnoughReplicasException
+    {
+        ReplicaSet split = splitReplicas(replicas, ranges, availability, isPrimaryHint, minReplicas, partitionId);
         validateConsistency(consistencyLevel, dataCenter, ranges, split.primary(), minReplicas);
         return split;
     }
@@ -457,12 +504,34 @@ public abstract class PartitionedDataLayer extends DataLayer
                                     int minReplicas,
                                     int partitionId)
     {
+        return splitReplicas(instances, ranges, availability, instance -> false, minReplicas, partitionId);
+    }
+
+    /**
+     * Variant of {@link #splitReplicas(Collection, Map, Function, int, int)} that applies a
+     * caller-supplied primary-hint predicate as a secondary tie-break. Instances passing
+     * {@code isPrimaryHint} sort ahead of non-hinted instances at the same availability hint,
+     * biasing them into the primary replica set; the existing availability ordering still
+     * dominates.
+     */
+    static ReplicaSet splitReplicas(Collection<CassandraInstance> instances,
+                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
+                                    Function<CassandraInstance, AvailabilityHint> availability,
+                                    @NotNull Predicate<CassandraInstance> isPrimaryHint,
+                                    int minReplicas,
+                                    int partitionId)
+    {
         ReplicaSet replicaSet = new ReplicaSet(minReplicas, partitionId);
 
-        // Sort instances by status hint, so we attempt available instances first
-        // (e.g. we already know which instances are probably up from create snapshot request)
+        // Sort instances by availability hint first (so we attempt likely-up instances first
+        // — e.g. nodes already confirmed up by the create-snapshot request), then by the
+        // primary-hint predicate as a secondary tie-break (caller-flagged instances first
+        // among the same availability bucket).
+        Comparator<CassandraInstance> ordering =
+            Comparator.comparing(availability, AvailabilityHint.AVAILABILITY_HINT_COMPARATOR)
+                      .thenComparingInt(instance -> isPrimaryHint.test(instance) ? 0 : 1);
         instances.stream()
-                 .sorted(Comparator.comparing(availability, AvailabilityHint.AVAILABILITY_HINT_COMPARATOR))
+                 .sorted(ordering)
                  .forEach(replicaSet::add);
 
         if (ranges.size() != 1)

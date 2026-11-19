@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
@@ -444,5 +445,91 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         // Verify DOWN, UNKNOWN, JOINING come last (lowest priority)
         assertThat(sorted.subList(movingOrLeavingCount, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
+    }
+
+    /**
+     * Tied availability + primary-hint=true on one instance: that instance is biased into the
+     * primary set ahead of its peers (whose hint returns false). Confirms the secondary
+     * comparator activates only when the availability bucket is shared.
+     */
+    @Test
+    public void testSplitReplicasPrimaryHintWinsOnAvailabilityTie()
+    {
+        CassandraInstance a = new CassandraInstance("100", "node-a", "DC1");
+        CassandraInstance b = new CassandraInstance("200", "node-b", "DC1");
+        CassandraInstance c = new CassandraInstance("300", "node-c", "DC1");
+        List<CassandraInstance> all = Arrays.asList(a, b, c);
+
+        Map<Range<BigInteger>, List<CassandraInstance>> ranges = Collections.singletonMap(
+            Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(300L)), all);
+        Function<CassandraInstance, PartitionedDataLayer.AvailabilityHint> uniformlyUp = instance -> UP;
+        Predicate<CassandraInstance> hint = instance -> instance.equals(b);
+
+        PartitionedDataLayer.ReplicaSet replicaSet =
+            PartitionedDataLayer.splitReplicas(all, ranges, uniformlyUp, hint, 1, 0);
+
+        assertThat(replicaSet.primary())
+            .as("hint=true should pull node-b into the primary set when availability ties")
+            .containsExactly(b);
+        assertThat(replicaSet.backup()).containsExactlyInAnyOrder(a, c);
+    }
+
+    /**
+     * Availability dominates the hint: a hint=true instance with worse availability stays in
+     * backup; a hint=false instance with better availability stays in primary.
+     */
+    @Test
+    public void testSplitReplicasAvailabilityDominatesPrimaryHint()
+    {
+        CassandraInstance healthyButNotHinted = new CassandraInstance("100", "node-a", "DC1");
+        CassandraInstance downButHinted = new CassandraInstance("200", "node-b", "DC1");
+        List<CassandraInstance> all = Arrays.asList(healthyButNotHinted, downButHinted);
+
+        Map<Range<BigInteger>, List<CassandraInstance>> ranges = Collections.singletonMap(
+            Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(200L)), all);
+        Map<CassandraInstance, PartitionedDataLayer.AvailabilityHint> availability = new HashMap<>();
+        availability.put(healthyButNotHinted, UP);
+        availability.put(downButHinted, DOWN);
+
+        Predicate<CassandraInstance> hint = instance -> instance.equals(downButHinted);
+
+        PartitionedDataLayer.ReplicaSet replicaSet =
+            PartitionedDataLayer.splitReplicas(all, ranges, availability::get, hint, 1, 0);
+
+        assertThat(replicaSet.primary())
+            .as("UP non-hinted instance must outrank DOWN hinted instance")
+            .containsExactly(healthyButNotHinted);
+        assertThat(replicaSet.backup()).containsExactly(downButHinted);
+    }
+
+    /**
+     * The pre-existing 5-arg {@code splitReplicas} delegates to the new 6-arg overload with a
+     * no-op hint predicate. This regression test pins that callers without a hint see ordering
+     * identical to the comparator-only path.
+     */
+    @Test
+    public void testSplitReplicasNoHintPreservesAvailabilityOrdering()
+    {
+        CassandraInstance up = new CassandraInstance("100", "node-up", "DC1");
+        CassandraInstance leaving = new CassandraInstance("200", "node-leaving", "DC1");
+        CassandraInstance down = new CassandraInstance("300", "node-down", "DC1");
+        List<CassandraInstance> all = Arrays.asList(up, leaving, down);
+
+        Map<Range<BigInteger>, List<CassandraInstance>> ranges = Collections.singletonMap(
+            Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(300L)), all);
+        Map<CassandraInstance, PartitionedDataLayer.AvailabilityHint> availability = new HashMap<>();
+        availability.put(up, UP);
+        availability.put(leaving, LEAVING);
+        availability.put(down, DOWN);
+
+        PartitionedDataLayer.ReplicaSet replicaSet =
+            PartitionedDataLayer.splitReplicas(all, ranges, availability::get, 1, 0);
+
+        assertThat(replicaSet.primary())
+            .as("availability ordering: UP must be the only primary")
+            .containsExactly(up);
+        assertThat(replicaSet.backup())
+            .as("LEAVING and DOWN remain in the backup set, with LEAVING ahead of DOWN")
+            .containsExactlyInAnyOrder(leaving, down);
     }
 }

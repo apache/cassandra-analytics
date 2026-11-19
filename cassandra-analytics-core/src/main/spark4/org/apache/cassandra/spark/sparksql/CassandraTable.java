@@ -24,22 +24,35 @@ import java.util.Set;
 import com.google.common.collect.Sets;
 
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.SSTableTokenIndex;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
 import org.apache.spark.sql.connector.read.ScanBuilder;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.jetbrains.annotations.Nullable;
 
 class CassandraTable implements Table, SupportsRead
 {
     private final DataLayer dataLayer;
     private final StructType schema;
+    @Nullable
+    private final Broadcast<SSTableTokenIndex> sstableTokenIndexBroadcast;
 
     CassandraTable(DataLayer dataLayer, StructType schema)
     {
+        this(dataLayer, schema, null);
+    }
+
+    CassandraTable(DataLayer dataLayer,
+                   StructType schema,
+                   @Nullable Broadcast<SSTableTokenIndex> sstableTokenIndexBroadcast)
+    {
         this.dataLayer = dataLayer;
         this.schema = schema;
+        this.sstableTokenIndexBroadcast = sstableTokenIndexBroadcast;
     }
 
     @Override
@@ -63,6 +76,6 @@ class CassandraTable implements Table, SupportsRead
     @Override
     public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options)
     {
-        return new CassandraScanBuilder(dataLayer, schema, options);
+        return new CassandraScanBuilder(dataLayer, schema, options, sstableTokenIndexBroadcast);
     }
 }
