@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -59,6 +60,8 @@ public class CoordinatedWriteConf
     private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedWriteConf.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    // null cluster ids are rejected elsewhere with a clearer error; do not fail on them while sorting
+    private static final Comparator<String> CLUSTER_ID_ORDER = Comparator.nullsFirst(Comparator.naturalOrder());
     // The runtime type of ClusterConfProvider is erased; use clustersOf method to read the desired type back
     private final Map<String, ClusterConf> clusters;
     private final String rawJson;
@@ -84,6 +87,11 @@ public class CoordinatedWriteConf
         {
             throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
                                                " due to " + e.getMessage(), e);
+        }
+        if (clusters == null)
+        {
+            throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
+                                               " due to null json value");
         }
         CoordinatedWriteConf result = new CoordinatedWriteConf(json, clusters);
         result.clusters().forEach((clusterId, cluster) -> {
@@ -134,7 +142,7 @@ public class CoordinatedWriteConf
     {
         Map<Boolean, List<String>> clusterIdsByFastForward = clusters.entrySet()
                                                                      .stream()
-                                                                     .sorted((a, b) -> a.getKey().compareTo(b.getKey()))
+                                                                     .sorted((a, b) -> CLUSTER_ID_ORDER.compare(a.getKey(), b.getKey()))
                                                                      .collect(partitioningBy(e -> e.getValue().fastForwardEnabled(),
                                                                                              mapping(Map.Entry::getKey, toList())));
         List<String> enabled = clusterIdsByFastForward.get(true);

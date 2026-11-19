@@ -140,6 +140,26 @@ class CoordinatedWriteConfTest
     }
 
     @Test
+    void testDeserFailsWithNullJson()
+    {
+        assertThatThrownBy(() -> CoordinatedWriteConf.create("null", CL.LOCAL_QUORUM, SimpleClusterConf.class))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf due to null json value");
+    }
+
+    @Test
+    void testFastForwardValidationToleratesNullClusterId()
+    {
+        Map<String, SimpleClusterConf> clusters = new HashMap<>();
+        clusters.put(null, new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1"));
+        clusters.put("cluster2", new SimpleClusterConf(Collections.singletonList("instance-2:9999"), "dc1", false, true));
+        assertThatThrownBy(() -> new CoordinatedWriteConf("{}", clusters))
+        .describedAs("A null cluster id should not fail with NullPointerException while validating fast forward")
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("fastForwardEnabled must be the same for all clusters. enabledClusters=[cluster2] disabledClusters=[null]");
+    }
+
+    @Test
     void testDeserFailsWhenInstanceHasNoPort()
     {
         String json = "{\"cluster1\":" +

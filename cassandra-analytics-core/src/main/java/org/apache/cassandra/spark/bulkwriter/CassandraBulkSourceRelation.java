@@ -489,8 +489,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
         return createJobPayloadBuilder(job, secrets, clusterId, credentialTypeName, expireAtInMillis)
                .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
-               // TODO: add test case once we advance the sidecar version that understands the flag,
-               //       or a better testing strategy is figured out
                .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
                .fastForwardEnabled(cluster.fastForwardEnabled())
                .build();
