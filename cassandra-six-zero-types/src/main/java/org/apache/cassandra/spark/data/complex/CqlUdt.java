@@ -227,7 +227,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                 break;
             }
             int length = buffer.getInt();
-            result.put(field.name(), length > 0 ? field.deserializeToType(typeConverter, ByteBufferUtils.readBytes(buffer, length), isFrozen) : null);
+            result.put(field.name(), length >= 0 ? field.deserializeToType(typeConverter, ByteBufferUtils.readBytes(buffer, length), isFrozen) : null);
         }
 
         return result;
