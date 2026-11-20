@@ -86,6 +86,30 @@ class CoordinatedWriteConfTest
     }
 
     @Test
+    void testFastForwardEnabled()
+    {
+        String json = "{\"cluster1\":{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\"}}";
+        CoordinatedWriteConf conf = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
+        assertThat(conf.fastForwardEnabled())
+        .describedAs("Fast forward should be disabled by default")
+        .isFalse();
+
+        assertThat(conf.withFastForwardEnabled(false))
+        .describedAs("withFastForwardEnabled should return the same instance when the setting is unchanged")
+        .isSameAs(conf);
+
+        CoordinatedWriteConf fastForward = conf.withFastForwardEnabled(true);
+        assertThat(fastForward.fastForwardEnabled()).isTrue();
+        assertThat(fastForward.toJson())
+        .describedAs("Fast forward applies to all clusters and is not part of the per-cluster JSON")
+        .isEqualTo(json);
+        assertThat(fastForward.clusters()).isEqualTo(conf.clusters());
+        assertThat(conf.fastForwardEnabled())
+        .describedAs("withFastForwardEnabled should not modify the original")
+        .isFalse();
+    }
+
+    @Test
     void testDeserFailsWhenInstanceHasNoPort()
     {
         String json = "{\"cluster1\":" +

@@ -19,6 +19,11 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -360,6 +365,37 @@ class BulkSparkConfTest
     }
 
     @Test
+    void testCoordinatedWriteFastForward() throws IOException, ClassNotFoundException
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.COORDINATED_WRITE_CONFIG.name());
+        options.put(WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(), "true");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .describedAs("Fast forward is only valid for coordinated write")
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("COORDINATED_WRITE_FAST_FORWARD_ENABLED requires COORDINATED_WRITE_CONFIG");
+
+        String coordinatedWriteConfJson = "{\"cluster1\":" +
+                                          "{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\"}," +
+                                          "\"cluster2\":" +
+                                          "{\"sidecarContactPoints\":[\"instance-2:9999\"],\"localDc\":\"dc1\"}}";
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJson);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.coordinatedWriteConf().fastForwardEnabled()).isTrue();
+        assertThat(roundTrip(conf).coordinatedWriteConf().fastForwardEnabled())
+        .describedAs("Executors rebuild the transient CoordinatedWriteConf and should keep fast forward enabled")
+        .isTrue();
+
+        options.remove(WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name());
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.coordinatedWriteConf().fastForwardEnabled())
+        .describedAs("Fast forward should be disabled by default")
+        .isFalse();
+    }
+
+    @Test
     void testCoordinatedWriteConf()
     {
         Map<String, String> options = copyDefaultOptions();
@@ -477,6 +513,19 @@ class BulkSparkConfTest
         assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
         .describedAs("SSTable version based bridge should be enabled")
         .isFalse();
+    }
+
+    private static BulkSparkConf roundTrip(BulkSparkConf conf) throws IOException, ClassNotFoundException
+    {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(conf);
+        }
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            return (BulkSparkConf) in.readObject();
+        }
     }
 
     private Map<String, String> copyDefaultOptions()

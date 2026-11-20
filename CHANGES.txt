@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Add COORDINATED_WRITE_FAST_FORWARD_ENABLED writer option to enable Sidecar fast forward for coordinated write (CASSANALYTICS-221)
  * Preserve empty (non-null) tuple and UDT field values on read (CASSANALYTICS-209)
  * CDC Avro schemas and records fail for quoted CQL names that are invalid in Avro or mixed case (CASSANALYTICS-216)
  * Enable TLS for sidecar connections when Truststore is configured (CASSANALYTICS-220)

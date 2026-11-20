@@ -59,6 +59,8 @@ public class CoordinatedWriteConf
     // The runtime type of ClusterConfProvider is erased; use clustersOf method to read the desired type back
     private final Map<String, ClusterConf> clusters;
     private final String rawJson;
+    // applies to all clusters; it is not part of rawJson, which only contains the per-cluster configurations
+    private final boolean fastForwardEnabled;
 
     /**
      * Parse JSON string and create a CoordinatedWriteConf object with the specified ClusterConfProvider format
@@ -102,10 +104,26 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)
     {
+        this(writeAsJson(clusters), clusters, false);
+    }
+
+    public CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters)
+    {
+        this(rawJson, clusters, false);
+    }
+
+    private CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters, boolean fastForwardEnabled)
+    {
+        this.rawJson = rawJson;
         this.clusters = Collections.unmodifiableMap(clusters);
+        this.fastForwardEnabled = fastForwardEnabled;
+    }
+
+    private static String writeAsJson(Map<String, ? extends ClusterConf> clusters)
+    {
         try
         {
-            this.rawJson = OBJECT_MAPPER.writeValueAsString(clusters);
+            return OBJECT_MAPPER.writeValueAsString(clusters);
         }
         catch (JsonProcessingException e)
         {
@@ -113,10 +131,29 @@ public class CoordinatedWriteConf
         }
     }
 
-    public CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters)
+    /**
+     * @param fastForwardEnabled whether to enable fast forward for all clusters
+     * @return this CoordinatedWriteConf if it already has the given fast forward setting; otherwise, a copy with it
+     */
+    public CoordinatedWriteConf withFastForwardEnabled(boolean fastForwardEnabled)
     {
-        this.rawJson = rawJson;
-        this.clusters = Collections.unmodifiableMap(clusters);
+        if (this.fastForwardEnabled == fastForwardEnabled)
+        {
+            return this;
+        }
+        return new CoordinatedWriteConf(rawJson, clusters, fastForwardEnabled);
+    }
+
+    /**
+     * Whether Sidecar should fast forward the restore jobs of all clusters, i.e. eagerly pipeline the staging and the
+     * importing phases instead of waiting for the phase signals. It applies to all clusters, so that they always run
+     * the same way. See {@link org.apache.cassandra.spark.bulkwriter.WriterOptions#COORDINATED_WRITE_FAST_FORWARD_ENABLED}
+     *
+     * @return true if fast forward is enabled; false otherwise
+     */
+    public boolean fastForwardEnabled()
+    {
+        return fastForwardEnabled;
     }
 
     public Map<String, ClusterConf> clusters()

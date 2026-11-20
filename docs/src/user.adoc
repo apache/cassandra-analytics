@@ -388,6 +388,30 @@ consistency check to that DC. S3 Cross-Region Replication provides a separate re
 }
 ----
 
+|_coordinated_write_fast_forward_enabled_
+|no
+|`false`
+a|
+Enables Sidecar fast forward for all clusters in _coordinated_write_config_. It is only valid together with
+_coordinated_write_config_. Sidecar stages each slice once its object is available in the cluster's read
+bucket, instead of waiting for the `StorageTransportExtension` to signal stage-ready. If the object has not
+been replicated to the read bucket yet, Sidecar retries until it is. It imports as soon as the job reaches
+`STAGED`, instead of waiting for the `IMPORT_READY` signal. The driver sets `STAGED` only after all clusters
+have staged and satisfied the consistency level.
+
+Only enable it when it is acceptable that imported data becomes visible immediately and that importing cannot
+be rolled back. With fast forward, `STAGED` is the point of no return, instead of `IMPORT_READY`. The driver
+sends `STAGED` to the clusters one at a time, and each cluster starts importing when it receives it. If the
+job fails, is cancelled or times out after that, for example because sending `STAGED` to a later cluster
+fails, the job is reported as failed, but the data already imported to any cluster stays. The import-ready
+decision of the `StorageTransportExtension` cannot stop the import either, although the driver still waits
+for it before reporting the job as successful.
+
+It requires Sidecar with fast forward support (CASSSIDECAR-463). Sidecar versions without the support do not
+accept unknown fields in the create restore job request, so the job creation fails on that cluster and the bulk
+write fails before any data is written. Restore jobs already created on other clusters are not aborted; they are
+left until they expire.
+
 |_data_transport_extension_class_
 |yes
 |
