@@ -49,8 +49,8 @@ class BuildCoordinatedRestoreJobPayloadTest
     @Test
     void testFastForwardEnabledIsSentToSidecar()
     {
-        SimpleClusterConf cluster = new SimpleClusterConf(Collections.singletonList("instance-1:9043"), "dc1", false, true);
-        CreateRestoreJobRequestPayload payload = buildPayload(cluster);
+        SimpleClusterConf cluster = new SimpleClusterConf(Collections.singletonList("instance-1:9043"), "dc1");
+        CreateRestoreJobRequestPayload payload = buildPayload(cluster, true);
         assertThat(payload.fastForwardEnabled()).isTrue();
         assertThat(payload.jobId()).isEqualTo(JOB_ID);
         assertThat(payload.consistencyLevel()).isEqualTo("LOCAL_QUORUM");
@@ -58,10 +58,10 @@ class BuildCoordinatedRestoreJobPayloadTest
     }
 
     @Test
-    void testFastForwardDisabledByDefault()
+    void testFastForwardDisabled()
     {
         SimpleClusterConf cluster = new SimpleClusterConf(Collections.singletonList("instance-1:9043"), "dc1");
-        CreateRestoreJobRequestPayload payload = buildPayload(cluster);
+        CreateRestoreJobRequestPayload payload = buildPayload(cluster, false);
         assertThat(payload.fastForwardEnabled()).isFalse();
     }
 
@@ -69,18 +69,19 @@ class BuildCoordinatedRestoreJobPayloadTest
     void testWriteToLocalDcOnlyIsSentToSidecar()
     {
         SimpleClusterConf cluster = new SimpleClusterConf(Collections.singletonList("instance-1:9043"), "dc1", true);
-        CreateRestoreJobRequestPayload payload = buildPayload(cluster);
+        CreateRestoreJobRequestPayload payload = buildPayload(cluster, false);
         assertThat(payload.shouldRestoreToLocalDatacenterOnly()).isTrue();
         assertThat(payload.fastForwardEnabled()).isFalse();
     }
 
-    private static CreateRestoreJobRequestPayload buildPayload(SimpleClusterConf cluster)
+    private static CreateRestoreJobRequestPayload buildPayload(SimpleClusterConf cluster, boolean fastForwardEnabled)
     {
         JobInfo job = mock(JobInfo.class);
         when(job.getRestoreJobId(CLUSTER_ID)).thenReturn(JOB_ID);
         return CassandraBulkSourceRelation.buildCoordinatedRestoreJobPayload(job,
                                                                              CLUSTER_ID,
                                                                              cluster,
+                                                                             fastForwardEnabled,
                                                                              CL.LOCAL_QUORUM,
                                                                              secrets(),
                                                                              null,

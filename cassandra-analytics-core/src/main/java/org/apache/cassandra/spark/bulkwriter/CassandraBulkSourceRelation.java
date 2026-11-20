@@ -470,7 +470,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         dataTransferApi.forEach((clusterId, api) -> {
             RestoreJobSecrets secrets = buildRestoreJobSecrets(conf.getStorageCredentialPair(clusterId), credTypeName);
             CoordinatedWriteConf.ClusterConf cluster = coordinatedWriteConf.cluster(clusterId);
-            api.createRestoreJob(buildCoordinatedRestoreJobPayload(job, clusterId, cluster, cl, secrets, credTypeName, updatedLeaseTime()));
+            api.createRestoreJob(buildCoordinatedRestoreJobPayload(job, clusterId, cluster, coordinatedWriteConf.fastForwardEnabled(),
+                                                                   cl, secrets, credTypeName, updatedLeaseTime()));
         });
     }
 
@@ -481,6 +482,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     static CreateRestoreJobRequestPayload buildCoordinatedRestoreJobPayload(JobInfo job,
                                                                            String clusterId,
                                                                            CoordinatedWriteConf.ClusterConf cluster,
+                                                                           boolean fastForwardEnabled,
                                                                            ConsistencyLevel cl,
                                                                            RestoreJobSecrets secrets,
                                                                            @org.jetbrains.annotations.Nullable String credentialTypeName,
@@ -490,7 +492,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         return createJobPayloadBuilder(job, secrets, clusterId, credentialTypeName, expireAtInMillis)
                .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
                .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
-               .fastForwardEnabled(cluster.fastForwardEnabled())
+               .fastForwardEnabled(fastForwardEnabled)
                .build();
     }
 

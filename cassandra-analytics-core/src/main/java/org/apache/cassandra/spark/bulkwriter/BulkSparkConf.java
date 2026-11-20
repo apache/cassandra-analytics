@@ -176,6 +176,7 @@ public class BulkSparkConf implements Serializable
     private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
     protected final String coordinatedWriteConfJson;
     private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
+    protected final boolean coordinatedWriteFastForwardEnabled;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -275,7 +276,12 @@ public class BulkSparkConf implements Serializable
         this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
-        this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
+        this.coordinatedWriteFastForwardEnabled = MapUtils.getBoolean(options, WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(),
+                                                                      false, "coordinated write fast forward enabled");
+        Preconditions.checkArgument(!coordinatedWriteFastForwardEnabled || coordinatedWriteConfJson != null,
+                                    WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name() + " requires "
+                                    + WriterOptions.COORDINATED_WRITE_CONFIG.name());
+        this.coordinatedWriteConf = resolveCoordinatedWriteConf(logger);
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
@@ -348,10 +354,21 @@ public class BulkSparkConf implements Serializable
     {
         if (coordinatedWriteConf == null)
         {
-            coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), null);
+            coordinatedWriteConf = resolveCoordinatedWriteConf(null);
         }
 
         return coordinatedWriteConf;
+    }
+
+    /**
+     * Builds the CoordinatedWriteConf with {@link #buildCoordinatedWriteConf}, which subclasses can override, and
+     * applies the options that are common to all clusters
+     */
+    @Nullable
+    private CoordinatedWriteConf resolveCoordinatedWriteConf(@Nullable Logger logger)
+    {
+        CoordinatedWriteConf conf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
+        return conf == null ? null : conf.withFastForwardEnabled(coordinatedWriteFastForwardEnabled);
     }
 
     @Nullable

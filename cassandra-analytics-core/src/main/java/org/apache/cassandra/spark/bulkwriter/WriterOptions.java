@@ -154,4 +154,27 @@ public enum WriterOptions implements WriterOption
      * </ul>
      */
     STORAGE_CREDENTIAL_TYPE,
+    /**
+     * Option to enable Sidecar fast forward for coordinated write, i.e. for all clusters in
+     * {@link #COORDINATED_WRITE_CONFIG}. It is only valid when {@link #COORDINATED_WRITE_CONFIG} is present, and it
+     * defaults to {@code false}.
+     * <p>
+     * When enabled, Sidecar stages each slice once its object is available in the cluster's read bucket, instead of
+     * waiting for the {@link StorageTransportExtension} to signal stage-ready; if the object has not been replicated
+     * there yet, Sidecar retries until it is. It imports as soon as the job reaches {@code STAGED}, instead of waiting
+     * for {@code IMPORT_READY}. The driver sets {@code STAGED} only after all clusters have staged and satisfied the
+     * consistency level.
+     * <p>
+     * Only enable it when it is acceptable that the imported data becomes visible immediately and that importing
+     * cannot be rolled back. With fast forward, {@code STAGED} is the point of no return, instead of
+     * {@code IMPORT_READY}. The driver sends {@code STAGED} to the clusters one at a time, and each cluster starts
+     * importing when it receives it. If the job fails, is cancelled or times out after that, the job is reported as
+     * failed, but the data already imported to any cluster stays. The import-ready decision of the
+     * {@link StorageTransportExtension} cannot stop the import either, although the driver still waits for it before
+     * reporting the job as successful.
+     * <p>
+     * It requires the Sidecars of all clusters to support fast forward (CASSSIDECAR-463). Sidecar versions without the
+     * support do not accept unknown fields in the create restore job request, so the job creation fails.
+     */
+    COORDINATED_WRITE_FAST_FORWARD_ENABLED,
 }

@@ -52,14 +52,12 @@ class CoordinatedWriteConfTest
                    "{\"sidecarContactPoints\":" +
                    "[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]," +
                    "\"localDc\":\"dc1\"," +
-                   "\"writeToLocalDcOnly\":false," +
-                   "\"fastForwardEnabled\":false}," +
+                   "\"writeToLocalDcOnly\":false}," +
                    "\"cluster2\":" +
                    "{\"sidecarContactPoints\":" +
                    "[\"instance-4:8888\",\"instance-5:8888\",\"instance-6:8888\"]," +
                    "\"localDc\":\"dc1\"," +
-                   "\"writeToLocalDcOnly\":false," +
-                   "\"fastForwardEnabled\":false}}");
+                   "\"writeToLocalDcOnly\":false}}");
         CoordinatedWriteConf deser = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
         assertThat(deser.clusters()).containsKeys("cluster1", "cluster2");
         assertThat(deser.cluster("cluster1")).isNotNull();
@@ -88,75 +86,23 @@ class CoordinatedWriteConfTest
     }
 
     @Test
-    void testFastForwardEnabledParsedFromJson()
+    void testFastForwardEnabled()
     {
-        String json = "{\"cluster1\":" +
-                      "{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\",\"fastForwardEnabled\":true}," +
-                      "\"cluster2\":" +
-                      "{\"sidecarContactPoints\":[\"instance-2:9999\"],\"localDc\":\"dc1\",\"fastForwardEnabled\":true}}";
+        String json = "{\"cluster1\":{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\"}}";
         CoordinatedWriteConf conf = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
-        assertThat(conf.cluster("cluster1").fastForwardEnabled()).isTrue();
-        assertThat(conf.cluster("cluster2").fastForwardEnabled()).isTrue();
-
-        String jsonWithoutFastForward = "{\"cluster1\":{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\"}}";
-        conf = CoordinatedWriteConf.create(jsonWithoutFastForward, CL.LOCAL_QUORUM, SimpleClusterConf.class);
-        assertThat(conf.cluster("cluster1").fastForwardEnabled())
-        .describedAs("fastForwardEnabled should default to false when absent")
+        assertThat(conf.fastForwardEnabled())
+        .describedAs("Fast forward should be disabled by default")
         .isFalse();
-    }
 
-    @Test
-    void testFastForwardEnabledSerDeser()
-    {
-        Map<String, SimpleClusterConf> clusters = new HashMap<>();
-        clusters.put("cluster1", new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1", false, true));
-        clusters.put("cluster2", new SimpleClusterConf(Collections.singletonList("instance-2:9999"), "dc1", false, true));
-        // this constructor serializes the cluster confs, unlike create(), which keeps the input json as is
-        String json = new CoordinatedWriteConf(clusters).toJson();
-        assertThat(json).contains("\"fastForwardEnabled\":true");
-
-        CoordinatedWriteConf deser = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
-        assertThat(deser.cluster("cluster1").fastForwardEnabled()).isTrue();
-        assertThat(deser.cluster("cluster2").fastForwardEnabled()).isTrue();
-    }
-
-    @Test
-    void testMixedFastForwardEnabledIsRejected()
-    {
-        String json = "{\"cluster1\":" +
-                      "{\"sidecarContactPoints\":[\"instance-1:9999\"],\"localDc\":\"dc1\",\"fastForwardEnabled\":true}," +
-                      "\"cluster2\":" +
-                      "{\"sidecarContactPoints\":[\"instance-2:9999\"],\"localDc\":\"dc1\"}}";
-        assertThatThrownBy(() -> CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("fastForwardEnabled must be the same for all clusters. enabledClusters=[cluster1] disabledClusters=[cluster2]");
-
-        Map<String, SimpleClusterConf> clusters = new HashMap<>();
-        clusters.put("cluster1", new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1"));
-        clusters.put("cluster2", new SimpleClusterConf(Collections.singletonList("instance-2:9999"), "dc1", false, true));
-        assertThatThrownBy(() -> new CoordinatedWriteConf(clusters))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("fastForwardEnabled must be the same for all clusters. enabledClusters=[cluster2] disabledClusters=[cluster1]");
-    }
-
-    @Test
-    void testDeserFailsWithNullJson()
-    {
-        assertThatThrownBy(() -> CoordinatedWriteConf.create("null", CL.LOCAL_QUORUM, SimpleClusterConf.class))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf due to null json value");
-    }
-
-    @Test
-    void testFastForwardValidationToleratesNullClusterId()
-    {
-        Map<String, SimpleClusterConf> clusters = new HashMap<>();
-        clusters.put(null, new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1"));
-        clusters.put("cluster2", new SimpleClusterConf(Collections.singletonList("instance-2:9999"), "dc1", false, true));
-        assertThatThrownBy(() -> new CoordinatedWriteConf("{}", clusters))
-        .describedAs("A null cluster id should not fail with NullPointerException while validating fast forward")
-        .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("fastForwardEnabled must be the same for all clusters. enabledClusters=[cluster2] disabledClusters=[null]");
+        CoordinatedWriteConf fastForward = conf.withFastForwardEnabled(true);
+        assertThat(fastForward.fastForwardEnabled()).isTrue();
+        assertThat(fastForward.toJson())
+        .describedAs("Fast forward applies to all clusters and is not part of the per-cluster JSON")
+        .isEqualTo(json);
+        assertThat(fastForward.clusters()).isEqualTo(conf.clusters());
+        assertThat(conf.fastForwardEnabled())
+        .describedAs("withFastForwardEnabled should not modify the original")
+        .isFalse();
     }
 
     @Test

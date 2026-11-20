@@ -20,7 +20,6 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -46,9 +45,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static java.util.stream.Collectors.collectingAndThen;
-import static java.util.stream.Collectors.mapping;
-import static java.util.stream.Collectors.partitioningBy;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 /**
@@ -60,11 +56,11 @@ public class CoordinatedWriteConf
     private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedWriteConf.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    // null cluster ids are rejected elsewhere with a clearer error; do not fail on them while sorting
-    private static final Comparator<String> CLUSTER_ID_ORDER = Comparator.nullsFirst(Comparator.naturalOrder());
     // The runtime type of ClusterConfProvider is erased; use clustersOf method to read the desired type back
     private final Map<String, ClusterConf> clusters;
     private final String rawJson;
+    // applies to all clusters; it is not part of rawJson, which only contains the per-cluster configurations
+    private final boolean fastForwardEnabled;
 
     /**
      * Parse JSON string and create a CoordinatedWriteConf object with the specified ClusterConfProvider format
@@ -78,22 +74,16 @@ public class CoordinatedWriteConf
     CoordinatedWriteConf create(String json, ConsistencyLevel.CL consistencyLevel, Class<T> clusterConfType)
     {
         JavaType javaType = TypeFactory.defaultInstance().constructMapType(Map.class, String.class, clusterConfType);
-        Map<String, T> clusters;
+        CoordinatedWriteConf result;
         try
         {
-            clusters = OBJECT_MAPPER.readValue(json, javaType);
+            result = new CoordinatedWriteConf(json, OBJECT_MAPPER.readValue(json, javaType));
         }
         catch (Exception e)
         {
             throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
                                                " due to " + e.getMessage(), e);
         }
-        if (clusters == null)
-        {
-            throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
-                                               " due to null json value");
-        }
-        CoordinatedWriteConf result = new CoordinatedWriteConf(json, clusters);
         result.clusters().forEach((clusterId, cluster) -> {
             if (consistencyLevel.isLocal())
             {
@@ -114,8 +104,8 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)
     {
-        validateFastForwardEnabled(clusters);
         this.clusters = Collections.unmodifiableMap(clusters);
+        this.fastForwardEnabled = false;
         try
         {
             this.rawJson = OBJECT_MAPPER.writeValueAsString(clusters);
@@ -128,30 +118,35 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters)
     {
-        validateFastForwardEnabled(clusters);
+        this(rawJson, clusters, false);
+    }
+
+    private CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters, boolean fastForwardEnabled)
+    {
         this.rawJson = rawJson;
         this.clusters = Collections.unmodifiableMap(clusters);
+        this.fastForwardEnabled = fastForwardEnabled;
     }
 
     /**
-     * Fast forward must be set the same way on all clusters. Otherwise, the clusters with fast forward import as soon
-     * as the job reaches STAGED, while the others wait for IMPORT_READY. If the job is then aborted before
-     * IMPORT_READY, only some of the clusters have the data, and the imported data cannot be rolled back.
+     * @param fastForwardEnabled whether to enable fast forward for all clusters
+     * @return a copy of this CoordinatedWriteConf with the given fast forward setting
      */
-    private static void validateFastForwardEnabled(Map<String, ? extends ClusterConf> clusters)
+    public CoordinatedWriteConf withFastForwardEnabled(boolean fastForwardEnabled)
     {
-        Map<Boolean, List<String>> clusterIdsByFastForward = clusters.entrySet()
-                                                                     .stream()
-                                                                     .sorted((a, b) -> CLUSTER_ID_ORDER.compare(a.getKey(), b.getKey()))
-                                                                     .collect(partitioningBy(e -> e.getValue().fastForwardEnabled(),
-                                                                                             mapping(Map.Entry::getKey, toList())));
-        List<String> enabled = clusterIdsByFastForward.get(true);
-        List<String> disabled = clusterIdsByFastForward.get(false);
-        if (!enabled.isEmpty() && !disabled.isEmpty())
-        {
-            throw new IllegalArgumentException("fastForwardEnabled must be the same for all clusters. " +
-                                               "enabledClusters=" + enabled + " disabledClusters=" + disabled);
-        }
+        return new CoordinatedWriteConf(rawJson, clusters, fastForwardEnabled);
+    }
+
+    /**
+     * Whether Sidecar should fast forward the restore jobs of all clusters, i.e. eagerly pipeline the staging and the
+     * importing phases instead of waiting for the phase signals. It applies to all clusters, so that they always run
+     * the same way. See {@link org.apache.cassandra.spark.bulkwriter.WriterOptions#COORDINATED_WRITE_FAST_FORWARD_ENABLED}
+     *
+     * @return true if fast forward is enabled; false otherwise
+     */
+    public boolean fastForwardEnabled()
+    {
+        return fastForwardEnabled;
     }
 
     public Map<String, ClusterConf> clusters()
@@ -200,24 +195,6 @@ public class CoordinatedWriteConf
 
         boolean writeToLocalDcOnly();
 
-        /**
-         * Whether Sidecar should fast forward the restore job of the cluster, i.e. eagerly pipeline the staging and
-         * the importing phases instead of waiting for the phase signals. Staging starts while the restore job is
-         * still in CREATED status. Importing starts once the job reaches STAGED, which the driver sets only after
-         * all clusters have staged and satisfied the consistency level, instead of waiting for IMPORT_READY.
-         * <p>
-         * It must be set the same way on all clusters; {@link CoordinatedWriteConf} rejects mixed settings. Only
-         * enable it when it is acceptable that the imported data becomes visible immediately and that importing
-         * cannot be rolled back. It requires the Sidecars of the cluster to support fast forward (CASSSIDECAR-463);
-         * otherwise, the restore job creation is rejected.
-         *
-         * @return true if fast forward is enabled for the cluster; false otherwise. Defaults to false
-         */
-        default boolean fastForwardEnabled()
-        {
-            return false;
-        }
-
         @Nullable
         default String resolveLocalDc(ConsistencyLevel cl)
         {
@@ -243,29 +220,21 @@ public class CoordinatedWriteConf
         private final Set<SidecarInstance> sidecarContactPoints;
         private final @Nullable String localDc;
         private final boolean writeToLocalDcOnly;
-        private final boolean fastForwardEnabled;
 
         @JsonCreator
         public SimpleClusterConf(@JsonProperty("sidecarContactPoints") List<String> sidecarContactPointsValue,
                                  @JsonProperty("localDc") String localDc,
-                                 @JsonProperty("writeToLocalDcOnly") boolean writeToLocalDcOnly,
-                                 @JsonProperty("fastForwardEnabled") boolean fastForwardEnabled)
+                                 @JsonProperty("writeToLocalDcOnly") boolean writeToLocalDcOnly)
         {
             this.sidecarContactPointsValue = sidecarContactPointsValue;
             this.sidecarContactPoints = buildSidecarContactPoints(sidecarContactPointsValue);
             this.localDc = localDc;
             this.writeToLocalDcOnly = writeToLocalDcOnly;
-            this.fastForwardEnabled = fastForwardEnabled;
-        }
-
-        public SimpleClusterConf(List<String> sidecarContactPointsValue, String localDc, boolean writeToLocalDcOnly)
-        {
-            this(sidecarContactPointsValue, localDc, writeToLocalDcOnly, false);
         }
 
         public SimpleClusterConf(List<String> sidecarContactPointsValue, String localDc)
         {
-            this(sidecarContactPointsValue, localDc, false, false);
+            this(sidecarContactPointsValue, localDc, false);
         }
 
         @JsonProperty("sidecarContactPoints")
@@ -286,13 +255,6 @@ public class CoordinatedWriteConf
         public boolean writeToLocalDcOnly()
         {
             return writeToLocalDcOnly;
-        }
-
-        @Override
-        @JsonProperty("fastForwardEnabled")
-        public boolean fastForwardEnabled()
-        {
-            return fastForwardEnabled;
         }
 
         @Override
