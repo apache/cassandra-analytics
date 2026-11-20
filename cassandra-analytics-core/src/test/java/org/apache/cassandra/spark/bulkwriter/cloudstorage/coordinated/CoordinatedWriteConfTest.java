@@ -94,6 +94,10 @@ class CoordinatedWriteConfTest
         .describedAs("Fast forward should be disabled by default")
         .isFalse();
 
+        assertThat(conf.withFastForwardEnabled(false))
+        .describedAs("withFastForwardEnabled should return the same instance when the setting is unchanged")
+        .isSameAs(conf);
+
         CoordinatedWriteConf fastForward = conf.withFastForwardEnabled(true);
         assertThat(fastForward.fastForwardEnabled()).isTrue();
         assertThat(fastForward.toJson())

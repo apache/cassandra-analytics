@@ -408,7 +408,9 @@ decision of the `StorageTransportExtension` cannot stop the import either, altho
 for it before reporting the job as successful.
 
 It requires Sidecar with fast forward support (CASSSIDECAR-463). Sidecar versions without the support do not
-accept unknown fields in the create restore job request, so the job creation fails.
+accept unknown fields in the create restore job request, so the job creation fails on that cluster and the bulk
+write fails before any data is written. Restore jobs already created on other clusters are not aborted; they are
+left until they expire.
 
 |_data_transport_extension_class_
 |yes

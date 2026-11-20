@@ -174,7 +174,9 @@ public enum WriterOptions implements WriterOption
      * reporting the job as successful.
      * <p>
      * It requires the Sidecars of all clusters to support fast forward (CASSSIDECAR-463). Sidecar versions without the
-     * support do not accept unknown fields in the create restore job request, so the job creation fails.
+     * support do not accept unknown fields in the create restore job request, so the job creation fails on that
+     * cluster and the bulk write fails before any data is written. Restore jobs already created on other clusters are
+     * not aborted; they are left until they expire.
      */
     COORDINATED_WRITE_FAST_FORWARD_ENABLED,
 }

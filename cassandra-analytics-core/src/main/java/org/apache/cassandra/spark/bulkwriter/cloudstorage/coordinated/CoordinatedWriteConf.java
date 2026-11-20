@@ -104,16 +104,7 @@ public class CoordinatedWriteConf
 
     public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)
     {
-        this.clusters = Collections.unmodifiableMap(clusters);
-        this.fastForwardEnabled = false;
-        try
-        {
-            this.rawJson = OBJECT_MAPPER.writeValueAsString(clusters);
-        }
-        catch (JsonProcessingException e)
-        {
-            throw new IllegalArgumentException("Input cannot be written as json string", e);
-        }
+        this(writeAsJson(clusters), clusters, false);
     }
 
     public CoordinatedWriteConf(String rawJson, Map<String, ? extends ClusterConf> clusters)
@@ -128,12 +119,28 @@ public class CoordinatedWriteConf
         this.fastForwardEnabled = fastForwardEnabled;
     }
 
+    private static String writeAsJson(Map<String, ? extends ClusterConf> clusters)
+    {
+        try
+        {
+            return OBJECT_MAPPER.writeValueAsString(clusters);
+        }
+        catch (JsonProcessingException e)
+        {
+            throw new IllegalArgumentException("Input cannot be written as json string", e);
+        }
+    }
+
     /**
      * @param fastForwardEnabled whether to enable fast forward for all clusters
-     * @return a copy of this CoordinatedWriteConf with the given fast forward setting
+     * @return this CoordinatedWriteConf if it already has the given fast forward setting; otherwise, a copy with it
      */
     public CoordinatedWriteConf withFastForwardEnabled(boolean fastForwardEnabled)
     {
+        if (this.fastForwardEnabled == fastForwardEnabled)
+        {
+            return this;
+        }
         return new CoordinatedWriteConf(rawJson, clusters, fastForwardEnabled);
     }
 

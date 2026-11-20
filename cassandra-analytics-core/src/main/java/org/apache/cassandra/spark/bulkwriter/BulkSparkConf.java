@@ -278,10 +278,10 @@ public class BulkSparkConf implements Serializable
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteFastForwardEnabled = MapUtils.getBoolean(options, WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name(),
                                                                       false, "coordinated write fast forward enabled");
-        Preconditions.checkArgument(!coordinatedWriteFastForwardEnabled || coordinatedWriteConfJson != null,
+        this.coordinatedWriteConf = resolveCoordinatedWriteConf(logger);
+        Preconditions.checkArgument(!coordinatedWriteFastForwardEnabled || coordinatedWriteConf != null,
                                     WriterOptions.COORDINATED_WRITE_FAST_FORWARD_ENABLED.name() + " requires "
                                     + WriterOptions.COORDINATED_WRITE_CONFIG.name());
-        this.coordinatedWriteConf = resolveCoordinatedWriteConf(logger);
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
@@ -368,7 +368,8 @@ public class BulkSparkConf implements Serializable
     private CoordinatedWriteConf resolveCoordinatedWriteConf(@Nullable Logger logger)
     {
         CoordinatedWriteConf conf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
-        return conf == null ? null : conf.withFastForwardEnabled(coordinatedWriteFastForwardEnabled);
+        // keep the conf returned by buildCoordinatedWriteConf as is, unless fast forward has to be applied
+        return conf == null || !coordinatedWriteFastForwardEnabled ? conf : conf.withFastForwardEnabled(true);
     }
 
     @Nullable
