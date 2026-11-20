@@ -108,6 +108,17 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.schemaInfo = buildSchemaInfo(structType);
         this.jobStatsPublisher = buildJobStatsPublisher();
         this.transportContext = buildTransportContext(true);  // isOnDriver = true
+        validateTrackedKeyspace();
+    }
+
+    private void validateTrackedKeyspace()
+    {
+        if (bridge().isTracked(cluster().getReplicationType()))
+        {
+            logger.warn("Keyspace {} has mutation tracking enabled, so the configured consistency level {} is not "
+                        + "evaluated by the bulk writer. Cassandra handles it.",
+                        bulkSparkConf().keyspace, bulkSparkConf().consistencyLevel);
+        }
     }
 
     /**

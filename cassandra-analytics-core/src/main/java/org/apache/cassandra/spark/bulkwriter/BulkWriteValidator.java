@@ -205,9 +205,6 @@ public class BulkWriteValidator
 
         if (isTrackedKeyspace)
         {
-            LOGGER.warn("Keyspace {} has mutation tracking enabled, so the configured consistency level {} is not "
-                        + "evaluated by the bulk writer. Cassandra handles it.",
-                        job.qualifiedTableName().keyspace(), job.getConsistencyLevel());
             validateCoordinatorAvailableOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job);
         }
         else
