@@ -21,10 +21,12 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -37,6 +39,7 @@ import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.Re
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.common.model.NodeState;
 import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -113,6 +116,44 @@ public final class TokenRangeMappingUtils
                              .address(entry.address().replace("127.", "10."))
                              .status(entry.status())
                              .state(entry.state())
+                             .token(entry.token())
+                             .fqdn(entry.fqdn())
+                             .rack(entry.rack())
+                             .owns(entry.owns())
+                             .load(entry.load())
+                             .hostId(entry.hostId())
+                             .build();
+        return new RingInstance(newEntry);
+    }
+
+    public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithPendingInstances(int initialToken,
+                                                                                             ImmutableMap<String, Integer> rfByDC,
+                                                                                             int instancesPerDC,
+                                                                                             String... pendingNodeNames)
+    {
+        Set<String> pending = new HashSet<>(Arrays.asList(pendingNodeNames));
+        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC)
+                                       .stream()
+                                       .map(instance -> pending.contains(instance.nodeName())
+                                                        ? withNodeState(instance, NodeState.JOINING)
+                                                        : instance)
+                                       .collect(Collectors.toList());
+        ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
+        Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
+        return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
+                                       tokenRanges,
+                                       new HashSet<>(instances));
+    }
+
+    private static RingInstance withNodeState(RingInstance instance, NodeState nodeState)
+    {
+        RingEntry entry = instance.ringEntry();
+        RingEntry newEntry = new RingEntry.Builder()
+                             .datacenter(entry.datacenter())
+                             .port(entry.port())
+                             .address(entry.address())
+                             .status(entry.status())
+                             .state(nodeState.name())
                              .token(entry.token())
                              .fqdn(entry.fqdn())
                              .rack(entry.rack())

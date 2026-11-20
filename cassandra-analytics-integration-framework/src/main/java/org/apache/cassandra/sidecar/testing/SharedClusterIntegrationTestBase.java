@@ -618,6 +618,16 @@ public abstract class SharedClusterIntegrationTestBase
                                                    SharedExecutorNettyOptions.INSTANCE);
         }
 
+        /**
+         * TODO: remove this once snapshot artifacts are published with {@code /sidecar.version} classpath resource.
+         */
+        @Provides
+        @Singleton
+        public SidecarVersionProvider sidecarVersionProvider()
+        {
+            return new SidecarVersionProvider();
+        }
+
         @Provides
         @Singleton
         public InstancesMetadata instancesConfig(Vertx vertx,

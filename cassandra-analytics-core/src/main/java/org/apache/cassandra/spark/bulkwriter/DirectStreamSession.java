@@ -86,9 +86,20 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 IntWrapper sstableCounter = new IntWrapper();
                 preparedSSTables.sstables()
                                 .forEach(preparedSSTable -> {
+                                    // no replicas left to send to, skip the rest of the batch
+                                    if (replicas.isEmpty())
+                                    {
+                                        return;
+                                    }
                                     sstableCounter.value++;
                                     sendSStableToReplicas(preparedSSTable);
                                 });
+
+                if (replicas.isEmpty())
+                {
+                    // Fail fast so that task stops producing SSTables when there are no more replicas left
+                    setLastStreamFailure(new IOException("All replicas failed to receive SSTables for range " + tokenRange));
+                }
 
                 LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, sstableCounter.value);
                 Set<Path> allSSTableFiles = preparedSSTables.files();
@@ -140,9 +151,17 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         }
         streamResult.setCommitResults(cr);
         LOGGER.debug("StreamResult: {}", streamResult);
-        // Check consistency given the no. failures
-        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
+        validateStreamResult(streamResult, cr);
         return streamResult;
+    }
+
+    /**
+     * Validates the outcome of the stream, throwing if bulk write did not succeed. By default, checks enough replicas
+     * received write to meet CL.
+     */
+    protected void validateStreamResult(DirectStreamResult streamResult, List<CommitResult> commitResults)
+    {
+        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
     }
 
     @Override

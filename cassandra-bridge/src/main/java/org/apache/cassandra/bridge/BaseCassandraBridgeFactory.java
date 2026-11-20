@@ -147,12 +147,14 @@ public class BaseCassandraBridgeFactory
 
     public static File copyClassResourceToFile(String resource)
     {
-        try (InputStream contents = BaseCassandraBridgeFactory.class.getResourceAsStream(resource))
+        URL locator = BaseCassandraBridgeFactory.class.getResource(resource);
+        if (locator == null)
         {
-            if (contents == null)
-            {
-                throw new NullPointerException("Could not find resource: " + resource);
-            }
+            throw new NullPointerException("Could not find resource: " + resource);
+        }
+        LOGGER.info("Extracting bridge jar resource={} from={}", resource, locator);
+        try (InputStream contents = locator.openStream())
+        {
             Path jarPath = Files.createTempFile(null, ".jar");
             jarPath.toFile().deleteOnExit();
             Files.copy(contents, jarPath, StandardCopyOption.REPLACE_EXISTING);

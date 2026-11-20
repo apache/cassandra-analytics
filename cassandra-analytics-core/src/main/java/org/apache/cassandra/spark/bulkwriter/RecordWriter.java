@@ -82,6 +82,7 @@ public class RecordWriter
     private final Path baseDir;
 
     private final CqlTable cqlTable;
+    private final boolean isTrackedKeyspace;
     private StreamSession<?> streamSession = null;
 
     /**
@@ -116,6 +117,7 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
+        this.isTrackedKeyspace = writerContext.bridge().isTracked(writerContext.cluster().getReplicationType());
         cqlTable = writerContext.bridge()
                                 .buildSchema(writerContext.schema().getTableSchema().createStatement,
                                              writerContext.job().qualifiedTableName().keyspace(),
@@ -149,7 +151,7 @@ public class RecordWriter
                     initialTokenRangeMapping.pendingInstances().size());
 
         writeValidator.setPhase("Environment Validation");
-        writeValidator.validateClOrFail(initialTokenRangeMapping);
+        writeValidator.validateEnvironmentOrFail(initialTokenRangeMapping, isTrackedKeyspace);
         writeValidator.setPhase("UploadAndCommit");
         writerContext.cluster().validateTimeSkew(taskTokenRange);
 
