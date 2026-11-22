@@ -52,6 +52,7 @@ public class FilterDbUtils
         Map<MetadataType, MetadataComponent> componentMap = ReaderUtils.deserializeStatsMetadata(keyspace, table, ssTable, EnumSet.of(MetadataType.STATS));
         StatsMetadata statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
 
-        return FilterFactory.getFilter(statsMetadata.totalRows, tableMetadata.params.bloomFilterFpChance);
+        long partitionCount = statsMetadata.estimatedPartitionSize.count();
+        return FilterFactory.getFilter(partitionCount, tableMetadata.params.bloomFilterFpChance);
     }
 }

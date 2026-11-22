@@ -288,6 +288,37 @@ public class SortedSSTableWriterTest
         }
     }
 
+    @ParameterizedTest
+    @MethodSource("supportedVersions")
+    public void testBloomFilterRebuildSizedByPartitionCount(String version) throws IOException
+    {
+        MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM,
+                                                                        MockBulkWriterContext.DEFAULT_VALID_PAIR,
+                                                                        new String[]{"id"}, new String[]{"id", "date"}, false);
+
+        // The number of bits allocated to the bloom filter should be the same as long as the number
+        // of partitions are equal, regardless of the number of rows there are
+        assertThat(Files.size(writeSinglePartition(writerContext, 100_000)))
+                .isEqualTo(Files.size(writeSinglePartition(writerContext, 1)));
+    }
+
+    private Path writeSinglePartition(MockBulkWriterContext writerContext, int rowCount) throws IOException
+    {
+        Path outDir = Files.createDirectories(tmpDir.resolve(rowCount + "-rows"));
+        SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, outDir, new XXHash32DigestAlgorithm(), 1);
+        tw.setSSTablesProducedListener(ignored -> { });
+        for (int date = 0; date < rowCount; date++)
+        {
+            tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", date, "course", "foo", "marks", 1));
+        }
+        tw.close(writerContext);
+
+        try (DirectoryStream<Path> filterFiles = Files.newDirectoryStream(outDir, "*-Filter.db"))
+        {
+            return filterFiles.iterator().next();
+        }
+    }
+
     /**
      * Tests the race condition fix between prepareSStablesToSend (called from background threads)
      * and close (called from the main thread). This test exercises CASSANALYTICS-107.
