@@ -566,8 +566,7 @@ public class DataTypeSerializationTests
                                         .withField("tail_value", bridge.text())
                                         .build();
 
-            // TODO: Add non-frozen option once CASSANALYTICS-217 is fixed.
-            for (boolean isFrozen : new boolean[]{true})
+            for (boolean isFrozen : new boolean[]{true, false})
             {
                 Map<String, Object> actual = udt.deserializeUdt(getSparkSql(bridge),
                                                                 emptyAndNullCompositeFields(!isFrozen), isFrozen);
@@ -581,10 +580,10 @@ public class DataTypeSerializationTests
 
     private static ByteBuffer emptyAndNullCompositeFields(boolean includeFieldCount)
     {
-        ByteBuffer buffer = ByteBuffer.allocate((includeFieldCount ? Integer.BYTES : 0) + 5 * Integer.BYTES + 1);
+        ByteBuffer buffer = ByteBuffer.allocate((includeFieldCount ? Integer.BYTES : 0) + 4 * Integer.BYTES + 1);
         if (includeFieldCount)
         {
-            buffer.putInt(5);
+            buffer.putInt(4);
         }
         buffer.putInt(0); // empty text
         buffer.putInt(0); // empty blob
