@@ -48,6 +48,38 @@ public enum SchemaFeatureSet implements SchemaFeature
             {
                 return new LastModifiedTimestampDecorator<>(builder, fieldName());
             }
+        },
+
+    // Special column that passes over last modified timestamp for a cell
+    CELL_LAST_MODIFIED_TIMESTAMP
+        {
+            @Override
+            public DataType fieldDataType()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
+            {
+                throw new UnsupportedOperationException();
+            }
+        },
+
+    // Special column that passes over remaining TTL for a cell
+    CELL_TTL
+        {
+            @Override
+            public DataType fieldDataType()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
+            {
+                throw new UnsupportedOperationException();
+            }
         };
 
     /**

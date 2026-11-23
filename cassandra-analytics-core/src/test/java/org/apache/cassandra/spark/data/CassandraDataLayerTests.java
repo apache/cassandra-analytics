@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,7 +29,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.cassandra.spark.config.SchemaFeature;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.spark.sql.types.DataTypes;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CassandraDataLayerTests
 {
@@ -63,5 +77,53 @@ class CassandraDataLayerTests
         .isEqualTo(expectedClearSnapshotStrategy.shouldClearOnCompletion());
         assertThat(clearSnapshotStrategy.hasTTL()).isEqualTo(expectedClearSnapshotStrategy.hasTTL());
         assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedClearSnapshotStrategy.ttl());
+    }
+
+    @Test
+    void testRejectSchemaFeatureFieldConflictingWithTableColumn()
+    {
+        CqlTable table = mock(CqlTable.class);
+        CqlField column = mock(CqlField.class);
+        SchemaFeature feature = mock(SchemaFeature.class);
+        SparkSqlTypeConverter typeConverter = mock(SparkSqlTypeConverter.class);
+        DataLayer dataLayer = mock(DataLayer.class, CALLS_REAL_METHODS);
+
+        when(table.fields()).thenReturn(Collections.singletonList(column));
+
+        when(column.name()).thenReturn("column1");
+        when(column.cqlTypeName()).thenReturn("text");
+
+        when(typeConverter.sparkSqlType(eq(column), any(BigNumberConfig.class))).thenReturn(DataTypes.StringType);
+
+        when(feature.fieldName()).thenReturn("column1");
+
+        doReturn(table).when(dataLayer).cqlTable();
+        doReturn(typeConverter).when(dataLayer).typeConverter();
+        doReturn(Collections.singletonList(feature)).when(dataLayer).requestedFeatures();
+
+        assertThatThrownBy(dataLayer::structType).isInstanceOf(IllegalArgumentException.class)
+                                                 .hasMessage("Schema feature field 'column1' conflicts with an existing field");
+    }
+
+    @Test
+    void testRejectDuplicateSchemaFeatureFields()
+    {
+        CqlTable table = mock(CqlTable.class);
+        SchemaFeature ttlFeature = mock(SchemaFeature.class);
+        SchemaFeature timestampFeature = mock(SchemaFeature.class);
+        DataLayer dataLayer = mock(DataLayer.class, CALLS_REAL_METHODS);
+
+        when(table.fields()).thenReturn(Collections.emptyList());
+
+        when(ttlFeature.fieldName()).thenReturn("column1");
+        when(ttlFeature.field()).thenReturn(DataTypes.createStructField("column1", DataTypes.IntegerType, true));
+
+        when(timestampFeature.fieldName()).thenReturn("column1");
+
+        doReturn(table).when(dataLayer).cqlTable();
+        doReturn(Arrays.asList(ttlFeature, timestampFeature)).when(dataLayer).requestedFeatures();
+
+        assertThatThrownBy(dataLayer::structType).isInstanceOf(IllegalArgumentException.class)
+                                                 .hasMessage("Schema feature field 'column1' conflicts with an existing field");
     }
 }

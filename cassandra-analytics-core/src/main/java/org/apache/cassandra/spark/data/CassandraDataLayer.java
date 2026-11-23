@@ -88,8 +88,6 @@ import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
-import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
-import org.apache.cassandra.spark.sparksql.RowBuilder;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ReaderTimeProvider;
@@ -101,12 +99,13 @@ import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.addCellLastModifiedTimestamp;
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.addCellTtl;
+import static org.apache.cassandra.spark.data.SchemaFeatureCustomizer.aliasLastModifiedTimestamp;
 import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupported;
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
@@ -142,7 +141,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected List<SchemaFeature> requestedFeatures;
     protected Map<String, ReplicationFactor> rfMap;
     @Nullable
-    protected String lastModifiedTimestampField;
+    protected String rowLastModifiedTimestampField;
+    @Nullable
+    protected Map<String, String> cellLastModifiedTimestampFields;
+    @Nullable
+    protected Map<String, String> cellTtlFields;
     protected Set<String> sstableVersionsOnCluster;
     // volatile in order to publish the reference for visibility
     protected volatile CqlTable cqlTable;
@@ -172,7 +175,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = options.enableStats();
         this.readIndexOffset = options.readIndexOffset();
         this.useIncrementalRepair = options.useIncrementalRepair();
-        this.lastModifiedTimestampField = options.lastModifiedTimestampField();
+        this.rowLastModifiedTimestampField = options.rowLastModifiedTimestampField();
+        this.cellLastModifiedTimestampFields = options.cellLastModifiedTimestampFields();
+        this.cellTtlFields = options.cellTtlFields();
         this.requestedFeatures = options.requestedFeatures();
         this.sstableTimeRangeFilter = options.sstableTimeRangeFilter;
     }
@@ -198,7 +203,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  boolean enableStats,
                                  boolean readIndexOffset,
                                  boolean useIncrementalRepair,
-                                 @Nullable String lastModifiedTimestampField,
+                                 @Nullable String rowLastModifiedTimestampField,
+                                 @Nullable Map<String, String> cellLastModifiedTimestampFields,
+                                 @Nullable Map<String, String> cellTtlFields,
                                  List<SchemaFeature> requestedFeatures,
                                  @NotNull Map<String, ReplicationFactor> rfMap,
                                  TimeProvider timeProvider,
@@ -221,11 +228,21 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = enableStats;
         this.readIndexOffset = readIndexOffset;
         this.useIncrementalRepair = useIncrementalRepair;
-        this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
-        if (lastModifiedTimestampField != null)
+        this.rowLastModifiedTimestampField = rowLastModifiedTimestampField;
+        if (rowLastModifiedTimestampField != null)
         {
-            aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
+            aliasLastModifiedTimestamp(this.requestedFeatures, this.rowLastModifiedTimestampField);
+        }
+        this.cellLastModifiedTimestampFields = cellLastModifiedTimestampFields;
+        if (cellLastModifiedTimestampFields != null)
+        {
+            addCellLastModifiedTimestamp(this.requestedFeatures, this.cellLastModifiedTimestampFields);
+        }
+        this.cellTtlFields = cellTtlFields;
+        if (cellTtlFields != null)
+        {
+            addCellTtl(this.requestedFeatures, this.cellTtlFields);
         }
         this.rfMap = rfMap;
         this.timeProvider = timeProvider;
@@ -847,7 +864,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = in.readBoolean();
         this.readIndexOffset = in.readBoolean();
         this.useIncrementalRepair = in.readBoolean();
-        this.lastModifiedTimestampField = readNullable(in);
+        this.rowLastModifiedTimestampField = readNullable(in);
+        this.cellLastModifiedTimestampFields = readNullableObject(in);
+        this.cellTtlFields = readNullableObject(in);
         int features = in.readShort();
         List<SchemaFeature> requestedFeatures = new ArrayList<>(features);
         for (int feature = 0; feature < features; feature++)
@@ -856,11 +875,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             requestedFeatures.add(SchemaFeatureSet.valueOf(featureName.toUpperCase()));
         }
         this.requestedFeatures = requestedFeatures;
-        // Has alias for last modified timestamp
-        if (this.lastModifiedTimestampField != null)
+        // initialize features
+        if (this.rowLastModifiedTimestampField != null)
         {
-            aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
+            aliasLastModifiedTimestamp(this.requestedFeatures, this.rowLastModifiedTimestampField);
         }
+        addCellLastModifiedTimestamp(this.requestedFeatures, this.cellLastModifiedTimestampFields);
+        addCellTtl(this.requestedFeatures, this.cellTtlFields);
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.timeProvider = new ReaderTimeProvider(in.readLong());
         this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
@@ -901,12 +922,19 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeBoolean(this.readIndexOffset);
         out.writeBoolean(this.useIncrementalRepair);
         // If lastModifiedTimestampField exist, it aliases the LMT field
-        writeNullable(out, this.lastModifiedTimestampField);
+        writeNullable(out, this.rowLastModifiedTimestampField);
+        writeNullableObject(out, this.cellLastModifiedTimestampFields);
+        writeNullableObject(out, this.cellTtlFields);
+        // Serialize only distinct request features
+        List<String> featureNames = requestedFeatures.stream()
+                                                     .map(SchemaFeature::optionName)
+                                                     .distinct()
+                                                     .collect(Collectors.toList());
         // Write the list of requested features: first write the size, then write the feature names
-        out.writeShort(this.requestedFeatures.size());
-        for (SchemaFeature feature : requestedFeatures)
+        out.writeShort(featureNames.size());
+        for (String featureName : featureNames)
         {
-            out.writeUTF(feature.optionName());
+            out.writeUTF(featureName);
         }
         out.writeObject(this.rfMap);
         out.writeLong(timeProvider.referenceEpochInSeconds());
@@ -927,12 +955,35 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
     }
 
+    private static void writeNullableObject(ObjectOutputStream out, @Nullable Object object) throws IOException
+    {
+        if (object == null)
+        {
+            out.writeBoolean(false);
+        }
+        else
+        {
+            out.writeBoolean(true);
+            out.writeObject(object);
+        }
+    }
+
     @Nullable
     private static String readNullable(ObjectInputStream in) throws IOException
     {
         if (in.readBoolean())
         {
             return in.readUTF();
+        }
+        return null;
+    }
+
+    @Nullable
+    private static <T> T readNullableObject(ObjectInputStream in) throws IOException, ClassNotFoundException
+    {
+        if (in.readBoolean())
+        {
+            return (T) in.readObject();
         }
         return null;
     }
@@ -1039,11 +1090,23 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeBoolean(dataLayer.readIndexOffset);
             out.writeBoolean(dataLayer.useIncrementalRepair);
             // If lastModifiedTimestampField exist, it aliases the LMT field
-            out.writeString(dataLayer.lastModifiedTimestampField);
+            out.writeString(dataLayer.rowLastModifiedTimestampField);
+            out.writeBoolean(dataLayer.cellLastModifiedTimestampFields != null);
+            if (dataLayer.cellLastModifiedTimestampFields != null)
+            {
+                kryo.writeObject(out, dataLayer.cellLastModifiedTimestampFields);
+            }
+            out.writeBoolean(dataLayer.cellTtlFields != null);
+            if (dataLayer.cellTtlFields != null)
+            {
+                kryo.writeObject(out, dataLayer.cellTtlFields);
+            }
             // Write the list of requested features: first write the size, then write the feature names
             SchemaFeaturesListWrapper listWrapper = new SchemaFeaturesListWrapper();
+            // Serialize only distinct request features
             listWrapper.requestedFeatureNames = dataLayer.requestedFeatures.stream()
                                                                            .map(SchemaFeature::optionName)
+                                                                           .distinct()
                                                                            .collect(Collectors.toList());
             kryo.writeObject(out, listWrapper);
             kryo.writeObject(out, dataLayer.rfMap);
@@ -1089,6 +1152,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             in.readBoolean(),
             in.readBoolean(),
             in.readString(),
+            in.readBoolean() ? kryo.readObject(in, HashMap.class) : null,
+            in.readBoolean() ? kryo.readObject(in, HashMap.class) : null,
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
             kryo.readObject(in, HashMap.class),
             new ReaderTimeProvider(in.readLong()),
@@ -1202,47 +1267,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             Thread.currentThread().interrupt();
             throw new RuntimeException(exception);
-        }
-    }
-
-    static void aliasLastModifiedTimestamp(List<SchemaFeature> requestedFeatures, String alias)
-    {
-        SchemaFeature featureAlias = new SchemaFeature()
-        {
-            @Override
-            public String optionName()
-            {
-                return SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName();
-            }
-
-            @Override
-            public String fieldName()
-            {
-                return alias;
-            }
-
-            @Override
-            public DataType fieldDataType()
-            {
-                return SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.fieldDataType();
-            }
-
-            @Override
-            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
-            {
-                return new LastModifiedTimestampDecorator<>(builder, alias);
-            }
-
-            @Override
-            public boolean fieldNullable()
-            {
-                return SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.fieldNullable();
-            }
-        };
-        int index = requestedFeatures.indexOf(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP);
-        if (index >= 0)
-        {
-            requestedFeatures.set(index, featureAlias);
         }
     }
 }

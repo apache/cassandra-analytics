@@ -211,7 +211,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
                     // columns are projected. The column we find is irrelevant because if we fall under this
                     // condition it means that we are in a situation where the row has only PK + CK, but no
                     // regular columns.
-                    next = new Cell(values, firstProjectedValueColumnPositionOrZero, newRow, rowData.getTimestamp());
+                    next = new Cell(values, firstProjectedValueColumnPositionOrZero, true, newRow, rowData.getTimestamp(), rowData.getTtl());
                     return true;
                 }
 
@@ -235,7 +235,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
             }
 
             // Update next Cell
-            next = new Cell(values, field.position(), newRow, rowData.getTimestamp());
+            next = new Cell(values, field.position(), false, newRow, rowData.getTimestamp(), rowData.getTtl());
 
             return true;
         }
