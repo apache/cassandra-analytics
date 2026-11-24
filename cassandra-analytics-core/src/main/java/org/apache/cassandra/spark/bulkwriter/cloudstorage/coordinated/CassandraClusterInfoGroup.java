@@ -95,7 +95,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
-        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
+        return fromBulkSparkConf(conf, clusterId -> CassandraClusterInfo.create(conf, clusterId));
     }
 
     /**
@@ -170,7 +170,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         // Build list of ClusterInfo from broadcastable data
         List<ClusterInfo> clusterInfosList = new ArrayList<>();
         broadcastable.forEach((clusterId, broadcastableInfo) -> {
-            clusterInfosList.add(new CassandraClusterInfo((BroadcastableClusterInfo) broadcastableInfo));
+            clusterInfosList.add(CassandraClusterInfo.create((BroadcastableClusterInfo) broadcastableInfo));
         });
         this.clusterInfos = Collections.unmodifiableList(clusterInfosList);
 
