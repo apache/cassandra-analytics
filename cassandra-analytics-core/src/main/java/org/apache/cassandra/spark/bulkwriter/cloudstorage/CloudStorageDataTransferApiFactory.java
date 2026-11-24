@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
@@ -59,6 +60,7 @@ public class CloudStorageDataTransferApiFactory
                                                                    @Nullable String clusterId)
     {
         return new CloudStorageDataTransferApiImpl(jobInfo,
+                                                   CassandraBridgeFactory.get(clusterInfo.getBridgeVersion()),
                                                    clusterInfo.getCassandraContext().getSidecarClient(),
                                                    storageClient,
                                                    clusterId);

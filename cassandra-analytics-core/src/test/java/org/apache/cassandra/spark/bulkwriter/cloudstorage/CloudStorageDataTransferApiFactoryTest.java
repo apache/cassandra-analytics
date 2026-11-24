@@ -24,6 +24,8 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
@@ -43,9 +45,11 @@ class CloudStorageDataTransferApiFactoryTest
     void testCreateCloudStorageDataTransferApi()
     {
         CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class, RETURNS_DEEP_STUBS);
+        when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FOURZERO);
         when(clusterInfo.getCassandraContext().getSidecarClient()).thenReturn(mock(SidecarClient.class));
         CloudStorageDataTransferApi api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), clusterInfo);
         assertThat(api).isInstanceOf(CloudStorageDataTransferApiImpl.class);
+        assertThat(((CloudStorageDataTransferApiImpl) api).bridge()).isSameAs(CassandraBridgeFactory.get(CassandraVersion.FOURZERO));
     }
 
     @Test
@@ -62,9 +66,12 @@ class CloudStorageDataTransferApiFactoryTest
     void testCreateCoordinatedCloudStorageDataTransferApi()
     {
         CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class, RETURNS_DEEP_STUBS);
+        when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FOURZERO);
         when(clusterInfo.clusterId()).thenReturn("clusterId");
         CassandraClusterInfoGroup group = CassandraClusterInfoGroup.createFrom(Collections.singletonList(clusterInfo));
         CloudStorageDataTransferApi api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), group);
         assertThat(api).isInstanceOf(CoordinatedCloudStorageDataTransferApi.class);
+        assertThat(((CoordinatedCloudStorageDataTransferApi) api).getValueOrNull("clusterId").bridge())
+        .isSameAs(CassandraBridgeFactory.get(CassandraVersion.FOURZERO));
     }
 }

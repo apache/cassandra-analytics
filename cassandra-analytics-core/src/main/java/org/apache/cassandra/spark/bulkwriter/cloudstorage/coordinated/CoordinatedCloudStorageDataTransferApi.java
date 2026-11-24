@@ -44,6 +44,7 @@ import o.a.c.sidecar.client.shaded.client.RequestContext;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.retry.RetryPolicy;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.Bundle;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.BundleStorageObject;
@@ -55,6 +56,8 @@ import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
 public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataTransferApi,
                                                                CoordinatedCloudStorageDataTransferApiExtension,
@@ -168,11 +171,13 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
         JobInfo jobInfo = dataTransferApi.jobInfo();
         SidecarClient sidecarClient = dataTransferApi.sidecarClient();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
+        CassandraBridge bridge = dataTransferApi.bridge();
         UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
-        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
-                                                                                qualifiedTableName.table(),
-                                                                                restoreJobId,
-                                                                                createSliceRequestPayload);
+        CreateRestoreJobSliceRequest request =
+        new CreateRestoreJobSliceRequest(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                         maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
+                                         restoreJobId,
+                                         createSliceRequestPayload);
         RetryPolicy retryPolicy = new CloudStorageDataTransferApiImpl.ExecutorCreateSliceRetryPolicy(sidecarClient);
         RequestContext requestContext = sidecarClient.requestBuilder().retryPolicy(retryPolicy).request(request).build();
         try
@@ -196,11 +201,13 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
     {
         JobInfo jobInfo = dataTransferApi.jobInfo();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
+        CassandraBridge bridge = dataTransferApi.bridge();
         UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
-        RestoreJobProgressRequestParams requestParams = new RestoreJobProgressRequestParams(qualifiedTableName.keyspace(),
-                                                                                            qualifiedTableName.table(),
-                                                                                            restoreJobId,
-                                                                                            fetchPolicy);
+        RestoreJobProgressRequestParams requestParams =
+        new RestoreJobProgressRequestParams(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                             maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
+                                             restoreJobId,
+                                             fetchPolicy);
         RestoreJobProgressResponsePayload jobProgress = restoreJobProgress(dataTransferApi, requestParams);
         progressHandler.accept(clusterId, jobProgress);
     }

@@ -38,6 +38,7 @@ import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.retry.RetryAction;
 import o.a.c.sidecar.client.shaded.client.retry.RetryPolicy;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
@@ -45,6 +46,7 @@ import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
 /**
  * Encapsulates transfer APIs used by {@link CloudStorageStreamSession}. {@link StorageClient} is used to interact with S3 and
@@ -57,12 +59,18 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
     @Nullable
     private final String clusterId;
     private final JobInfo jobInfo;
+    private final CassandraBridge bridge;
     private final SidecarClient sidecarClient;
     private final StorageClient storageClient;
 
-    public CloudStorageDataTransferApiImpl(JobInfo jobInfo, SidecarClient sidecarClient, StorageClient storageClient, @Nullable String clusterId)
+    public CloudStorageDataTransferApiImpl(JobInfo jobInfo,
+                                           CassandraBridge bridge,
+                                           SidecarClient sidecarClient,
+                                           StorageClient storageClient,
+                                           @Nullable String clusterId)
     {
         this.jobInfo = jobInfo;
+        this.bridge = bridge;
         this.sidecarClient = sidecarClient;
         this.storageClient = storageClient;
         this.clusterId = clusterId;
@@ -76,6 +84,11 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
     public SidecarClient sidecarClient()
     {
         return sidecarClient;
+    }
+
+    public CassandraBridge bridge()
+    {
+        return bridge;
     }
 
     /*------ Blob APIs -------*/
@@ -103,8 +116,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         try
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.createRestoreJob(qualifiedTableName.keyspace(),
-                                           qualifiedTableName.table(),
+            sidecarClient.createRestoreJob(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                           maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
                                            createRestoreJobRequestPayload).get();
         }
         catch (Exception exception)
@@ -121,8 +134,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         try
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            return sidecarClient.restoreJobSummary(qualifiedTableName.keyspace(),
-                                                   qualifiedTableName.table(),
+            return sidecarClient.restoreJobSummary(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                                   maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
                                                    jobId).get();
         }
         catch (Exception exception)
@@ -168,8 +181,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         {
             LOGGER.info("Updating the restore job. clusterId={} restoreJobId={}", clusterId, jobId);
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.updateRestoreJob(qualifiedTableName.keyspace(),
-                                           qualifiedTableName.table(),
+            sidecarClient.updateRestoreJob(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                           maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
                                            jobId,
                                            updateRestoreJobRequestPayload).get();
         }
@@ -188,8 +201,8 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         {
             LOGGER.info("Abort job. clusterId={} restoreJobId={}", clusterId, jobId);
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-            sidecarClient.abortRestoreJob(qualifiedTableName.keyspace(),
-                                          qualifiedTableName.table(),
+            sidecarClient.abortRestoreJob(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                          maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
                                           jobId).get();
         }
         catch (Exception exception)
@@ -207,10 +220,11 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
                                                                       RetryPolicy retryPolicy)
     {
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-        CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
-                                                                                qualifiedTableName.table(),
-                                                                                jobInfo.getRestoreJobId(clusterId),
-                                                                                createSliceRequestPayload);
+        CreateRestoreJobSliceRequest request =
+        new CreateRestoreJobSliceRequest(maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.keyspace()),
+                                         maybeQuotedIdentifier(bridge, qualifiedTableName.quoteIdentifiers(), qualifiedTableName.table()),
+                                         jobInfo.getRestoreJobId(clusterId),
+                                         createSliceRequestPayload);
         return sidecarClient.executeRequestAsync(sidecarClient.requestBuilder()
                                                               .retryPolicy(retryPolicy)
                                                               .singleInstanceSelectionPolicy(sidecarInstance)
