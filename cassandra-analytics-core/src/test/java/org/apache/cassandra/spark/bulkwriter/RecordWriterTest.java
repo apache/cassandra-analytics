@@ -114,9 +114,9 @@ class RecordWriterTest
         writerContext.setReplicationFactor(rf);
         tc = new TestTaskContext();
         range = writerContext.job().getTokenPartitioner().getTokenRange(tc.partitionId());
-        BroadcastableTableSchema broadcastableTableSchema = BroadcastableTableSchema.from(writerContext.schema().getTableSchema());
-        boolean isMurmur3Partitioner = writerContext.cluster().getPartitioner() == org.apache.cassandra.spark.data.partitioner.Partitioner.Murmur3Partitioner;
-        tokenizer = new Tokenizer(broadcastableTableSchema, isMurmur3Partitioner);
+        tokenizer = new Tokenizer(BroadcastableSchemaInfo.from(writerContext.schema()),
+                                  writerContext.job().qualifiedTableName().keyspace(),
+                                  writerContext.cluster().getPartitioner());
     }
 
     @Test

@@ -521,6 +521,24 @@ public abstract class CassandraBridge
     public abstract Tokenizer tokenizer(@NotNull Partitioner partitioner);
 
     /**
+     * Builds the schema of a table as {@link #buildSchema} does, with the {@link PartitionKeyEncoder} and the
+     * {@link CanonicalValueConverter} that match the {@link SSTableWriter} returned by {@link #getSSTableWriter}.
+     * The schema is updated once for all three, as each update takes a lock that is global to the JVM.
+     *
+     * @param createStatement   CQL statement that creates the table
+     * @param keyspace          keyspace of the table
+     * @param replicationFactor replication factor of the keyspace
+     * @param partitioner       Cassandra partitioner
+     * @param udts              CQL statements that create the user-defined types the table uses
+     * @return the table, with its partition key encoder and value converter
+     */
+    public abstract WriterTable buildWriterTable(@NotNull String createStatement,
+                                                 @NotNull String keyspace,
+                                                 @NotNull ReplicationFactor replicationFactor,
+                                                 @NotNull Partitioner partitioner,
+                                                 @NotNull Set<String> udts);
+
+    /**
      * @param partitioner     Cassandra partitioner
      * @param keyspace        keyspace name
      * @param createTableStmt CQL create table statement

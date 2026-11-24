@@ -46,7 +46,8 @@ public enum Partitioner
             throw new RuntimeException(exception);
         }
         md.reset();
-        md.update(key);
+        // Hash a duplicate, as MessageDigest#update(ByteBuffer) moves the position of the buffer it reads
+        md.update(key.duplicate());
         return new BigInteger(md.digest()).abs();
     }),
     Murmur3Partitioner(BigInteger.valueOf(2).pow(63).negate(), BigInteger.valueOf(2).pow(63).subtract(BigInteger.ONE), key -> {

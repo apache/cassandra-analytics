@@ -52,13 +52,13 @@ import org.apache.cassandra.sidecar.common.server.JmxClient;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;
-import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.common.schema.ColumnTypes;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestTokenSupplier;
 import org.apache.cassandra.testing.utils.WithProperties;
 import scala.Tuple2;
 
+import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -110,9 +110,13 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
 
     protected boolean usesTcm()
     {
+        return bridgeVersion().versionNumber() >= CassandraVersion.SIXZERO.versionNumber();
+    }
+
+    private CassandraVersion bridgeVersion()
+    {
         return CassandraVersion.fromVersion(testVersion.version())
-                               .orElseThrow(() -> new IllegalStateException("Unsupported Cassandra version: " + testVersion))
-                               .versionNumber() >= CassandraVersion.SIXZERO.versionNumber();
+                               .orElseThrow(() -> new IllegalStateException("Unsupported Cassandra version: " + testVersion));
     }
 
     protected void prepareTopologyChange()
@@ -168,13 +172,14 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
 
     public List<Tuple2<DecoratedKey, Object[]>> generateExpectedData(int rowCount)
     {
-        // "create table if not exists %s (id int, course text, marks int, primary key (id));";
-        List<ColumnType<?>> columnTypes = Collections.singletonList(ColumnTypes.INT);
+        // Tokens only depend on the partition key, so a table with the schema of the test tables is enough
+        String createStatement = String.format(CREATE_TEST_TABLE_STATEMENT, TEST_KEYSPACE + ".expected_data");
         Tokenizer tokenizer = new Tokenizer(Collections.singletonList(0),
-                                            Collections.singletonList("id"),
-                                            columnTypes,
-                                            true
-        );
+                                            bridgeVersion(),
+                                            TEST_KEYSPACE,
+                                            createStatement,
+                                            Collections.emptySet(),
+                                            Partitioner.Murmur3Partitioner);
         return IntStream.range(0, rowCount).mapToObj(recordNum -> {
             Object[] columns = new Object[]
                                {

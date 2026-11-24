@@ -51,8 +51,6 @@ import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.model.BulkFeatures;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
-import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.QualifiedTableName;
@@ -149,14 +147,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.bridge = CassandraBridgeFactory.get(cassandraVersion);
         StructType validDataFrameSchema = this.validPair.getKey();
         ImmutableMap<String, CqlField.CqlType> validCqlColumns = this.validPair.getValue();
-        ColumnType<?>[] partitionKeyColumnTypes = {ColumnTypes.INT, ColumnTypes.INT};
         TTLOption ttlOption = TTLOption.forever();
         TableSchemaTestCommon.MockTableSchemaBuilder builder = new TableSchemaTestCommon.MockTableSchemaBuilder(bridge)
                                                                .withCqlColumns(validCqlColumns)
                                                                .withPartitionKeyColumns(partitionKeyColumns)
                                                                .withPrimaryKeyColumnNames(primaryKeyColumnNames)
                                                                .withCassandraVersion(cassandraVersion)
-                                                               .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                                                                .withWriteMode(WriteMode.INSERT)
                                                                .withDataFrameSchema(validDataFrameSchema)
                                                                .withTTLSetting(ttlOption);

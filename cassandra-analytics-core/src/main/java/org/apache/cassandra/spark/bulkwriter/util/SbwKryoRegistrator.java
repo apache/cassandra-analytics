@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.bulkwriter.util;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.util.Comparator;
 import java.util.Set;
 
@@ -73,6 +75,10 @@ public class SbwKryoRegistrator implements KryoRegistrator
         kryo.register(StorageTransportConfiguration.class, new StorageTransportConfiguration.Serializer());
         kryo.register(StorageAccessConfiguration.class, new StorageAccessConfiguration.Serializer());
         kryo.register(StorageCredentials.class, new StorageCredentials.Serializer());
+        // Normalized rows hold the values of inet columns as InetAddress, and rows are shuffled before being written
+        InetAddressSerializer inetAddressSerializer = new InetAddressSerializer();
+        kryo.register(Inet4Address.class, inetAddressSerializer);
+        kryo.register(Inet6Address.class, inetAddressSerializer);
     }
 
     public static void addJavaSerializableClass(@NotNull Class<?> javaSerializableClass)

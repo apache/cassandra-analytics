@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.spark.sql.types.StructType;
@@ -55,7 +54,6 @@ public class TableSchema
     final String createStatement;
     final String modificationStatement;
     final List<String> partitionKeyColumns;
-    final List<ColumnType<?>> partitionKeyColumnTypes;
     final List<SqlToCqlTypeConverter.Converter<?>> converters;
     final List<Integer> keyFieldPositions;
     final WriteMode writeMode;
@@ -101,7 +99,6 @@ public class TableSchema
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
         this.partitionKeyColumns = getPartitionKeyColumnNames(tableInfo);
-        this.partitionKeyColumnTypes = getPartitionKeyColumnTypes(tableInfo);
         this.converters = getConverters(dfSchema, tableInfo, ttlOption, timestampOption);
         LOGGER.info("Converters: {}", converters);
         this.keyFieldPositions = getKeyFieldPositions(dfSchema, tableInfo.getColumnNames(), getRequiredKeyColumns(tableInfo));
@@ -118,7 +115,6 @@ public class TableSchema
         this.createStatement = broadcastable.getCreateStatement();
         this.modificationStatement = broadcastable.getModificationStatement();
         this.partitionKeyColumns = broadcastable.getPartitionKeyColumns();
-        this.partitionKeyColumnTypes = broadcastable.getPartitionKeyColumnTypes();
         this.converters = broadcastable.getConverters();
         this.keyFieldPositions = broadcastable.getKeyFieldPositions();
         this.writeMode = broadcastable.getWriteMode();
@@ -162,11 +158,6 @@ public class TableSchema
                          return SqlToCqlTypeConverter.getConverter(cqlType);
                      })
                      .collect(Collectors.toList());
-    }
-
-    private static List<ColumnType<?>> getPartitionKeyColumnTypes(TableInfoProvider tableInfo)
-    {
-        return tableInfo.getPartitionKeyTypes();
     }
 
     private static List<String> getPartitionKeyColumnNames(TableInfoProvider tableInfo)

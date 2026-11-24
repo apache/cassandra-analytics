@@ -19,13 +19,22 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.TimeZone;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.ASCII;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BIGINT;
@@ -54,8 +63,11 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockLi
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockMapCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockSetCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockUdtCqlType;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public final class SqlToCqlTypeConverterTest
 {
@@ -117,6 +129,89 @@ public final class SqlToCqlTypeConverterTest
     public void testNoOpTypes(CqlField.CqlType dataType)
     {
         assertConverterType(dataType, SqlToCqlTypeConverter.NoOp.class);
+    }
+
+    @Test
+    public void testVarIntFromDecimal()
+    {
+        // The bulk reader returns varint values as Spark decimals, which reach the writer as BigDecimal
+        SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(VARINT));
+        BigInteger expected = new BigInteger("-98765432109876543210");
+
+        assertThat(converter.convert(new BigDecimal(expected)), equalTo(expected));
+        assertThat(converter.convert(new scala.math.BigDecimal(new BigDecimal(expected))), equalTo(expected));
+        assertThat(converter.convert(new BigDecimal("42.000")), equalTo(BigInteger.valueOf(42)));
+    }
+
+    @Test
+    public void testVarIntRejectsFractionalDecimal()
+    {
+        SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(VARINT));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> converter.convert(new BigDecimal("1.5")));
+        assertThat(exception.getMessage(), containsString("VARINT"));
+    }
+
+    @Test
+    public void testDateFromSparkDateInAnyTimeZone()
+    {
+        // Spark passes a date to the writer as a java.sql.Date at midnight in the time zone of the JVM, in the hybrid
+        // Julian and Gregorian calendar, while Cassandra stores proleptic Gregorian days
+        List<LocalDate> dates = Arrays.asList(LocalDate.of(2024, 2, 1),
+                                              LocalDate.of(1969, 12, 31),
+                                              LocalDate.of(1500, 3, 1),
+                                              LocalDate.of(0, 1, 1),
+                                              LocalDate.of(-1, 6, 15));
+        TimeZone defaultTimeZone = TimeZone.getDefault();
+        try
+        {
+            for (String timeZone : Arrays.asList("UTC", "Europe/Madrid", "Asia/Tokyo", "America/Los_Angeles"))
+            {
+                TimeZone.setDefault(TimeZone.getTimeZone(timeZone));
+                SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(DATE));
+                for (LocalDate date : dates)
+                {
+                    int days = Math.toIntExact(date.toEpochDay());
+                    java.sql.Date sparkDate = DateTimeUtils.toJavaDate(days);
+
+                    assertThat(timeZone + " " + date, converter.convert(sparkDate), equalTo(days - Integer.MIN_VALUE));
+                }
+            }
+        }
+        finally
+        {
+            TimeZone.setDefault(defaultTimeZone);
+        }
+    }
+
+    @Test
+    public void testDateFromLocalDate()
+    {
+        // Spark passes LocalDate values when spark.sql.datetime.java8API.enabled is set
+        SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(DATE));
+        LocalDate date = LocalDate.of(2024, 2, 1);
+
+        assertThat(converter.convert(date), equalTo((int) date.toEpochDay() - Integer.MIN_VALUE));
+    }
+
+    @Test
+    public void testInetFromAddressBytes() throws UnknownHostException
+    {
+        // The bulk reader returns inet values as the bytes of the address
+        SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(INET));
+
+        assertThat(converter.convert(new byte[]{127, 0, 0, 1}), equalTo(InetAddress.getByName("127.0.0.1")));
+        assertThat(converter.convert(InetAddress.getByName("2001:db8::1").getAddress()),
+                   equalTo(InetAddress.getByName("2001:db8::1")));
+    }
+
+    @Test
+    public void testInetRejectsInvalidAddressBytes()
+    {
+        SqlToCqlTypeConverter.Converter<?> converter = SqlToCqlTypeConverter.getConverter(mockCqlType(INET));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> converter.convert(new byte[]{1, 2, 3}));
+        assertThat(exception.getMessage(), containsString("INET"));
     }
 
     public static void assertConverterType(CqlField.CqlType dataType, Class expectedType)

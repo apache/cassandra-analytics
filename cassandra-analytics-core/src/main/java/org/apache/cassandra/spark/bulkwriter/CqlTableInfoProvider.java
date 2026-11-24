@@ -20,30 +20,14 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 
-import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.jetbrains.annotations.NotNull;
-
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.ASCII;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BIGINT;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BLOB;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BOOLEAN;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DOUBLE;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.TEXT;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.TIMESTAMP;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.TIMEUUID;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.UUID;
-import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 
 /**
  * An implementation of the {@link TableInfoProvider} interface that leverages the {@link CqlTable} to
@@ -57,23 +41,6 @@ public class CqlTableInfoProvider implements TableInfoProvider
 
     private final String createTableStatement;
     private final CqlTable cqlTable;
-
-    /**
-     * Mapping from CQL Type Names to Java types
-     */
-    private static final Map<String, ColumnType<?>> DATA_TYPES = ImmutableMap.<String, ColumnType<?>>builder()
-                                                                             .put(BIGINT, ColumnTypes.LONG)
-                                                                             .put(BLOB, ColumnTypes.BYTES)
-                                                                             .put(DOUBLE, ColumnTypes.DOUBLE)
-                                                                             .put(INT, ColumnTypes.INT)
-                                                                             .put(BOOLEAN, ColumnTypes.BOOLEAN)
-                                                                             .put(TEXT, ColumnTypes.STRING)
-                                                                             .put(TIMESTAMP, ColumnTypes.TIMESTAMP)
-                                                                             .put(UUID, ColumnTypes.UUID)
-                                                                             .put(VARCHAR, ColumnTypes.STRING)
-                                                                             .put(ASCII, ColumnTypes.STRING)
-                                                                             .put(TIMEUUID, ColumnTypes.UUID)
-                                                                             .build();
 
     public CqlTableInfoProvider(String createTableStatement, CqlTable cqlTable)
     {
@@ -93,25 +60,6 @@ public class CqlTableInfoProvider implements TableInfoProvider
         {
             return cqlField.type();
         }
-    }
-
-    @Override
-    public List<ColumnType<?>> getPartitionKeyTypes()
-    {
-        List<ColumnType<?>> types = cqlTable.partitionKeys().stream()
-                                              .map(cqlField -> {
-                                                  String typeName = cqlField.type().cqlName().toLowerCase();
-                                                  ColumnType<?> type = DATA_TYPES.get(typeName);
-                                                  if (type == null)
-                                                  {
-                                                      throw new RuntimeException(
-                                                      "Could not find ColumnType for type name " + typeName);
-                                                  }
-                                                  return type;
-                                              })
-                                              .collect(Collectors.toList());
-        return types;
-
     }
 
     @Override

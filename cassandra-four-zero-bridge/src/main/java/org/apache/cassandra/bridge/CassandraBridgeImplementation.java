@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import org.apache.cassandra.analytics.reader.common.IndexIterator;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.cql3.functions.UDHelper;
+import org.apache.cassandra.cql3.functions.types.TypeCodec;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
@@ -324,6 +327,27 @@ public class CassandraBridgeImplementation extends CassandraBridge
             DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
             return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
         };
+    }
+
+    @Override
+    public WriterTable buildWriterTable(@NotNull String createStatement,
+                                        @NotNull String keyspace,
+                                        @NotNull ReplicationFactor replicationFactor,
+                                        @NotNull Partitioner partitioner,
+                                        @NotNull Set<String> udts)
+    {
+        SchemaBuilder schemaBuilder = new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, cassandraTypes -> udts, null, 0, false);
+        // Take the metadata from the schema update that registers this definition of the table, rather than
+        // reading it back from the schema, where another thread may have registered a different definition since
+        TableMetadata metadata = schemaBuilder.tableMetaData();
+        Map<String, AbstractType<?>> columnTypes = new HashMap<>();
+        metadata.columns().forEach(column -> columnTypes.put(column.name.toString(), column.type));
+        // The codecs that CQLSSTableWriter uses
+        Function<AbstractType<?>, TypeCodec<Object>> codecs = type -> UDHelper.codecFor(UDHelper.driverType(type));
+        CanonicalValueConverter canonicalValueConverter = new CanonicalValueConverterImplementation(columnTypes,
+                                                                                                    codecs,
+                                                                                                    CollectionElementSorter.INSTANCE);
+        return new WriterTable(schemaBuilder.build(), new PartitionKeyEncoderImplementation(metadata), canonicalValueConverter);
     }
 
     @Override
