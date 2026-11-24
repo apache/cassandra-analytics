@@ -144,6 +144,36 @@ public class AvroSchemas
         return schema.getProp(AvroConstants.CQL_TYPE_NAME);
     }
 
+    /**
+     * Keep the name a field has in CQL, when its Avro name had to be escaped to be valid. See {@link AvroNames}.
+     */
+    public static void flagCqlName(Schema.Field field, String cqlName)
+    {
+        field.addProp(AvroConstants.CQL_NAME_PROP, cqlName);
+    }
+
+    /**
+     * @return the name of the field in CQL, which is the name of the field unless it had to be escaped
+     */
+    public static String cqlName(Schema.Field field)
+    {
+        String cqlName = field.getProp(AvroConstants.CQL_NAME_PROP);
+        return cqlName == null ? field.name() : cqlName;
+    }
+
+    /**
+     * Find the field of a record by its name in CQL.
+     *
+     * @return the field, or null if the record has no such field. The Avro name of an escaped field is not its CQL
+     * name, so it does not find the field.
+     */
+    @Nullable
+    public static Schema.Field field(Schema record, String cqlName)
+    {
+        Schema.Field field = record.getField(AvroNames.escape(cqlName));
+        return field != null && cqlName(field).equals(cqlName) ? field : null;
+    }
+
     public static boolean isFrozen(Schema schema)
     {
         String flag = schema.getProp(AvroConstants.FROZEN_FLAG_PROP);

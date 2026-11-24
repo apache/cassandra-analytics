@@ -229,7 +229,7 @@ jobs:
     # Each matrix entry downloads the dtest jars for matrix.jdk,
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
     needs: [build-jdk11, build-jdk17]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-26.04 (Docker 29) breaks the old Testcontainers used by s3mock 2.17.0
     strategy:
       # GitHub Actions generate a cross-product of 'config' × 'job_index' (6 × 5 = 30 jobs).
       # The 'include' entries don't add new combinations — they augment existing ones

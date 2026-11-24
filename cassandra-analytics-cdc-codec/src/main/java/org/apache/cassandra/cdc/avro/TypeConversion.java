@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -450,7 +451,14 @@ public interface TypeConversion<T>
                                         fieldSchema);
 
             GenericRecord record = (GenericRecord) fieldValue;
-            return fieldSchema.getFields().stream().collect(toMap(Schema.Field::name, field -> readValue(record, field.name())));
+            // keyed by CQL field name, like the values that AvroDataUtils.toAvro converts;
+            // UDT fields can be null, which Collectors.toMap does not accept
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (Schema.Field field : fieldSchema.getFields())
+            {
+                result.put(AvroSchemas.cqlName(field), readValue(record, field.name()));
+            }
+            return result;
         }
 
         private Object readValue(GenericRecord kv, String name)
