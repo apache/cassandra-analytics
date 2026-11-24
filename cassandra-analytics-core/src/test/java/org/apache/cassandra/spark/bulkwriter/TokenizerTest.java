@@ -55,6 +55,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.SSTableWriter;
+import org.apache.cassandra.bridge.WriterTable;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.LocalDataLayer;
@@ -737,6 +738,7 @@ class TokenizerTest
     private static final class TestSchema
     {
         final CassandraBridge bridge;
+        final WriterTable writerTable;
         final CqlTable cqlTable;
         final TableSchema tableSchema;
         final Partitioner partitioner;
@@ -747,8 +749,9 @@ class TokenizerTest
             this.bridge = CassandraBridgeFactory.get(version);
             this.partitioner = partitioner;
             this.table = table;
-            this.cqlTable = bridge.buildSchema(table.createStatement, table.keyspace,
-                                               RecordWriter.IGNORED_REPLICATION_FACTOR, partitioner, table.udtStatements);
+            this.writerTable = bridge.buildWriterTable(table.createStatement, table.keyspace,
+                                                       RecordWriter.IGNORED_REPLICATION_FACTOR, partitioner, table.udtStatements);
+            this.cqlTable = writerTable.table();
             StructType dataFrameSchema = new StructType();
             for (String columnName : table.columnNames)
             {
@@ -792,7 +795,7 @@ class TokenizerTest
 
         CqlWriterValueConverter valueConverter()
         {
-            return new CqlWriterValueConverter(cqlTable, bridge, partitioner);
+            return new CqlWriterValueConverter(writerTable, bridge.getVersion());
         }
     }
 

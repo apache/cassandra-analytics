@@ -58,6 +58,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import org.apache.cassandra.analytics.reader.common.IndexIterator;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.cql3.functions.types.TypeCodec;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
@@ -332,25 +333,24 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public PartitionKeyEncoder partitionKeyEncoder(@NotNull CqlTable table, @NotNull Partitioner partitioner)
+    public WriterTable buildWriterTable(@NotNull String createStatement,
+                                        @NotNull String keyspace,
+                                        @NotNull ReplicationFactor replicationFactor,
+                                        @NotNull Partitioner partitioner,
+                                        @NotNull Set<String> udts)
     {
+        SchemaBuilder schemaBuilder = new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, cassandraTypes -> udts, null, 0, false);
         // Take the metadata from the schema update that registers this definition of the table, rather than
         // reading it back from the schema, where another thread may have registered a different definition since
-        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
-        return new PartitionKeyEncoderImplementation(metadata);
-    }
-
-    @Override
-    public CanonicalValueConverter canonicalValueConverter(@NotNull CqlTable table, @NotNull Partitioner partitioner)
-    {
-        // As for the partition key encoder, take the metadata from the schema update that registers this table
-        TableMetadata metadata = new SchemaBuilder(table, partitioner).tableMetaData();
+        TableMetadata metadata = schemaBuilder.tableMetaData();
         Map<String, AbstractType<?>> columnTypes = new HashMap<>();
         metadata.columns().forEach(column -> columnTypes.put(column.name.toString(), column.type));
         // The codecs that CQLSSTableWriter uses
-        return new CanonicalValueConverterImplementation(columnTypes,
-                                                         type -> JavaDriverUtils.codecFor(JavaDriverUtils.driverType(type)),
-                                                         VectorAwareCollectionElementSorter.VECTOR_AWARE_INSTANCE);
+        Function<AbstractType<?>, TypeCodec<Object>> codecs = type -> JavaDriverUtils.codecFor(JavaDriverUtils.driverType(type));
+        CanonicalValueConverter canonicalValueConverter = new CanonicalValueConverterImplementation(columnTypes,
+                                                                                                    codecs,
+                                                                                                    VectorAwareCollectionElementSorter.VECTOR_AWARE_INSTANCE);
+        return new WriterTable(schemaBuilder.build(), new PartitionKeyEncoderImplementation(metadata), canonicalValueConverter);
     }
 
     @Override

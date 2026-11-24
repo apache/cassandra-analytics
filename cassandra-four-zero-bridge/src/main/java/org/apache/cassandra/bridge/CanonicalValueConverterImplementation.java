@@ -125,7 +125,16 @@ class CanonicalValueConverterImplementation implements CanonicalValueConverter
                 // CQLSSTableWriter falls back to the type for the values its codecs do not take, such as an Integer
                 // for a date. It only does so on a ClassCastException, which the codec of a collection turns into an
                 // InvalidTypeException when the class of an element does not match, so fall back on any failure.
-                return ((AbstractType) valueType).decompose(value);
+                try
+                {
+                    return ((AbstractType) valueType).decompose(value);
+                }
+                catch (RuntimeException fallbackException)
+                {
+                    // Keep the failure of the codec, which usually names the class that does not match
+                    fallbackException.addSuppressed(exception);
+                    throw fallbackException;
+                }
             }
         }
     }

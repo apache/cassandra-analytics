@@ -521,20 +521,22 @@ public abstract class CassandraBridge
     public abstract Tokenizer tokenizer(@NotNull Partitioner partitioner);
 
     /**
-     * @param table       CQL table built by {@link #buildSchema}
-     * @param partitioner Cassandra partitioner
-     * @return a {@link PartitionKeyEncoder} that serializes the partition keys of {@code table} in the same way
-     * as the {@link SSTableWriter} returned by {@link #getSSTableWriter}
+     * Builds the schema of a table as {@link #buildSchema} does, with the {@link PartitionKeyEncoder} and the
+     * {@link CanonicalValueConverter} that match the {@link SSTableWriter} returned by {@link #getSSTableWriter}.
+     * The schema is updated once for all three, as each update takes a lock that is global to the JVM.
+     *
+     * @param createStatement   CQL statement that creates the table
+     * @param keyspace          keyspace of the table
+     * @param replicationFactor replication factor of the keyspace
+     * @param partitioner       Cassandra partitioner
+     * @param udts              CQL statements that create the user-defined types the table uses
+     * @return the table, with its partition key encoder and value converter
      */
-    public abstract PartitionKeyEncoder partitionKeyEncoder(@NotNull CqlTable table, @NotNull Partitioner partitioner);
-
-    /**
-     * @param table       CQL table built by {@link #buildSchema}
-     * @param partitioner Cassandra partitioner
-     * @return a {@link CanonicalValueConverter} for the column values of {@code table} that the {@link SSTableWriter}
-     * returned by {@link #getSSTableWriter} writes
-     */
-    public abstract CanonicalValueConverter canonicalValueConverter(@NotNull CqlTable table, @NotNull Partitioner partitioner);
+    public abstract WriterTable buildWriterTable(@NotNull String createStatement,
+                                                 @NotNull String keyspace,
+                                                 @NotNull ReplicationFactor replicationFactor,
+                                                 @NotNull Partitioner partitioner,
+                                                 @NotNull Set<String> udts);
 
     /**
      * @param partitioner     Cassandra partitioner

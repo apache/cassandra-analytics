@@ -36,8 +36,8 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.PartitionKeyEncoder;
+import org.apache.cassandra.bridge.WriterTable;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 
@@ -172,17 +172,18 @@ public class Tokenizer implements Serializable
                    Set<String> userDefinedTypeStatements,
                    Partitioner partitioner)
         {
-            CqlTable cqlTable = bridge.buildSchema(createStatement,
-                                                   keyspace,
-                                                   RecordWriter.IGNORED_REPLICATION_FACTOR,
-                                                   partitioner,
-                                                   userDefinedTypeStatements);
-            this.partitionKeyColumnNames = cqlTable.partitionKeys()
-                                                   .stream()
-                                                   .map(CqlField::name)
-                                                   .collect(Collectors.toList());
-            this.valueConverter = new CqlWriterValueConverter(cqlTable, bridge, partitioner);
-            this.partitionKeyEncoder = bridge.partitionKeyEncoder(cqlTable, partitioner);
+            WriterTable writerTable = bridge.buildWriterTable(createStatement,
+                                                              keyspace,
+                                                              RecordWriter.IGNORED_REPLICATION_FACTOR,
+                                                              partitioner,
+                                                              userDefinedTypeStatements);
+            this.partitionKeyColumnNames = writerTable.table()
+                                                      .partitionKeys()
+                                                      .stream()
+                                                      .map(CqlField::name)
+                                                      .collect(Collectors.toList());
+            this.valueConverter = new CqlWriterValueConverter(writerTable, bridge.getVersion());
+            this.partitionKeyEncoder = writerTable.partitionKeyEncoder();
         }
 
         ByteBuffer encode(Object[] keyColumns)

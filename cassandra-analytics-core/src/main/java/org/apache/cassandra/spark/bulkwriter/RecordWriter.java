@@ -45,11 +45,11 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.WriterTable;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
-import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.util.ThreadUtil;
@@ -110,13 +110,13 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-        CqlTable cqlTable = writerContext.bridge()
-                                         .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                      writerContext.job().qualifiedTableName().keyspace(),
-                                                      IGNORED_REPLICATION_FACTOR,
-                                                      writerContext.cluster().getPartitioner(),
-                                                      writerContext.schema().getUserDefinedTypeStatements());
-        valueConverter = new CqlWriterValueConverter(cqlTable, writerContext.bridge(), writerContext.cluster().getPartitioner());
+        WriterTable writerTable = writerContext.bridge()
+                                               .buildWriterTable(writerContext.schema().getTableSchema().createStatement,
+                                                                 writerContext.job().qualifiedTableName().keyspace(),
+                                                                 IGNORED_REPLICATION_FACTOR,
+                                                                 writerContext.cluster().getPartitioner(),
+                                                                 writerContext.schema().getUserDefinedTypeStatements());
+        valueConverter = new CqlWriterValueConverter(writerTable, writerContext.bridge().getVersion());
     }
 
     /**

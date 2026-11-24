@@ -207,7 +207,8 @@ class CollectionElementSorterTest
         assertThat(unsorted).containsExactly("p", "a");
         assertThatThrownBy(() -> converter.convert("nested", 1))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Unable to convert a value of java.lang.Integer for column nested");
+        .hasMessageContaining("Unable to convert a value of java.lang.Integer for column nested")
+        .satisfies(exception -> assertThat(exception.getCause().getSuppressed()).hasSize(1));
     }
 
     private static ByteBuffer text(String value)

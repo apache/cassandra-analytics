@@ -28,12 +28,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.cassandra.bridge.CanonicalValueConverter;
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.WriterTable;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -58,15 +57,14 @@ class CqlWriterValueConverter
     private final Map<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
 
     /**
-     * @param cqlTable    table being written, built by {@code bridge}
-     * @param bridge      bridge whose SSTable writer writes the values
-     * @param partitioner partitioner of the cluster being written to
+     * @param writerTable table being written, built by the bridge whose SSTable writer writes the values
+     * @param version     version of that bridge
      */
-    CqlWriterValueConverter(@NotNull CqlTable cqlTable, @NotNull CassandraBridge bridge, @NotNull Partitioner partitioner)
+    CqlWriterValueConverter(@NotNull WriterTable writerTable, @NotNull CassandraVersion version)
     {
-        this.cqlTable = cqlTable;
-        this.version = bridge.getVersion();
-        this.canonicalValueConverter = bridge.canonicalValueConverter(cqlTable, partitioner);
+        this.cqlTable = writerTable.table();
+        this.version = version;
+        this.canonicalValueConverter = writerTable.canonicalValueConverter();
     }
 
     /**
