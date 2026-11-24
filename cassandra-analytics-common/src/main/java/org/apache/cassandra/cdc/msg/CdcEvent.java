@@ -74,6 +74,8 @@ public class CdcEvent
     final TimeToLive timeToLive;
     // Records the tombstoned elements/cells in a complex data
     final Map<String, List<ByteBuffer>> tombstonedCellsInComplex;
+    // Records the fields written by partial updates of non-frozen UDT columns
+    final Map<String, List<String>> updatedUdtFields;
     // Records the range tombstone markers with in the same partition
     final List<RangeTombstone> rangeTombstoneList;
     public final boolean track;
@@ -94,6 +96,7 @@ public class CdcEvent
         this.maxTimestampMicros = builder.maxTimestampMicros;
         this.timeToLive = builder.timeToLive;
         this.tombstonedCellsInComplex = builder.tombstonedCellsInComplex;
+        this.updatedUdtFields = builder.updatedUdtFields;
         this.rangeTombstoneList = builder.rangeTombstoneList;
         this.track = builder.track;
         this.trackingId = builder.trackingId;
@@ -181,6 +184,20 @@ public class CdcEvent
     public Map<String, List<ByteBuffer>> getTombstonedCellsInComplex()
     {
         return tombstonedCellsInComplex;
+    }
+
+    /**
+     * A partial update of a non-frozen UDT, e.g. {@code SET udt.field = value}, writes only some fields; the value of
+     * the column then carries null for the fields that were not written. The map returned contains the fields
+     * written, including the ones set to null, of each such column.
+     *
+     * @return the written fields of partially updated UDT columns. The returned map could be null if the mutation
+     * does not partially update a UDT.
+     */
+    @Nullable
+    public Map<String, List<String>> getUpdatedUdtFields()
+    {
+        return updatedUdtFields;
     }
 
     /**

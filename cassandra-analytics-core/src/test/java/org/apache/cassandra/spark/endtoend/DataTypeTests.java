@@ -602,6 +602,33 @@ public class DataTypeTests
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNonFrozenUdtWithUnsetField(CassandraBridge bridge)
+    {
+        // a non-frozen UDT has no cell for a field that is not set, so the value read has fewer cells than fields
+        CqlField.CqlUdt udt = bridge.udt("keyspace", "udt1")
+                                    .withField("a", bridge.text())
+                                    .withField("b", bridge.aInt())
+                                    .build();
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("a", "text");
+        value.put("b", null);
+        Tester.builder(TestSchema.builder(bridge)
+                                 .withPartitionKey("pk", bridge.uuid())
+                                 .withColumn("c", udt))
+              .dontWriteRandomData()
+              .withSSTableWriter(writer -> writer.write(UUID.randomUUID(), udt.convertForCqlWriter(value, bridge.getVersion(), false)))
+              .withCheck(dataset -> {
+                  List<Row> rows = dataset.collectAsList();
+                  assertThat(rows).hasSize(1);
+                  Row read = rows.get(0).getStruct(1);
+                  assertThat(read.getString(0)).isEqualTo("text");
+                  assertThat(read.isNullAt(1)).isTrue();
+              })
+              .run(bridge.getVersion());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testUdtClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))

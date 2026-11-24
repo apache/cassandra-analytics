@@ -220,6 +220,59 @@ class BulkSparkConfTest
     }
 
     @Test
+    void testSslEnabledWithKeystoreOnly()
+    {
+        assertThat(bulkSparkConf.hasKeystoreAndKeystorePassword()).isTrue();
+        assertThat(bulkSparkConf.hasTruststoreAndTruststorePassword()).isFalse();
+        assertThat(bulkSparkConf.isSslEnabled())
+        .describedAs("A keystore alone enables mutual TLS")
+        .isTrue();
+    }
+
+    @Test
+    void testSslEnabledWithTruststoreOnly()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.KEYSTORE_PATH.name());
+        options.remove(WriterOptions.KEYSTORE_PASSWORD.name());
+        options.put(WriterOptions.TRUSTSTORE_PATH.name(), "dummy_truststore_path");
+        options.put(WriterOptions.TRUSTSTORE_PASSWORD.name(), "dummy_truststore_password");
+
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.hasKeystoreAndKeystorePassword()).isFalse();
+        assertThat(conf.hasTruststoreAndTruststorePassword()).isTrue();
+        assertThat(conf.isSslEnabled())
+        .describedAs("A truststore alone enables one-way TLS, rather than silently degrading to plaintext HTTP")
+        .isTrue();
+    }
+
+    @Test
+    void testSslDisabledWithoutKeystoreOrTruststore()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.KEYSTORE_PATH.name());
+        options.remove(WriterOptions.KEYSTORE_PASSWORD.name());
+
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.hasAnyTruststoreOptions()).isFalse();
+        assertThat(conf.isSslEnabled())
+        .describedAs("With neither store configured, plaintext HTTP is the explicit choice")
+        .isFalse();
+    }
+
+    @Test
+    void testCompleteTruststoreWithoutKeystorePassesValidation()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.KEYSTORE_PATH.name());
+        options.remove(WriterOptions.KEYSTORE_PASSWORD.name());
+        options.put(WriterOptions.TRUSTSTORE_PATH.name(), "dummy_truststore_path");
+        options.put(WriterOptions.TRUSTSTORE_PASSWORD.name(), "dummy_truststore_password");
+
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+    }
+
+    @Test
     void testQuoteIdentifiers()
     {
         assertThat(bulkSparkConf.quoteIdentifiers).isFalse();

@@ -101,4 +101,21 @@ public class AvroSchemaUtilsTest
         // Both overloads must produce identical schemas and therefore the same fingerprint
         assertThat(mergedFromClasspath.toString()).isEqualTo(mergedExplicit.toString());
     }
+
+    /**
+     * Verifies that a table and keyspace whose names are not valid in Avro are escaped, so that callers passing the
+     * CQL names get the same merged schema
+     */
+    @Test
+    public void buildMergedSchemaEscapesCqlNames()
+    {
+        Schema payloadSchema = Schema.createRecord("Payload", null, "test.payload", false);
+        payloadSchema.setFields(Collections.singletonList(
+                new Schema.Field("id", Schema.create(Schema.Type.INT), null)));
+
+        Schema merged = AvroSchemaUtils.buildMergedSchema(payloadSchema, "1table", "test.prefix.1ks");
+
+        assertThat(merged.getFullName()).isEqualTo("test.prefix._u0031ks._u0031table");
+        assertThat(new Schema.Parser().parse(merged.toString()).toString()).isEqualTo(merged.toString());
+    }
 }
