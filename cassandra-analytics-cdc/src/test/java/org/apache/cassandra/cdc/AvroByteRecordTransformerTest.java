@@ -21,6 +21,10 @@ package org.apache.cassandra.cdc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -36,6 +40,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CdcBridgeFactory;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
+import org.apache.cassandra.cdc.api.RangeTombstoneData;
 import org.apache.cassandra.cdc.avro.AvroByteRecordTransformer;
 import org.apache.cassandra.cdc.avro.AvroConstants;
 import org.apache.cassandra.cdc.avro.AvroSchemas;
@@ -172,6 +177,93 @@ public class AvroByteRecordTransformerTest extends CdcTestBase
                 }
                 assertThat(payloadRecord.get("pk")).isNotNull();
             }
+        })
+        .run();
+    }
+
+    /**
+     * The {@code range} field of a {@code DELETE_RANGE} event must describe the deleted VALUE range
+     * regardless of the clustering order.
+     */
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testRangeDeleteAvroEncodingForDescendingClusteringOrder(CassandraVersion version)
+    {
+        AvroSchemas.registerLogicalTypes();
+        CqlToAvroSchemaConverter converter = getConverter(version);
+
+        long lower = 100L;
+        long upper = 200L;
+
+        TestSchema.Builder schemaBuilder = TestSchema.builder(bridge)
+                                                      .withPartitionKey("pk", bridge.uuid())
+                                                      .withClusteringKey("ck", bridge.bigint())
+                                                      .withSortOrder(CqlField.SortOrder.DESC)
+                                                      .withColumn("c1", bridge.text());
+
+        AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
+        .withNumRows(1)
+        .clearWriters()
+        .withWriter((tester, rows, writer) -> {
+            tableRef.set(tester.cqlTable);
+            TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+            testRow.setRangeTombstones(Collections.singletonList(
+            new RangeTombstoneData(new RangeTombstoneData.Bound(new Object[]{upper}, false),
+                                   new RangeTombstoneData.Bound(new Object[]{lower}, true))));
+            writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
+        })
+        .withCdcEventChecker((testRows, events) -> {
+            assertThat(events).hasSize(1);
+            CdcEvent event = events.get(0);
+            assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.RANGE_DELETE);
+
+            TestSchemaStore schemaStore = new TestSchemaStore();
+            AvroByteRecordTransformer transformer = buildTransformer(converter, tableRef.get(), schemaStore);
+            String namespace = tableRef.get().keyspace() + "." + tableRef.get().table();
+            GenericDatumReader<GenericRecord> reader = schemaStore.getReader(namespace, null);
+
+            GenericData.Record record = transformer.transform(event);
+            Object payloadObj = record.get(AvroConstants.PAYLOAD_KEY);
+            assertThat(payloadObj).isInstanceOf(ByteBuffer.class);
+
+            GenericRecord payloadRecord;
+            try
+            {
+                payloadRecord = deserializePayload((ByteBuffer) payloadObj, reader);
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException("Failed to deserialize payload", e);
+            }
+            assertThat(payloadRecord.get("pk")).isNotNull();
+
+            @SuppressWarnings("unchecked")
+            List<GenericRecord> rangePredicates = (List<GenericRecord>) record.get(AvroConstants.RANGE_KEY);
+            assertThat(rangePredicates).as("range predicates should be published for a range deletion").isNotNull();
+
+            Map<String, Long> valueByOperator = new HashMap<>();
+            for (GenericRecord predicate : rangePredicates)
+            {
+                assertThat(predicate.get(AvroConstants.FIELD_KEY).toString()).isEqualTo("ck");
+                String operator = predicate.get(AvroConstants.RANGE_PREDICATE_KEY).toString();
+                ByteBuffer valueBytes = (ByteBuffer) predicate.get(AvroConstants.VALUE_KEY);
+                try
+                {
+                    GenericRecord decodedValue = deserializePayload(valueBytes, reader);
+                    valueByOperator.put(operator, (Long) decodedValue.get("ck"));
+                }
+                catch (IOException e)
+                {
+                    throw new RuntimeException("Failed to decode range predicate value", e);
+                }
+            }
+
+            assertThat(valueByOperator)
+                .as("range predicates should describe the deleted VALUE range [%d, %d), not storage order",
+                    lower, upper)
+                .containsEntry("GTE", lower)
+                .containsEntry("LT", upper);
         })
         .run();
     }
