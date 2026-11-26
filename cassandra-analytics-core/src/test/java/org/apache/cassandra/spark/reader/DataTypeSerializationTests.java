@@ -541,6 +541,58 @@ public class DataTypeSerializationTests
                 }));
     }
 
+    @Test
+    public void testEmptyTupleFieldsAreNotNull()
+    {
+        runTest((partitioner, directory, bridge) -> {
+            CqlField.CqlTuple tuple = bridge.tuple(bridge.text(), bridge.blob(), bridge.text(), bridge.text());
+            Object[] actual = tuple.deserializeTuple(emptyAndNullCompositeFields(false), false);
+
+            assertThat(actual[0]).isEqualTo("");
+            assertThat(((ByteBuffer) actual[1]).remaining()).isZero();
+            assertThat(actual[2]).isNull();
+            assertThat(actual[3]).isEqualTo("x");
+        });
+    }
+
+    @Test
+    public void testEmptyUdtFieldsAreNotNull()
+    {
+        runTest((partitioner, directory, bridge) -> {
+            CqlField.CqlUdt udt = bridge.udt("keyspace", "empty_fields")
+                                        .withField("text_value", bridge.text())
+                                        .withField("blob_value", bridge.blob())
+                                        .withField("null_value", bridge.text())
+                                        .withField("tail_value", bridge.text())
+                                        .build();
+
+            for (boolean isFrozen : new boolean[]{true, false})
+            {
+                Map<String, Object> actual = udt.deserializeUdt(getSparkSql(bridge),
+                                                                emptyAndNullCompositeFields(!isFrozen), isFrozen);
+                assertThat(actual.get("text_value")).isEqualTo(UTF8String.fromString(""));
+                assertThat((byte[]) actual.get("blob_value")).isEmpty();
+                assertThat(actual.get("null_value")).isNull();
+                assertThat(actual.get("tail_value")).isEqualTo(UTF8String.fromString("x"));
+            }
+        });
+    }
+
+    private static ByteBuffer emptyAndNullCompositeFields(boolean includeFieldCount)
+    {
+        ByteBuffer buffer = ByteBuffer.allocate((includeFieldCount ? Integer.BYTES : 0) + 4 * Integer.BYTES + 1);
+        if (includeFieldCount)
+        {
+            buffer.putInt(4);
+        }
+        buffer.putInt(0); // empty text
+        buffer.putInt(0); // empty blob
+        buffer.putInt(-1); // NULL text
+        buffer.putInt(1).put((byte) 'x'); // non-empty trailing text
+        buffer.flip();
+        return buffer;
+    }
+
     // test utilities
 
     static Object toInt(CassandraBridge bridge, Object value)
