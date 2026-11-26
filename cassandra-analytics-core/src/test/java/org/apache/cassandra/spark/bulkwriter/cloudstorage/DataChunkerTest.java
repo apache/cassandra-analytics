@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -33,6 +34,10 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class DataChunkerTest
 {
@@ -46,6 +51,33 @@ public class DataChunkerTest
     public void testChunksGeneratedWithSmallerLastChunk() throws IOException
     {
         testChunking(513, 4, 513 / 4 + 1);
+    }
+
+    @Test
+    public void testReadFailureBeforeFirstChunk() throws IOException
+    {
+        ReadableByteChannel channel = mock(ReadableByteChannel.class);
+        IOException failure = new IOException("Simulated read failure");
+        when(channel.read(any(ByteBuffer.class))).thenThrow(failure);
+        Iterator<ByteBuffer> chunks = new DataChunker(4, false).chunks(channel);
+        assertThatThrownBy(chunks::hasNext).isInstanceOf(UncheckedIOException.class).hasCause(failure);
+    }
+
+    @Test
+    public void testReadFailureAfterFirstChunk() throws IOException
+    {
+        ReadableByteChannel channel = mock(ReadableByteChannel.class);
+        IOException failure = new IOException("Simulated read failure");
+        when(channel.read(any(ByteBuffer.class))).thenAnswer(invocation -> {
+            ByteBuffer buffer = invocation.getArgument(0);
+            buffer.putInt(13);
+            return Integer.BYTES;
+        }).thenThrow(failure);
+
+        Iterator<ByteBuffer> chunks = new DataChunker(4, false).chunks(channel);
+        assertThat(chunks.hasNext()).isTrue();
+        assertThat(chunks.next().getInt()).isEqualTo(13);
+        assertThatThrownBy(chunks::hasNext).isInstanceOf(UncheckedIOException.class).hasCause(failure);
     }
 
     private void testChunking(int totalSize, int chunkSize, int expectedChunks) throws IOException

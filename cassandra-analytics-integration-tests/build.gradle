@@ -130,6 +130,7 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
     // container test does not run on java 8
     if ("true" == System.getenv("skipContainerTest") || JavaVersion.current().isJava8()) {
         task.exclude("**/testcontainer/**")
+        task.exclude("**/StorageClientS3MockTest.class")
     }
 
     task.useJUnitPlatform()
