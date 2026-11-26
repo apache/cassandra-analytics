@@ -60,7 +60,7 @@ class SidecarInstanceFactoryTest
         // ipv6 with port and id
         assertSidecarInstance(SidecarInstanceFactory.createFromString("[2024:a::1]:8888=7", 9999),
                               "[2024:a::1]", 8888, 7);
-        // no id: instanceId is null (falls back to the job-level value)
+        // no id: instanceId is null (no instanceId query parameter is sent)
         assertSidecarInstance(SidecarInstanceFactory.createFromString("localhost:8888", 9999),
                               "localhost", 8888, null);
     }

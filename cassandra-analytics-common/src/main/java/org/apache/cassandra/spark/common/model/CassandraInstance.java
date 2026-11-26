@@ -62,8 +62,8 @@ public interface CassandraInstance extends TokenOwner
      *
      * <p>This is only meaningful when a single Sidecar endpoint (for example, one fronted by a load balancer)
      * fronts more than one Cassandra instance: the id disambiguates which local instance a request targets,
-     * since the endpoint alone (hostname/Host header) cannot. When {@code null}, callers fall back to a
-     * job-level default, if any.
+     * since the endpoint alone (hostname/Host header) cannot. When {@code null}, no {@code instanceId} is sent
+     * and Sidecar resolves the instance from the {@code Host} header.
      *
      * @return the per-instance Sidecar routing id, or {@code null} when not set
      */

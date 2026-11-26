@@ -30,10 +30,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -492,13 +494,14 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         // conf.coordinatedWriteConf().cluster(clusterId).sidecarContactPoints() for a coordinated-write job).
         // Deriving this from conf.sidecarContactPoints() directly would silently miss (or NPE on) coordinated
         // writes, since their contact points don't live there.
-        Map<String, Integer> instanceIdsByHostname = sidecarInstanceIdsByHostname(getCassandraContext().getCluster());
-        TokenRangeMapping<RingInstance> topology =
-        TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
-                                 this::getPartitioner,
-                                 metadata -> new RingInstance(metadata, clusterId(),
-                                                              resolveSidecarInstanceId(metadata, instanceIdsByHostname)));
-        return topology;
+        // Built lazily: only consulted for replicas that Sidecar did not report an id for.
+        AtomicReference<Map<String, Set<Integer>>> staticIds = new AtomicReference<>();
+        Supplier<Map<String, Set<Integer>>> staticIdsByHostname =
+        () -> staticIds.updateAndGet(ids -> ids != null ? ids : sidecarInstanceIdsByHostname(getCassandraContext().getCluster()));
+        return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
+                                        this::getPartitioner,
+                                        metadata -> new RingInstance(metadata, clusterId(),
+                                                                     resolveSidecarInstanceId(metadata, staticIdsByHostname)));
     }
 
     /**
@@ -507,40 +510,66 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      * own local instance configuration keyed by the replica's address. Falls back to the statically-configured
      * {@code host[:port]=<id>} contact-point lookup only when talking to an older Sidecar that does not yet
      * populate the field, in which case the {@link #sidecarInstanceIdsByHostname} limitations apply (see below).
+     * The fallback lookup is only requested from {@code staticIdsByHostname} when it is actually needed.
      *
-     * @param metadata the replica metadata returned by Sidecar for a ring entry
-     * @param instanceIdsByHostname the static fallback lookup built by {@link #sidecarInstanceIdsByHostname}
+     * @param metadata            the replica metadata returned by Sidecar for a ring entry
+     * @param staticIdsByHostname supplies the static fallback lookup built by {@link #sidecarInstanceIdsByHostname}
      * @return the resolved Sidecar instance id, or {@code null} when neither source resolves one
+     * @throws IllegalStateException when the fallback is needed but the replica's hostname is configured with
+     *                               more than one id, so the target instance cannot be determined
      */
     @VisibleForTesting
-    static Integer resolveSidecarInstanceId(ReplicaMetadata metadata, Map<String, Integer> instanceIdsByHostname)
+    @Nullable
+    static Integer resolveSidecarInstanceId(ReplicaMetadata metadata,
+                                            Supplier<Map<String, Set<Integer>>> staticIdsByHostname)
     {
         Integer dynamicId = metadata.sidecarInstanceId();
-        return dynamicId != null ? dynamicId : instanceIdsByHostname.get(metadata.fqdn());
+        if (dynamicId != null)
+        {
+            return dynamicId;
+        }
+
+        Set<Integer> staticIds = staticIdsByHostname.get().get(metadata.fqdn());
+        if (staticIds == null)
+        {
+            return null;
+        }
+        if (staticIds.size() > 1)
+        {
+            throw new IllegalStateException(String.format(
+            "Unable to resolve the Sidecar instanceId for replica '%s': Sidecar did not report a sidecarInstanceId "
+            + "and the contact points configure multiple ids %s for that hostname. Upgrade Sidecar to a version "
+            + "that reports sidecarInstanceId (CASSSIDECAR-495), or configure a single id per hostname.",
+            metadata.fqdn(), staticIds));
+        }
+        return staticIds.iterator().next();
     }
 
     /**
-     * Builds a hostname (nodeName/fqdn) to per-instance Sidecar routing id lookup from the given contact points,
+     * Builds a hostname (nodeName/fqdn) to per-instance Sidecar routing ids lookup from the given contact points,
      * e.g. ones declared as {@code "host:port=<id>"} (see {@link SidecarInstanceFactory#createFromString}).
      *
      * <p>This is only used as a fallback (see {@link #resolveSidecarInstanceId}) when Sidecar does not report a
-     * per-replica id itself. As a static, address-keyed lookup it has real limitations: it can only represent a
-     * 1:1 Sidecar-to-instance topology, where every instance has its own distinct address. If two or more
-     * instances share the same address with different ids configured, building this map throws
-     * {@code IllegalStateException: Duplicate key} — it cannot express that topology at all. The address must
-     * also match exactly (IP vs hostname, case) what the ring reports for that instance ({@code
-     * ReplicaMetadata#fqdn()}); a mismatch silently drops the configured id rather than resolving it. None of
-     * this applies when Sidecar reports the id dynamically, since that is resolved server-side per instance.
+     * per-replica id itself. As a static, address-keyed lookup it has real limitations: it can only resolve a
+     * 1:1 Sidecar-to-instance topology, where every instance has its own distinct address. Several ids configured
+     * for the same address (e.g. multiple instances behind one load balancer) are all retained here, and only
+     * rejected by {@link #resolveSidecarInstanceId} if a replica actually needs the fallback for that address.
+     * The address must also match exactly (IP vs hostname, case) what the ring reports for that instance
+     * ({@code ReplicaMetadata#fqdn()}); a mismatch silently drops the configured id rather than resolving it.
+     * None of this applies when Sidecar reports the id dynamically, since that is resolved server-side per instance.
      *
      * @param contactPoints the Sidecar contact points in effect for this cluster
-     * @return a map of hostname to configured Sidecar instance id; entries with no configured id are omitted
+     * @return a map of hostname to the distinct Sidecar instance ids configured for it; contact points with no
+     * configured id are omitted
      */
     @VisibleForTesting
-    static Map<String, Integer> sidecarInstanceIdsByHostname(Set<SidecarInstance> contactPoints)
+    static Map<String, Set<Integer>> sidecarInstanceIdsByHostname(Set<SidecarInstance> contactPoints)
     {
         return contactPoints.stream()
                             .filter(instance -> instance.instanceId() != null)
-                            .collect(Collectors.toMap(SidecarInstance::hostname, SidecarInstance::instanceId));
+                            .collect(Collectors.groupingBy(SidecarInstance::hostname,
+                                                           Collectors.mapping(SidecarInstance::instanceId,
+                                                                              Collectors.toCollection(TreeSet::new))));
     }
 
     public String getVersionFromFeature()

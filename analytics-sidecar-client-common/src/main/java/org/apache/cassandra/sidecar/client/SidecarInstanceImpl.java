@@ -31,7 +31,7 @@ public class SidecarInstanceImpl implements SidecarInstance
 
     /**
      * Constructs a new Sidecar instance with the given {@code port} and {@code hostname} and no
-     * per-instance identifier (requests fall back to the job-level {@code instanceId}, if any).
+     * per-instance identifier (no {@code instanceId} query parameter is sent).
      *
      * @param hostname the host name where Sidecar is running
      * @param port     the port where Sidecar is running
@@ -48,8 +48,8 @@ public class SidecarInstanceImpl implements SidecarInstance
      * @param hostname   the host name where Sidecar is running
      * @param port       the port where Sidecar is running
      * @param instanceId the identifier of the Cassandra instance that requests sent to this Sidecar
-     *                   endpoint should be routed to, or {@code null} to fall back to the job-level
-     *                   {@code instanceId}
+     *                   endpoint should be routed to, or {@code null} to omit the {@code instanceId}
+     *                   query parameter
      */
     public SidecarInstanceImpl(String hostname, int port, Integer instanceId)
     {

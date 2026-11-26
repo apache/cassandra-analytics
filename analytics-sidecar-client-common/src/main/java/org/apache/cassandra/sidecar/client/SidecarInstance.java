@@ -40,7 +40,7 @@ public interface SidecarInstance
      * <p>When non-null, this value is used to populate the {@code instanceId} query parameter on outbound
      * requests so the Sidecar can resolve the correct local Cassandra instance even when a shared address
      * (for example a load balancer) hides the real target from the {@code Host} header. When {@code null},
-     * the client falls back to the job-level {@code instanceId} configured on the HTTP client, if any.
+     * the query parameter is omitted and Sidecar resolves the instance from the {@code Host} header.
      *
      * @return the per-instance identifier, or {@code null} when not set
      */

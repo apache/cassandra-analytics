@@ -25,8 +25,8 @@ public final class SidecarQueryParamNames
 {
     /**
      * {@code "instanceId"} query parameter. When present on an outbound sidecar request it carries
-     * the job-level instance identifier supplied by the client (see the Spark conf key
-     * {@code spark.cassandra_analytics.sidecar.instance.id}).
+     * the identifier of the specific Cassandra instance the request targets (see
+     * {@code SidecarInstance#instanceId()}).
      *
      * <p>Requires a Sidecar server &gt;= 0.2.0 (see {@code AbstractHandler#host}, introduced in
      * CASSSIDECAR-208); older servers do not resolve this parameter and requests will fall back to
