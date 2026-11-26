@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Iterator;
@@ -81,7 +82,7 @@ public class DataChunker
                 }
                 catch (IOException e)
                 {
-                    eosReached = true;
+                    throw new UncheckedIOException(e);
                 }
                 return !eosReached;
             }

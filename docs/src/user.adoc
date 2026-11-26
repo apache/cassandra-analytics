@@ -460,6 +460,23 @@ bucket, region, and credentials. This maps to the following topology:
 For a single-cluster write, write and read buckets may be the same bucket in the same region, or different buckets
 when Sidecar should read from a regional replica.
 
+=== S3 Multipart Upload Permissions
+
+The credentials used by Spark executors to upload SSTable bundles to the write bucket must allow
+the following S3 actions:
+
+* `s3:PutObject` - initiate, upload parts, and complete multipart uploads.
+* `s3:AbortMultipartUpload` - abort failed multipart uploads.
+* `s3:ListMultipartUploadParts` - verify that all uploaded parts have been removed after aborting an upload.
+
+Above permissions apply to both - static and IAM credential types and should be scoped to the configured
+write bucket and object prefix.
+
+It is also recommended to configure an S3 lifecycle rule with the
+https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html[`AbortIncompleteMultipartUpload`]
+action to clean up incomplete uploads when executor termination or connectivity issues prevent
+application-level cleanup.
+
 === Implementing StorageTransportExtension
 
 The `StorageTransportExtension` interface is the integration point where bucket names, regions, and credentials

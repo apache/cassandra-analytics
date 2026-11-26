@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -32,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -40,6 +42,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -53,12 +58,16 @@ import software.amazon.awssdk.http.nio.netty.ProxyConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.ListPartsRequest;
+import software.amazon.awssdk.services.s3.model.ListPartsResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchUploadException;
 import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.Tagging;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
@@ -71,6 +80,9 @@ import software.amazon.awssdk.utils.ThreadFactoryBuilder;
 public class StorageClient implements AutoCloseable
 {
     public static final char SEPARATOR = '/';
+    private static final int ABORT_MAX_ATTEMPTS = 3;
+    private static final int ABORT_RETRY_DELAY_MS = 1000;
+
     private final StorageTransportConfiguration storageTransportConfiguration;
     private final DataChunker dataChunker;
     private final Tagging tagging;
@@ -80,7 +92,33 @@ public class StorageClient implements AutoCloseable
     public StorageClient(StorageTransportConfiguration storageTransportConfiguration,
                          StorageClientConfig storageClientConfig)
     {
+        this(storageTransportConfiguration, new DataChunker(storageClientConfig.maxChunkSizeInBytes),
+             createClient(storageTransportConfiguration, storageClientConfig));
+    }
+
+    @VisibleForTesting
+    StorageClient(StorageTransportConfiguration storageTransportConfiguration,
+                  DataChunker dataChunker,
+                  S3AsyncClient client)
+    {
         this.storageTransportConfiguration = storageTransportConfiguration;
+        this.client = client;
+        this.dataChunker = dataChunker;
+        List<Tag> tags = this.storageTransportConfiguration.getObjectTags()
+                                                           .entrySet()
+                                                           .stream()
+                                                           .map(entry -> Tag.builder()
+                                                                            .key(entry.getKey())
+                                                                            .value(entry.getValue())
+                                                                            .build())
+                                                           .collect(Collectors.toList());
+        this.tagging = Tagging.builder().tagSet(tags).build();
+        this.credentialsCache = new ConcurrentHashMap<>();
+    }
+
+    private static S3AsyncClient createClient(StorageTransportConfiguration storageTransportConfiguration,
+                                              StorageClientConfig storageClientConfig)
+    {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(storageClientConfig.concurrency, // core
                                                              storageClientConfig.concurrency, // max
                                                              // keep alive
@@ -119,18 +157,7 @@ public class StorageClient implements AutoCloseable
                                                             .maxConcurrency(storageClientConfig.nioHttpClientMaxConcurrency)
                                                             .build());
         }
-        this.client = clientBuilder.build();
-        this.dataChunker = new DataChunker(storageClientConfig.maxChunkSizeInBytes);
-        List<Tag> tags = this.storageTransportConfiguration.getObjectTags()
-                                                           .entrySet()
-                                                           .stream()
-                                                           .map(entry -> Tag.builder()
-                                                                            .key(entry.getKey())
-                                                                            .value(entry.getValue())
-                                                                            .build())
-                                                           .collect(Collectors.toList());
-        this.tagging = Tagging.builder().tagSet(tags).build();
-        this.credentialsCache = new ConcurrentHashMap<>();
+        return clientBuilder.build();
     }
 
     /**
@@ -163,26 +190,99 @@ public class StorageClient implements AutoCloseable
         CreateMultipartUploadResponse multipartUploadResponse = client.createMultipartUpload(multipartUploadRequest).get();
         String uploadId = multipartUploadResponse.uploadId();
 
-        List<CompletedPart> completedParts = uploadPartsOfBundle(key, uploadId, auth, bundle);
+        CompleteMultipartUploadResponse completeMultipartUploadResponse;
+        try
+        {
+            List<CompletedPart> completedParts = uploadPartsOfBundle(key, uploadId, auth, bundle);
+            // tell s3 to merge all completed parts by making the CompleteMultipartUploadRequest
+            CompletedMultipartUpload completedUpload = CompletedMultipartUpload.builder()
+                                                                               .parts(completedParts)
+                                                                               .build();
+            CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
+                                                                                                          .overrideConfiguration(credentialsOverride(auth))
+                                                                                                          .bucket(bucket)
+                                                                                                          .key(key)
+                                                                                                          .uploadId(uploadId)
+                                                                                                          .multipartUpload(completedUpload)
+                                                                                                          .build();
+            completeMultipartUploadResponse = client.completeMultipartUpload(completeMultipartUploadRequest).get();
+        }
+        catch (IOException | ExecutionException | InterruptedException | RuntimeException failure)
+        {
+            try
+            {
+                AbortMultipartUploadRequest abortRequest = AbortMultipartUploadRequest.builder()
+                                                                                      .overrideConfiguration(credentialsOverride(auth))
+                                                                                      .bucket(bucket)
+                                                                                      .key(key)
+                                                                                      .uploadId(uploadId)
+                                                                                      .build();
+                abortMultipartUpload(abortRequest);
+            }
+            catch (RuntimeException abortFailure)
+            {
+                if (failure != abortFailure)
+                {
+                    failure.addSuppressed(abortFailure);
+                }
+            }
+            finally
+            {
+                if (failure instanceof InterruptedException)
+                {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            throw failure;
+        }
 
-        // tell s3 to merge all completed parts by making the CompleteMultipartUploadRequest
-        CompletedMultipartUpload completedUpload = CompletedMultipartUpload.builder()
-                                                                           .parts(completedParts)
-                                                                           .build();
-
-        CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
-                                                                                                      .overrideConfiguration(credentialsOverride(auth))
-                                                                                                      .bucket(bucket)
-                                                                                                      .key(key)
-                                                                                                      .uploadId(uploadId)
-                                                                                                      .multipartUpload(completedUpload)
-                                                                                                      .build();
-        CompleteMultipartUploadResponse completeMultipartUploadResponse = client.completeMultipartUpload(completeMultipartUploadRequest).get();
         return BundleStorageObject.builder()
                                   .bundle(bundle)
                                   .storageObjectKey(key)
                                   .storageObjectChecksum(completeMultipartUploadResponse.eTag())
                                   .build();
+    }
+
+    private void abortMultipartUpload(AbortMultipartUploadRequest abortRequest)
+    {
+        ListPartsRequest listRequest = ListPartsRequest.builder()
+                                                       .bucket(abortRequest.bucket())
+                                                       .key(abortRequest.key())
+                                                       .uploadId(abortRequest.uploadId())
+                                                       .overrideConfiguration(abortRequest.overrideConfiguration().orElse(null))
+                                                       .maxParts(1)
+                                                       .build();
+
+        for (int attempt = 0; attempt < ABORT_MAX_ATTEMPTS; attempt++)
+        {
+            try
+            {
+                client.abortMultipartUpload(abortRequest).join();
+                // Quote from AWS S3 AbortMultipartUpload documentation:
+                // To verify that all parts have been removed and prevent getting charged for the part storage,
+                // you should call the ListParts API operation and ensure that the parts list is empty.
+                ListPartsResponse response = client.listParts(listRequest).join();
+                if (response.parts().isEmpty() && !Boolean.TRUE.equals(response.isTruncated()))
+                {
+                    return;
+                }
+                if (attempt + 1 < ABORT_MAX_ATTEMPTS)
+                {
+                    Uninterruptibles.sleepUninterruptibly(ABORT_RETRY_DELAY_MS, TimeUnit.MILLISECONDS);
+                }
+            }
+            catch (CompletionException e)
+            {
+                if (e.getCause() instanceof NoSuchUploadException)
+                {
+                    return;
+                }
+                throw e;
+            }
+        }
+
+        throw new IllegalStateException(String.format("Failed to remove all parts of multipart upload %s after %d attempts",
+                                                      abortRequest.uploadId(), ABORT_MAX_ATTEMPTS));
     }
 
     @Override
@@ -200,42 +300,62 @@ public class StorageClient implements AutoCloseable
     throws IOException, ExecutionException, InterruptedException
     {
         List<CompletableFuture<CompletedPart>> futures = new ArrayList<>();
-        String bucket = storageTransportConfiguration.writeAccessConfiguration().bucket();
-        // upload the zip file using multipart upload
-        // todo: use the simple upload when the zip file is small
-        try (ReadableByteChannel channel = Channels.newChannel(Files.newInputStream(bundle.bundleFile)))
+        try
         {
-            Iterator<ByteBuffer> chunks = dataChunker.chunks(channel);
-            // part number must start from 1 and not exceed 10,000.
-            // See https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuchecksums
-            int partNumber = 1;
-            while (chunks.hasNext())
+            long uploadedBytes = 0;
+            String bucket = storageTransportConfiguration.writeAccessConfiguration().bucket();
+            // upload the zip file using multipart upload
+            // todo: use the simple upload when the zip file is small
+            try (ReadableByteChannel channel = Channels.newChannel(Files.newInputStream(bundle.bundleFile)))
             {
-                int loopPartNumber = partNumber;
-                ByteBuffer buffer = chunks.next();
-                // get a copy of the remaining ByteBuffer; for the last chunk, the cloned ByteBuffer is resized accordingly.
-                AsyncRequestBody body = AsyncRequestBody.fromRemainingByteBuffer(buffer);
-                UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
-                                                                       .overrideConfiguration(credentialsOverride(auth))
-                                                                       .bucket(bucket)
-                                                                       .key(key)
-                                                                       .uploadId(uploadId)
-                                                                       .partNumber(loopPartNumber)
-                                                                       .build();
-
-                Function<UploadPartResponse, CompletedPart> buildPart = r -> CompletedPart.builder()
-                                                                                          .partNumber(loopPartNumber)
-                                                                                          .eTag(r.eTag())
-                                                                                          .build();
-                CompletableFuture<CompletedPart> completedPart = client.uploadPart(uploadPartRequest, body)
-                                                                       .thenApply(buildPart);
-                futures.add(completedPart);
-                partNumber++;
+                Iterator<ByteBuffer> chunks = dataChunker.chunks(channel);
+                // part number must start from 1 and not exceed 10,000.
+                // See https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuchecksums
+                int partNumber = 1;
+                while (chunks.hasNext())
+                {
+                    int loopPartNumber = partNumber;
+                    ByteBuffer buffer = chunks.next();
+                    uploadedBytes += buffer.remaining();
+                    // get a copy of the remaining ByteBuffer; for the last chunk, the cloned ByteBuffer is resized accordingly.
+                    AsyncRequestBody body = AsyncRequestBody.fromRemainingByteBuffer(buffer);
+                    UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
+                                                                           .overrideConfiguration(credentialsOverride(auth))
+                                                                           .bucket(bucket)
+                                                                           .key(key)
+                                                                           .uploadId(uploadId)
+                                                                           .partNumber(loopPartNumber)
+                                                                           .build();
+                    Function<UploadPartResponse, CompletedPart> buildPart = r -> CompletedPart.builder()
+                                                                                              .partNumber(loopPartNumber)
+                                                                                              .eTag(r.eTag())
+                                                                                              .build();
+                    CompletableFuture<CompletedPart> completedPart = client.uploadPart(uploadPartRequest, body)
+                                                                           .thenApply(buildPart);
+                    futures.add(completedPart);
+                    partNumber++;
+                }
             }
+            catch (UncheckedIOException e)
+            {
+                throw new IOException("Failed to read bundle: " + bundle.bundleFile, e);
+            }
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(); // exit/throw early from here
+            if (uploadedBytes != bundle.bundleCompressedSize)
+            {
+                throw new IOException(String.format("Bundle %s size mismatch: expected %d bytes, uploaded %d bytes",
+                                                    bundle.bundleFile, bundle.bundleCompressedSize, uploadedBytes));
+            }
+            return futures.stream().map(CompletableFuture::join).collect(Collectors.toList()); // collect in the correct sequence
         }
-
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();          // exit/throw early from here
-        return futures.stream().map(CompletableFuture::join).collect(Collectors.toList()); // or collect in the correct sequence
+        finally
+        {
+            // if an error was thrown in try-catch block, still wait for all submitted
+            // requests to complete before eventual aborting the whole upload
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                             .handle((ignored, failure) -> null)
+                             .join();
+        }
     }
 
     private String calculateStorageKeyForBundle(String prefix, Path bundleLocation)
