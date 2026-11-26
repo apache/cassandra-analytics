@@ -178,14 +178,40 @@ public class RingInstanceTest
     {
         RingEntry ringEntry = mockRingEntry();
         RingInstance instanceWithoutClusterId = new RingInstance(ringEntry);
-        assertThat(instanceWithoutClusterId.toString()).isEqualTo("RingInstance{cluster='null', " +
+        assertThat(instanceWithoutClusterId.toString()).isEqualTo("RingInstance{cluster='null', sidecarInstanceId=null, " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
                      "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}");
 
         RingInstance instanceWithClusterId = new RingInstance(ringEntry, "clusterId");
-        assertThat(instanceWithClusterId.toString()).isEqualTo("RingInstance{cluster='clusterId', " +
+        assertThat(instanceWithClusterId.toString()).isEqualTo("RingInstance{cluster='clusterId', sidecarInstanceId=null, " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
                      "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}");
+    }
+
+    @Test
+    public void testSidecarInstanceIdDefaultsToNull()
+    {
+        RingInstance instance = new RingInstance(mockRingEntry());
+        assertThat(instance.sidecarInstanceId()).isNull();
+    }
+
+    @Test
+    public void testSidecarInstanceIdIsRetained()
+    {
+        RingInstance instance = new RingInstance(mockRingEntry(), null, 2);
+        assertThat(instance.sidecarInstanceId()).isEqualTo(2);
+    }
+
+    @Test
+    public void testEqualsAndHashcodeIgnoreSidecarInstanceId()
+    {
+        RingEntry ringEntry = mockRingEntry();
+        RingInstance instanceWithId = new RingInstance(ringEntry, null, 1);
+        RingInstance instanceWithDifferentId = new RingInstance(ringEntry, null, 2);
+        RingInstance instanceWithoutId = new RingInstance(ringEntry);
+
+        assertThat(instanceWithId).isEqualTo(instanceWithDifferentId).isEqualTo(instanceWithoutId);
+        assertThat(instanceWithId.hashCode()).isEqualTo(instanceWithDifferentId.hashCode()).isEqualTo(instanceWithoutId.hashCode());
     }
 
 
